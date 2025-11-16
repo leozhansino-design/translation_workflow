@@ -297,6 +297,19 @@ class TranslatorApp:
         )
         self.progress_label.pack(pady=5)
 
+        # 查看Prompts按钮
+        tk.Button(
+            status_frame,
+            text="🔍 查看Prompts",
+            command=self.show_prompts,
+            bg="#3498db",
+            fg="white",
+            relief=tk.FLAT,
+            padx=15,
+            pady=5,
+            font=("Arial", 9)
+        ).pack(pady=5)
+
         # ========== 日志区 ==========
         log_frame = tk.LabelFrame(self.window, text="实时日志", padx=10, pady=10)
         log_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
@@ -723,6 +736,9 @@ class TranslatorApp:
                     result = future.result()
                     if result['success']:
                         self.completed_count += 1
+                        # 保存prompt到translation_results
+                        if result['title'] in self.translation_results:
+                            self.translation_results[result['title']]['prompt'] = result.get('prompt', '')
                         self.log(f"任务完成 ({self.completed_count}/{len(self.files)})")
                 except Exception as e:
                     self.log(f"任务执行异常: {str(e)}", "ERROR")
@@ -735,13 +751,14 @@ class TranslatorApp:
             self.window.after(0, lambda: messagebox.showerror("错误", f"翻译失败: {str(e)}"))
             self.window.after(0, self.reset_ui)
 
-    def update_status(self, title: str, status: str, elapsed: float, cost: float):
+    def update_status(self, title: str, status: str, elapsed: float, cost: float, prompt: str = ""):
         """更新状态"""
         def _update():
             self.translation_results[title] = {
                 'status': status,
                 'time': elapsed,
-                'cost': cost
+                'cost': cost,
+                'prompt': prompt
             }
             self.refresh_status_display()
 
@@ -904,6 +921,84 @@ class TranslatorApp:
         except Exception as e:
             messagebox.showerror("错误", f"导出失败: {str(e)}")
 
+    def show_prompts(self):
+        """显示当前翻译任务的Prompts"""
+        self.log("打开Prompts查看窗口...")
+        try:
+            if not self.translation_results:
+                messagebox.showinfo("提示", "暂无翻译任务")
+                return
+
+            # 创建Prompts窗口
+            prompts_window = tk.Toplevel(self.window)
+            prompts_window.title("🔍 Translation Prompts")
+            prompts_window.geometry("900x700")
+
+            tk.Label(
+                prompts_window,
+                text="翻译任务Prompts",
+                font=("Arial", 14, "bold")
+            ).pack(pady=10)
+
+            # Notebook
+            notebook = ttk.Notebook(prompts_window)
+            notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+            # 为每个任务创建标签页
+            for title, info in self.translation_results.items():
+                prompt = info.get('prompt', 'No prompt available')
+                status = info.get('status', 'Unknown')
+
+                # 创建标签页
+                tab = tk.Frame(notebook)
+                notebook.add(tab, text=f"{title[:30]}...")
+
+                # 标题和状态
+                header_frame = tk.Frame(tab)
+                header_frame.pack(fill=tk.X, padx=10, pady=10)
+
+                tk.Label(
+                    header_frame,
+                    text=f"📖 {title}",
+                    font=("Arial", 11, "bold")
+                ).pack(anchor=tk.W)
+
+                tk.Label(
+                    header_frame,
+                    text=f"状态: {status}",
+                    font=("Arial", 9),
+                    fg="green" if status == "完成" else "orange"
+                ).pack(anchor=tk.W)
+
+                # Prompt内容
+                prompt_text = scrolledtext.ScrolledText(
+                    tab,
+                    font=("Consolas", 9),
+                    wrap=tk.WORD,
+                    bg="#f8f9fa"
+                )
+                prompt_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+                prompt_text.insert(1.0, prompt)
+                prompt_text.config(state=tk.DISABLED)
+
+            # 关闭按钮
+            tk.Button(
+                prompts_window,
+                text="关闭",
+                command=prompts_window.destroy,
+                bg="#95a5a6",
+                fg="white",
+                relief=tk.FLAT,
+                padx=20,
+                pady=5
+            ).pack(pady=10)
+
+            self.log("Prompts窗口已打开", "SUCCESS")
+
+        except Exception as e:
+            self.log(f"打开Prompts窗口失败: {str(e)}", "ERROR")
+            messagebox.showerror("错误", f"打开Prompts失败: {str(e)}")
+
     def show_history(self):
         """显示历史记录"""
         summary = self.config_mgr.load_summary()
@@ -929,7 +1024,7 @@ class TranslatorApp:
         scrollbar = tk.Scrollbar(tree_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        columns = ('日期', '原书名', '类型', '风格', '字数', '耗时(秒)', '成本($)')
+        columns = ('日期', '原书名', '类型', '风格', '字数', '耗时(秒)', '成本($)', 'Prompt')
         tree = ttk.Treeview(
             tree_frame,
             columns=columns,
@@ -941,6 +1036,8 @@ class TranslatorApp:
             tree.heading(col, text=col)
             if col == '原书名':
                 tree.column(col, width=150)
+            elif col == 'Prompt':
+                tree.column(col, width=200)
             elif col == '类型':
                 tree.column(col, width=80)
             elif col == '风格':
@@ -950,6 +1047,8 @@ class TranslatorApp:
 
         # 插入数据
         for record in summary['records']:
+            prompt = record.get('prompt', '')
+            prompt_preview = (prompt[:50] + '...') if len(prompt) > 50 else prompt
             tree.insert('', tk.END, values=(
                 record.get('date', '-'),
                 record.get('original', '-'),
@@ -957,7 +1056,8 @@ class TranslatorApp:
                 record.get('author_style', '-'),
                 record.get('word_count', 0),
                 record.get('time', 0),
-                f"${record.get('cost', 0):.2f}"
+                f"${record.get('cost', 0):.2f}",
+                prompt_preview
             ))
 
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)

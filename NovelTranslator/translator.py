@@ -19,27 +19,113 @@ class Translator:
         os.makedirs(output_dir, exist_ok=True)
 
     def build_prompt(self, style: str, names: list) -> str:
-        """构建翻译Prompt"""
-        base = """你是一个英语母语网文创作者，将附件中的故事翻译成一篇爆款本土化英文小说。符合英语母语读者的阅读习惯，不用按照原来的章节,保持每个章节大于1000词，可以更改原来的章节结构。
+        """构建翻译Prompt - English Version"""
+        base = """You are a native English webnovel author creating a viral, fully localized English novel from a Chinese source. Write for native English readers with natural pacing and style. DO NOT follow the original chapter structure—restructure freely for maximum impact. Each chapter must exceed 1000 words.
 
-起一个wattpad网文标题，起各个章节的标题，写它的blurb(小于3000characters)，选择它的类型（Fantasy,Romance,Urban,Sci-Fi,Mystery, Horror,Adventure,Historical,Crime,LGBTQ+,Paranormal,System,Reborn,Revenge,Fanfiction）角色名字要有新意本土化
+Provide a catchy Wattpad-style title, chapter titles, a blurb (under 3000 characters), and select the genre (Fantasy, Romance, Urban, Sci-Fi, Mystery, Horror, Adventure, Historical, Crime, LGBTQ+, Paranormal, System, Reborn, Revenge, Fanfiction). All character names must be creative and fully localized.
 
-【翻译本土化要求】
-1. **地理/文化背景**：改为非亚洲国家背景，地名、场景、文化习俗要符合当地
-2. **人名**：必须使用完整的英文名字（firstname + lastname格式，如 "Alexander Blake", "Isabella Rose"），不能只用firstname。避免中文和拼音，检索project不要和其他小说里的人名重复，保持角色关系、性格特征和昵称逻辑。首次出现时使用全名，之后可以用firstname或昵称。
-3. **日常细节**：食物/饮品（根据场景本土化：外卖→披萨/中餐外卖，饮料→咖啡/啤酒等）- 社交习惯（聚会方式、称呼、节日庆祝等）- 教育体系（小学/初中/高中/大学对应当地学制）- 职业设定（保持原有职业类型，但用本地化描述和行业术语）
-4. **语言风格**：使用地道的英语口语、俚语和习惯表达 - 避免直译式的中式英语表达 - 保持原作的叙事风格、氛围和情感张力 - 对话要符合角色背景和说话习惯
-5. **文化元素适配**（根据题材调整）：神话/超自然：道教/佛教元素→基督教/北欧神话/凯尔特民间传说等 - 节日：春节→圣诞节/感恩节，中秋节→万圣节等 - 货币单位：人民币→美元/英镑 - 计量单位：公里→英里，公斤→磅等 - 网络平台：微博→Twitter/X，微信→WhatsApp/iMessage等 - 流行文化梗：改为欧美观众熟悉的电影/音乐/网络梗
+【LOCALIZATION REQUIREMENTS】
 
-【目标】翻译后的作品应该让英语母语读者感觉这是由英语国家作者创作的原创作品，而不是翻译文学。
+1. **Geography/Culture**: Set in non-Asian countries with appropriate place names, scenes, and customs matching the local culture.
 
-【格式要求】保留重要的叙事节奏和情节转折; 输出的正文要每一段文字空一行的那种网文格式; 符合英文的标点符号；章节标题不要用the XXX 的宾语短语、介词短语格式；整体剧情节奏快、有反转、让读者感觉爽"""
+2. **Character Names**:
+   - MUST use full English names (firstname + lastname format, e.g., "Alexander Blake", "Isabella Rose")
+   - Use full name on first mention, then firstname or nickname thereafter
+   - NO Chinese names or pinyin
+   - Ensure names don't repeat across different novels in this project
+   - Maintain character relationships, personality traits, and nickname logic
 
-        style_part = f"\n\n【写作风格】\n{style}"
+3. **Daily Life Details**:
+   - Food/drinks: Localize contextually (delivery → pizza/Chinese takeout, drinks → coffee/beer, etc.)
+   - Social customs: Party styles, forms of address, holiday celebrations
+   - Education: Adapt to local school systems (elementary/middle/high school/college)
+   - Occupations: Keep original job types but use localized descriptions and industry terminology
+
+4. **Language Style**:
+   - Use authentic English colloquialisms, slang, and natural expressions
+   - Avoid literal "Chinglish" translations
+   - Preserve the original's narrative style, atmosphere, and emotional tension
+   - Dialogue must fit character backgrounds and speech patterns
+   - Use punchy, direct language for fast pacing
+   - Include more ACTION and less introspection
+
+5. **Cultural Element Adaptation** (adjust by genre):
+   - Mythology/supernatural: Taoist/Buddhist elements → Christian/Norse mythology/Celtic folklore
+   - Holidays: Spring Festival → Christmas/Thanksgiving, Mid-Autumn → Halloween
+   - Currency: RMB → USD/GBP
+   - Units: kilometers → miles, kilograms → pounds
+   - Platforms: Weibo → Twitter/X, WeChat → WhatsApp/iMessage
+   - Pop culture: Adapt to Western movies/music/internet memes familiar to American/European audiences
+
+【PACING & STRUCTURE REQUIREMENTS】
+
+6. **Fast-Paced "Satisfying Read" (爽文) Structure**:
+   - EVERY chapter must have at least TWO major plot beats or reveals
+   - Each chapter must END with a hook/cliffhanger to drive readers forward
+   - Cut internal monologue by 50%—show through ACTION and DIALOGUE
+   - Reduce flashbacks—use brief mentions or integrate into present action
+   - Protagonist should be PROACTIVE, not just reactive
+   - Include power reversals, unexpected twists, and "hell yeah" moments
+   - Balance suffering with cathartic victories/revenge beats
+   - Deliver emotional payoff FASTER—don't make readers wait too long
+
+7. **Chapter Structure**:
+   - Break long chapters (>3000 words) into multiple shorter chapters (1200-2000 words ideal for webnovel format)
+   - Each chapter title should be punchy and intriguing (avoid "The [Noun]" format)
+   - Chapter endings should make readers immediately want the next chapter
+
+8. **Dialogue**:
+   - Make dialogue snappier and more confrontational
+   - Characters should have distinct voices
+   - Use subtext and tension in conversations
+   - Avoid overly polite or formal speech unless character-appropriate
+
+9. **Atmospheric Horror/Thriller Enhancement** (if applicable):
+   - Build environmental dread through specific sensory details
+   - Create a sense of community complicity or conspiracy
+   - Use small-town/isolated setting paranoia effectively
+   - Blend mundane domesticity with creeping horror
+
+【GOAL】
+The final work must read as if originally written by a Western author, NOT translated literature. Readers should feel immersed in a story that belongs to their culture and storytelling tradition.
+
+【FORMAT REQUIREMENTS】
+- Preserve key narrative beats and plot twists
+- Use webnovel paragraph spacing (blank line between each paragraph)
+- Follow English punctuation conventions
+- Avoid "The XXX" prepositional phrase chapter titles
+- Overall: FAST pacing, TWISTS, maximum reader satisfaction (爽感)
+
+【OUTPUT INSTRUCTIONS - CRITICAL】
+DO NOT respond conversationally. DO NOT say "I will create..." or "Next I'll give you..." or ask for confirmation.
+
+IMMEDIATELY output in this exact format:
+
+Title: [Your Wattpad-style title]
+Genre: [Selected genre]
+
+Blurb:
+[Your blurb under 3000 characters]
+
+---
+
+Chapter 1: [Punchy chapter title]
+
+[Full chapter text with blank lines between paragraphs, 1000+ words]
+
+Chapter 2: [Punchy chapter title]
+
+[Full chapter text with blank lines between paragraphs, 1000+ words]
+
+[Continue with all chapters...]
+
+START TRANSLATING NOW. Output the complete novel immediately."""
+
+        style_part = f"\n\n【WRITING STYLE TO EMULATE】\n{style}"
 
         # 使用fullname并明确标注firstname和lastname
         names_list = ", ".join([f"{n['fullname']} (first: {n['firstname']}, last: {n['lastname']})" for n in names])
-        names_part = f"\n\n【可用角色名（必须使用Full Name格式）】\n{names_list}\n\n重要：首次介绍角色时必须使用完整全名（如 Alexander Blake），之后可以用firstname（Alexander）或lastname（Blake）或昵称。确保不与其他小说重复。"
+        names_part = f"\n\n【AVAILABLE CHARACTER NAMES (Use Full Name Format)】\n{names_list}\n\nIMPORTANT: On first mention, use full name (e.g., Alexander Blake). Thereafter, use firstname (Alexander) or lastname (Blake) or nickname. Ensure no duplication with other novels in this project."
 
         return base + style_part + names_part
 
@@ -141,7 +227,7 @@ class Translator:
             used_names = self.extract_used_names(translated, resource['names'])
             self.resource_mgr.update_name_usage(used_names)
 
-            # 记录到summary
+            # 记录到summary (添加prompt字段)
             record = {
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "original": title,
@@ -151,20 +237,22 @@ class Translator:
                 "names": used_names,
                 "word_count": word_count,
                 "time": round(duration, 2),
-                "cost": round(cost, 2)
+                "cost": round(cost, 2),
+                "prompt": prompt  # 添加prompt字段
             }
             self.config_mgr.add_record(record)
 
-            # 更新状态：完成
+            # 更新状态：完成（传递prompt）
             if status_callback:
-                status_callback(title, "完成", duration, cost)
+                status_callback(title, "完成", duration, cost, prompt)
 
             return {
                 'success': True,
                 'title': title,
                 'translated_file': output_file,
                 'duration': duration,
-                'cost': cost
+                'cost': cost,
+                'prompt': prompt  # 返回prompt
             }
 
         except Exception as e:
