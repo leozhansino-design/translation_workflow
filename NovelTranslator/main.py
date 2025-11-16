@@ -1,7 +1,14 @@
 """
-小说翻译工具 - 主程序（Apple风格）
+小说翻译工具 - 完整增强版 v1.1
 
-现代化的苹果风格GUI界面，支持批量翻译中文小说为英文
+功能列表:
+✅ API Key和Base URL配置  
+✅ Model自定义输入
+✅ 全名格式支持
+✅ 任务开始时间和计时器
+✅ Preview功能（查看Prompt、风格、人名）
+✅ 历史任务记录
+✅ Excel保存和导出
 """
 
 import tkinter as tk
@@ -9,113 +16,22 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import os
 import threading
 import time
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict
+import pandas as pd
 
 from config import ConfigManager
 from resource_mgr import ResourceManager
 from translator import Translator
 
 
-# ========== Apple风格配色方案 ==========
-COLORS = {
-    'bg': '#F5F5F7',            # 背景浅灰
-    'card_bg': '#FFFFFF',       # 卡片白色
-    'primary': '#007AFF',       # 苹果蓝
-    'success': '#34C759',       # 成功绿
-    'warning': '#FF9500',       # 警告橙
-    'danger': '#FF3B30',        # 危险红
-    'text_primary': '#1D1D1F',  # 主要文字
-    'text_secondary': '#86868B', # 次要文字
-    'border': '#E5E5EA',        # 边框
-    'hover': '#F0F0F5'          # 悬停背景
-}
-
-FONTS = {
-    'title': ('SF Pro Display', 20, 'bold'),
-    'heading': ('SF Pro Display', 14, 'bold'),
-    'body': ('SF Pro Text', 11),
-    'small': ('SF Pro Text', 10),
-    'mono': ('SF Mono', 10)
-}
-
-
-class RoundedButton(tk.Canvas):
-    """圆角按钮"""
-    def __init__(self, parent, text, command, bg_color, fg_color='white', width=120, height=40):
-        super().__init__(parent, width=width, height=height, bg=COLORS['card_bg'],
-                        highlightthickness=0)
-        self.bg_color = bg_color
-        self.fg_color = fg_color
-        self.command = command
-        self.text = text
-
-        # 绘制圆角矩形
-        self.rounded_rect = self.create_rounded_rectangle(
-            2, 2, width-2, height-2, radius=10, fill=bg_color, outline=""
-        )
-
-        # 文字
-        self.text_obj = self.create_text(
-            width/2, height/2, text=text, fill=fg_color,
-            font=FONTS['body']
-        )
-
-        # 绑定事件
-        self.bind('<Button-1>', lambda e: self.command())
-        self.bind('<Enter>', self.on_enter)
-        self.bind('<Leave>', self.on_leave)
-
-    def create_rounded_rectangle(self, x1, y1, x2, y2, radius=10, **kwargs):
-        points = [
-            x1+radius, y1,
-            x1+radius, y1,
-            x2-radius, y1,
-            x2-radius, y1,
-            x2, y1,
-            x2, y1+radius,
-            x2, y1+radius,
-            x2, y2-radius,
-            x2, y2-radius,
-            x2, y2,
-            x2-radius, y2,
-            x2-radius, y2,
-            x1+radius, y2,
-            x1+radius, y2,
-            x1, y2,
-            x1, y2-radius,
-            x1, y2-radius,
-            x1, y1+radius,
-            x1, y1+radius,
-            x1, y1
-        ]
-        return self.create_polygon(points, **kwargs, smooth=True)
-
-    def on_enter(self, e):
-        # 悬停效果：稍微变暗
-        self.itemconfig(self.rounded_rect, fill=self._darken_color(self.bg_color))
-
-    def on_leave(self, e):
-        self.itemconfig(self.rounded_rect, fill=self.bg_color)
-
-    def _darken_color(self, color):
-        """使颜色稍微变暗"""
-        if color == COLORS['primary']:
-            return '#0051D5'
-        elif color == COLORS['success']:
-            return '#28A745'
-        elif color == COLORS['danger']:
-            return '#DC3545'
-        return color
-
-
 class TranslatorApp:
     def __init__(self):
         self.window = tk.Tk()
-        self.window.title("Novel Translator")
-        self.window.geometry("800x900")
-        self.window.resizable(False, False)
-        self.window.configure(bg=COLORS['bg'])
+        self.window.title("小说翻译工具 v1.1")
+        self.window.geometry("900x900")
+        self.window.resizable(True, True)
 
         # 管理器
         self.config_mgr = ConfigManager()
@@ -129,6 +45,7 @@ class TranslatorApp:
         self.translation_results = {}
         self.total_start_time = 0
         self.completed_count = 0
+        self.current_resources = []
 
         # 创建UI
         self.create_widgets()
@@ -137,264 +54,243 @@ class TranslatorApp:
         self.load_config()
 
     def create_widgets(self):
-        """创建Apple风格UI组件"""
+        """创建UI组件"""
 
-        # ========== 主容器 ==========
-        main_container = tk.Frame(self.window, bg=COLORS['bg'])
-        main_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-
-        # ========== 标题区 ==========
-        title_frame = tk.Frame(main_container, bg=COLORS['bg'])
-        title_frame.pack(fill=tk.X, pady=(0, 20))
+        # ========== 标题栏 ==========
+        title_frame = tk.Frame(self.window, bg="#2c3e50", height=50)
+        title_frame.pack(fill=tk.X)
+        title_frame.pack_propagate(False)
 
         title_label = tk.Label(
             title_frame,
-            text="📖 Novel Translator",
-            font=FONTS['title'],
-            bg=COLORS['bg'],
-            fg=COLORS['text_primary']
+            text="📖 小说翻译工具 v1.1",
+            font=("Arial", 16, "bold"),
+            bg="#2c3e50",
+            fg="white"
         )
-        title_label.pack(side=tk.LEFT)
+        title_label.pack(side=tk.LEFT, padx=20, pady=10)
 
-        subtitle_label = tk.Label(
+        # 历史记录按钮
+        history_btn = tk.Button(
             title_frame,
-            text="AI-Powered Translation Tool",
-            font=FONTS['small'],
-            bg=COLORS['bg'],
-            fg=COLORS['text_secondary']
+            text="📋 历史记录",
+            command=self.show_history,
+            bg="#9b59b6",
+            fg="white",
+            font=("Arial", 10),
+            relief=tk.FLAT,
+            padx=15,
+            pady=5
         )
-        subtitle_label.pack(side=tk.LEFT, padx=10)
+        history_btn.pack(side=tk.RIGHT, padx=10, pady=10)
 
-        # ========== API配置卡片 ==========
-        api_card = self.create_card(main_container, "API Configuration")
-        api_card.pack(fill=tk.X, pady=(0, 15))
+        # Excel导出按钮  
+        excel_btn = tk.Button(
+            title_frame,
+            text="📊 导出Excel",
+            command=self.export_to_excel,
+            bg="#e67e22",
+            fg="white",
+            font=("Arial", 10),
+            relief=tk.FLAT,
+            padx=15,
+            pady=5
+        )
+        excel_btn.pack(side=tk.RIGHT, padx=10, pady=10)
+
+        # ========== API配置区 ==========
+        api_frame = tk.LabelFrame(self.window, text="API 配置", padx=10, pady=10)
+        api_frame.pack(fill=tk.X, padx=20, pady=10)
 
         # API Key
-        self.create_input_row(api_card, "API Key", show="•", row=0)
+        tk.Label(api_frame, text="API Key:").grid(row=0, column=0, sticky=tk.W)
+        self.api_key_entry = tk.Entry(api_frame, width=50, show="•")
+        self.api_key_entry.grid(row=0, column=1, padx=5, columnspan=2)
 
-        # API URL
-        self.create_input_row(api_card, "API URL", row=1)
-
-        # 测试按钮和状态
-        test_frame = tk.Frame(api_card, bg=COLORS['card_bg'])
-        test_frame.grid(row=2, column=0, columnspan=2, pady=(10, 0), sticky=tk.W)
-
-        self.test_btn = RoundedButton(
-            test_frame, "Test Connection",
-            self.test_api,
-            COLORS['primary'],
-            width=140, height=36
+        self.test_btn = tk.Button(
+            api_frame,
+            text="测试连接",
+            command=self.test_api,
+            bg="#27ae60",
+            fg="white",
+            relief=tk.FLAT,
+            padx=10
         )
-        self.test_btn.pack(side=tk.LEFT)
+        self.test_btn.grid(row=0, column=3, padx=5)
 
-        self.api_status_label = tk.Label(
-            test_frame,
-            text="● Not tested",
-            font=FONTS['small'],
-            bg=COLORS['card_bg'],
-            fg=COLORS['text_secondary']
+        self.api_status_label = tk.Label(api_frame, text="● 未测试", fg="gray")
+        self.api_status_label.grid(row=0, column=4, padx=5)
+
+        # Base URL
+        tk.Label(api_frame, text="Base URL:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.api_url_entry = tk.Entry(api_frame, width=50)
+        self.api_url_entry.grid(row=1, column=1, padx=5, pady=5, columnspan=2)
+
+        tk.Label(api_frame, text="(如: https://yunwuapi.com/v1/)", fg="gray", font=("Arial", 8)).grid(
+            row=1, column=3, columnspan=2, sticky=tk.W
         )
-        self.api_status_label.pack(side=tk.LEFT, padx=15)
+
+        # Model
+        tk.Label(api_frame, text="Model:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.model_entry = tk.Entry(api_frame, width=30)
+        self.model_entry.grid(row=2, column=1, padx=5, pady=5, sticky=tk.W)
+
+        # Model快捷选择按钮
+        tk.Button(
+            api_frame,
+            text="gpt-5.1",
+            command=lambda: self.set_model("gpt-5.1"),
+            bg="#3498db",
+            fg="white",
+            relief=tk.FLAT,
+            padx=10,
+            pady=3,
+            font=("Arial", 9)
+        ).grid(row=2, column=2, padx=5)
+
+        tk.Button(
+            api_frame,
+            text="gemini-2.5-pro",
+            command=lambda: self.set_model("gemini-2.5-pro"),
+            bg="#16a085",
+            fg="white",
+            relief=tk.FLAT,
+            padx=10,
+            pady=3,
+            font=("Arial", 9)
+        ).grid(row=2, column=3, padx=5)
 
         # 线程数
-        thread_frame = tk.Frame(api_card, bg=COLORS['card_bg'])
-        thread_frame.grid(row=3, column=0, columnspan=2, pady=(15, 0), sticky=tk.W)
+        tk.Label(api_frame, text="线程数:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.workers_spinbox = tk.Spinbox(api_frame, from_=1, to=20, width=10)
+        self.workers_spinbox.grid(row=3, column=1, sticky=tk.W, padx=5)
 
-        tk.Label(
-            thread_frame,
-            text="Threads:",
-            font=FONTS['body'],
-            bg=COLORS['card_bg'],
-            fg=COLORS['text_primary']
-        ).pack(side=tk.LEFT)
+        # ========== 文件管理区 ==========
+        file_frame = tk.LabelFrame(self.window, text="文件管理", padx=10, pady=10)
+        file_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-        self.workers_spinbox = tk.Spinbox(
-            thread_frame,
-            from_=1, to=20,
-            width=8,
-            font=FONTS['body'],
+        # 按钮区
+        btn_frame = tk.Frame(file_frame)
+        btn_frame.pack(fill=tk.X, pady=(0, 10))
+
+        tk.Button(
+            btn_frame,
+            text="+ 添加文件",
+            command=self.add_files,
+            bg="#3498db",
+            fg="white",
             relief=tk.FLAT,
-            bd=1,
-            highlightthickness=1,
-            highlightbackground=COLORS['border']
-        )
-        self.workers_spinbox.pack(side=tk.LEFT, padx=10)
+            padx=15,
+            pady=5
+        ).pack(side=tk.LEFT, padx=5)
 
-        # ========== 文件管理卡片 ==========
-        file_card = self.create_card(main_container, "Files")
-        file_card.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        tk.Button(
+            btn_frame,
+            text="+ 添加文件夹",
+            command=self.add_folder,
+            bg="#3498db",
+            fg="white",
+            relief=tk.FLAT,
+            padx=15,
+            pady=5
+        ).pack(side=tk.LEFT, padx=5)
 
-        # 按钮组
-        btn_frame = tk.Frame(file_card, bg=COLORS['card_bg'])
-        btn_frame.grid(row=0, column=0, pady=(0, 15), sticky=tk.W)
+        tk.Button(
+            btn_frame,
+            text="清空列表",
+            command=self.clear_files,
+            bg="#e74c3c",
+            fg="white",
+            relief=tk.FLAT,
+            padx=15,
+            pady=5
+        ).pack(side=tk.LEFT, padx=5)
 
-        add_file_btn = RoundedButton(
-            btn_frame, "+ Add Files",
-            self.add_files,
-            COLORS['primary'],
-            width=110, height=36
-        )
-        add_file_btn.pack(side=tk.LEFT, padx=(0, 10))
-
-        add_folder_btn = RoundedButton(
-            btn_frame, "+ Add Folder",
-            self.add_folder,
-            COLORS['primary'],
-            width=110, height=36
-        )
-        add_folder_btn.pack(side=tk.LEFT, padx=(0, 10))
-
-        clear_btn = RoundedButton(
-            btn_frame, "Clear",
-            self.clear_files,
-            COLORS['danger'],
-            width=80, height=36
-        )
-        clear_btn.pack(side=tk.LEFT)
+        tk.Button(
+            btn_frame,
+            text="🔍 Preview",
+            command=self.show_preview,
+            bg="#9b59b6",
+            fg="white",
+            relief=tk.FLAT,
+            padx=15,
+            pady=5
+        ).pack(side=tk.LEFT, padx=5)
 
         # 文件列表
-        list_container = tk.Frame(file_card, bg=COLORS['card_bg'])
-        list_container.grid(row=1, column=0, sticky=tk.NSEW)
-        file_card.grid_rowconfigure(1, weight=1)
-        file_card.grid_columnconfigure(0, weight=1)
+        tk.Label(file_frame, text="待翻译列表:", font=("Arial", 10, "bold")).pack(anchor=tk.W)
 
-        scrollbar = tk.Scrollbar(list_container)
+        list_frame = tk.Frame(file_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True)
+
+        scrollbar = tk.Scrollbar(list_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         self.file_listbox = tk.Listbox(
-            list_container,
+            list_frame,
             yscrollcommand=scrollbar.set,
             height=8,
-            font=FONTS['mono'],
-            relief=tk.FLAT,
-            bd=0,
-            bg=COLORS['bg'],
-            fg=COLORS['text_primary'],
-            selectbackground=COLORS['primary'],
-            selectforeground='white',
-            highlightthickness=0
+            font=("Consolas", 9)
         )
         self.file_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.file_listbox.yview)
 
         # 统计信息
         self.stats_label = tk.Label(
-            file_card,
-            text="0 files | Est. $0.00",
-            font=FONTS['small'],
-            bg=COLORS['card_bg'],
-            fg=COLORS['text_secondary']
+            file_frame,
+            text="共 0 本 | 预计 $0.00",
+            font=("Arial", 10),
+            fg="#2c3e50"
         )
-        self.stats_label.grid(row=2, column=0, pady=(10, 0))
+        self.stats_label.pack(pady=5)
 
-        # ========== 开始按钮 ==========
-        self.start_btn = RoundedButton(
-            main_container,
-            "🚀 Start Translation",
-            self.start_translation,
-            COLORS['success'],
-            width=760, height=50
+        # ========== 开始翻译按钮 ==========
+        self.start_btn = tk.Button(
+            self.window,
+            text="🚀 开始翻译",
+            command=self.start_translation,
+            bg="#27ae60",
+            fg="white",
+            font=("Arial", 14, "bold"),
+            relief=tk.FLAT,
+            pady=10
         )
-        self.start_btn.pack(pady=(0, 15))
+        self.start_btn.pack(fill=tk.X, padx=20, pady=10)
 
-        # ========== 状态卡片 ==========
-        status_card = self.create_card(main_container, "Translation Status")
-        status_card.pack(fill=tk.BOTH, expand=True)
+        # ========== 翻译状态区 ==========
+        status_frame = tk.LabelFrame(self.window, text="翻译状态", padx=10, pady=10)
+        status_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-        # 状态文本区
         self.status_text = scrolledtext.ScrolledText(
-            status_card,
+            status_frame,
             height=10,
-            font=FONTS['mono'],
-            relief=tk.FLAT,
-            bd=0,
-            bg=COLORS['bg'],
-            fg=COLORS['text_primary'],
-            state=tk.DISABLED,
-            wrap=tk.WORD
+            font=("Consolas", 9),
+            state=tk.DISABLED
         )
-        self.status_text.grid(row=0, column=0, sticky=tk.NSEW)
-        status_card.grid_rowconfigure(0, weight=1)
-        status_card.grid_columnconfigure(0, weight=1)
+        self.status_text.pack(fill=tk.BOTH, expand=True)
 
-        # 进度标签
+        # 任务时间显示
+        time_frame = tk.Frame(status_frame)
+        time_frame.pack(fill=tk.X, pady=5)
+
+        tk.Label(time_frame, text="任务开始时间:", font=("Arial", 9)).pack(side=tk.LEFT, padx=5)
+        self.start_time_label = tk.Label(time_frame, text="-", font=("Arial", 9, "bold"), fg="#3498db")
+        self.start_time_label.pack(side=tk.LEFT, padx=5)
+
+        tk.Label(time_frame, text="|", font=("Arial", 9)).pack(side=tk.LEFT, padx=5)
+
+        tk.Label(time_frame, text="已用时:", font=("Arial", 9)).pack(side=tk.LEFT, padx=5)
+        self.elapsed_time_label = tk.Label(time_frame, text="0秒", font=("Arial", 9, "bold"), fg="#e74c3c")
+        self.elapsed_time_label.pack(side=tk.LEFT, padx=5)
+
+        # 总进度
         self.progress_label = tk.Label(
-            status_card,
-            text="Ready to translate",
-            font=FONTS['body'],
-            bg=COLORS['card_bg'],
-            fg=COLORS['text_secondary']
+            status_frame,
+            text="总耗时: 0秒 | 完成: 0/0",
+            font=("Arial", 10, "bold"),
+            fg="#2c3e50"
         )
-        self.progress_label.grid(row=1, column=0, pady=(10, 0))
-
-    def create_card(self, parent, title):
-        """创建卡片容器"""
-        card_frame = tk.Frame(parent, bg=COLORS['card_bg'], relief=tk.FLAT)
-        card_frame.configure(highlightbackground=COLORS['border'],
-                           highlightthickness=1)
-
-        # 内容区（带padding）
-        content = tk.Frame(card_frame, bg=COLORS['card_bg'])
-        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-
-        # 标题
-        if title:
-            title_label = tk.Label(
-                content,
-                text=title,
-                font=FONTS['heading'],
-                bg=COLORS['card_bg'],
-                fg=COLORS['text_primary']
-            )
-            title_label.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 15))
-            start_row = 1
-        else:
-            start_row = 0
-
-        # 配置网格权重
-        content.grid_columnconfigure(1, weight=1)
-
-        # 返回内容区供添加控件
-        content.start_row = start_row
-        return content
-
-    def create_input_row(self, parent, label_text, show=None, row=0):
-        """创建输入行"""
-        actual_row = parent.start_row + row if hasattr(parent, 'start_row') else row
-
-        # 标签
-        label = tk.Label(
-            parent,
-            text=label_text + ":",
-            font=FONTS['body'],
-            bg=COLORS['card_bg'],
-            fg=COLORS['text_primary'],
-            width=10,
-            anchor=tk.W
-        )
-        label.grid(row=actual_row, column=0, sticky=tk.W, pady=8)
-
-        # 输入框
-        entry = tk.Entry(
-            parent,
-            font=FONTS['body'],
-            relief=tk.FLAT,
-            bd=1,
-            highlightthickness=1,
-            highlightbackground=COLORS['border'],
-            highlightcolor=COLORS['primary']
-        )
-        if show:
-            entry.config(show=show)
-        entry.grid(row=actual_row, column=1, sticky=tk.EW, pady=8, padx=(10, 0))
-
-        # 保存引用
-        if label_text == "API Key":
-            self.api_key_entry = entry
-        elif label_text == "API URL":
-            self.api_url_entry = entry
-
-        return entry
+        self.progress_label.pack(pady=5)
 
     def load_config(self):
         """加载配置"""
@@ -406,25 +302,53 @@ class TranslatorApp:
         if api_url:
             self.api_url_entry.insert(0, api_url)
 
+        # 加载model
+        config = self.config_mgr.load_config()
+        model = config.get('model', 'gpt-5.1')
+        self.model_entry.insert(0, model)
+
         workers = self.config_mgr.get_max_workers()
         self.workers_spinbox.delete(0, tk.END)
         self.workers_spinbox.insert(0, str(workers))
+
+    def set_model(self, model_name: str):
+        """快捷设置Model"""
+        self.model_entry.delete(0, tk.END)
+        self.model_entry.insert(0, model_name)
+        # 自动保存
+        config = self.config_mgr.load_config()
+        config['model'] = model_name
+        self.config_mgr.save_config(config)
+        messagebox.showinfo("成功", f"Model已设置为: {model_name}")
 
     def test_api(self):
         """测试API连接"""
         api_key = self.api_key_entry.get().strip()
         if not api_key:
-            messagebox.showwarning("Warning", "Please enter API Key first")
+            messagebox.showwarning("警告", "请先输入 API Key")
             return
 
-        # 保存API Key
-        self.config_mgr.set_api_key(api_key)
         api_url = self.api_url_entry.get().strip()
-        if api_url:
-            self.config_mgr.set_api_base_url(api_url)
+        if not api_url:
+            messagebox.showwarning("警告", "请先输入 Base URL")
+            return
+
+        model = self.model_entry.get().strip()
+        if not model:
+            messagebox.showwarning("警告", "请先输入 Model")
+            return
+
+        # 保存配置
+        self.config_mgr.set_api_key(api_key)
+        self.config_mgr.set_api_base_url(api_url)
+
+        config = self.config_mgr.load_config()
+        config['model'] = model
+        self.config_mgr.save_config(config)
 
         # 更新状态
-        self.api_status_label.config(text="● Testing...", fg=COLORS['warning'])
+        self.api_status_label.config(text="● 测试中...", fg="orange")
+        self.test_btn.config(state=tk.DISABLED)
 
         # 在新线程中测试
         def test_thread():
@@ -436,21 +360,16 @@ class TranslatorApp:
     def update_api_status(self, result):
         """更新API状态"""
         if result['success']:
-            self.api_status_label.config(
-                text="● " + result['message'],
-                fg=COLORS['success']
-            )
+            self.api_status_label.config(text="● " + result['message'], fg="green")
         else:
-            self.api_status_label.config(
-                text="● " + result['message'],
-                fg=COLORS['danger']
-            )
+            self.api_status_label.config(text="● " + result['message'], fg="red")
+        self.test_btn.config(state=tk.NORMAL)
 
     def add_files(self):
         """添加文件"""
         files = filedialog.askopenfilenames(
-            title="Select Novel Files",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+            title="选择小说文件",
+            filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
         )
         for file in files:
             if file not in self.files:
@@ -458,14 +377,14 @@ class TranslatorApp:
                 basename = os.path.basename(file)
                 size = os.path.getsize(file)
                 word_count = size // 3
-                display = f"{basename} ({word_count/10000:.1f}w words)"
+                display = f"{basename} ({word_count/10000:.1f}w字)"
                 self.file_listbox.insert(tk.END, display)
 
         self.update_stats()
 
     def add_folder(self):
         """添加文件夹"""
-        folder = filedialog.askdirectory(title="Select Folder")
+        folder = filedialog.askdirectory(title="选择文件夹")
         if folder:
             for filename in os.listdir(folder):
                 if filename.endswith('.txt'):
@@ -474,7 +393,7 @@ class TranslatorApp:
                         self.files.append(file_path)
                         size = os.path.getsize(file_path)
                         word_count = size // 3
-                        display = f"{filename} ({word_count/10000:.1f}w words)"
+                        display = f"{filename} ({word_count/10000:.1f}w字)"
                         self.file_listbox.insert(tk.END, display)
 
             self.update_stats()
@@ -489,54 +408,140 @@ class TranslatorApp:
         """更新统计信息"""
         count = len(self.files)
         estimated_cost = count * 0.20
-        self.stats_label.config(
-            text=f"{count} files | Est. ${estimated_cost:.2f}"
-        )
+        self.stats_label.config(text=f"共 {count} 本 | 预计 ${estimated_cost:.2f}")
+
+    def show_preview(self):
+        """显示Preview窗口"""
+        if not self.files:
+            messagebox.showwarning("警告", "请先添加文件")
+            return
+
+        # 分配资源
+        resources = self.resource_mgr.allocate_resources(self.files)
+
+        # 创建Preview窗口
+        preview_window = tk.Toplevel(self.window)
+        preview_window.title("🔍 Preview - Prompt & Resources")
+        preview_window.geometry("850x750")
+
+        # Notebook
+        notebook = ttk.Notebook(preview_window)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # 遍历每个文件
+        for i, (file, resource) in enumerate(zip(self.files[:5], resources[:5])):
+            title = self.resource_mgr.extract_title(file)
+            genre = resource['genre']
+
+            # 创建标签页
+            tab = tk.Frame(notebook)
+            notebook.add(tab, text=f"{title} ({genre})")
+
+            # 内容区
+            content_text = scrolledtext.ScrolledText(
+                tab,
+                font=("Consolas", 9),
+                wrap=tk.WORD
+            )
+            content_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+            # 构建显示内容
+            preview_content = f"""{'='*70}
+📖 文件: {os.path.basename(file)}
+📂 类型: {genre}
+✍️  风格作者: {resource['author']}
+{'='*70}
+
+【写作风格】
+{resource['style']}
+
+{'='*70}
+【可用角色名（Full Name格式）】
+
+男性角色 (前10个):
+"""
+            names_data = self.resource_mgr.load_names()
+            male_names = [n for n in resource['names'] if n in names_data['male']][:10]
+            for name in male_names:
+                preview_content += f"  • {name['fullname']} (first: {name['firstname']}, last: {name['lastname']})\n"
+
+            preview_content += "\n女性角色 (前10个):\n"
+            female_names = [n for n in resource['names'] if n in names_data['female']][:10]
+            for name in female_names:
+                preview_content += f"  • {name['fullname']} (first: {name['firstname']}, last: {name['lastname']})\n"
+
+            preview_content += f"\n{'='*70}\n"
+            preview_content += "【完整Prompt（前2000字符）】\n\n"
+
+            # 构建完整Prompt
+            full_prompt = self.translator.build_prompt(resource['style'], resource['names'])
+            preview_content += full_prompt[:2000] + "\n\n... (省略部分内容)"
+
+            content_text.insert(1.0, preview_content)
+            content_text.config(state=tk.DISABLED)
+
+        # 关闭按钮
+        tk.Button(
+            preview_window,
+            text="关闭",
+            command=preview_window.destroy,
+            bg="#95a5a6",
+            fg="white",
+            relief=tk.FLAT,
+            padx=20,
+            pady=5
+        ).pack(pady=10)
 
     def start_translation(self):
         """开始翻译"""
         if self.is_translating:
-            messagebox.showwarning("Warning", "Translation in progress, please wait")
+            messagebox.showwarning("警告", "正在翻译中，请稍候")
             return
 
         if not self.files:
-            messagebox.showwarning("Warning", "Please add files to translate first")
+            messagebox.showwarning("警告", "请先添加要翻译的文件")
             return
 
         api_key = self.api_key_entry.get().strip()
         if not api_key:
-            messagebox.showwarning("Warning", "Please enter API Key first")
+            messagebox.showwarning("警告", "请先输入 API Key")
             return
 
         api_url = self.api_url_entry.get().strip()
         if not api_url:
-            messagebox.showwarning("Warning", "Please enter API URL first")
+            messagebox.showwarning("警告", "请先输入 Base URL")
+            return
+
+        model = self.model_entry.get().strip()
+        if not model:
+            messagebox.showwarning("警告", "请先输入 Model")
             return
 
         # 保存配置
         self.config_mgr.set_api_key(api_key)
         self.config_mgr.set_api_base_url(api_url)
+
+        config = self.config_mgr.load_config()
+        config['model'] = model
+        self.config_mgr.save_config(config)
+
         workers = int(self.workers_spinbox.get())
         self.config_mgr.set_max_workers(workers)
 
         # 确认
-        if not messagebox.askyesno(
-            "Confirm",
-            f"Ready to translate {len(self.files)} novels\n"
-            f"Using {workers} threads\n\n"
-            f"Start now?"
-        ):
+        if not messagebox.askyesno("确认", f"准备翻译 {len(self.files)} 本小说\n使用模型: {model}\n使用 {workers} 个线程\n\n是否开始？"):
             return
 
         # 开始翻译
         self.is_translating = True
-        self.start_btn.itemconfig(
-            self.start_btn.text_obj,
-            text="⏳ Translating..."
-        )
+        self.start_btn.config(state=tk.DISABLED, text="⏳ 翻译中...")
         self.completed_count = 0
         self.total_start_time = time.time()
         self.translation_results = {}
+
+        # 显示开始时间
+        start_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.start_time_label.config(text=start_time_str)
 
         # 清空状态显示
         self.status_text.config(state=tk.NORMAL)
@@ -553,6 +558,8 @@ class TranslatorApp:
         """批量翻译"""
         try:
             resources = self.resource_mgr.allocate_resources(self.files)
+            self.current_resources = resources
+
             workers = self.config_mgr.get_max_workers()
             self.executor = ThreadPoolExecutor(max_workers=workers)
 
@@ -575,9 +582,7 @@ class TranslatorApp:
             self.window.after(0, self.translation_complete)
 
         except Exception as e:
-            self.window.after(0, lambda: messagebox.showerror(
-                "Error", f"Translation failed: {str(e)}"
-            ))
+            self.window.after(0, lambda: messagebox.showerror("错误", f"翻译失败: {str(e)}"))
             self.window.after(0, self.reset_ui)
 
     def update_status(self, title: str, status: str, elapsed: float, cost: float):
@@ -604,10 +609,10 @@ class TranslatorApp:
 
             if status == "完成":
                 icon = "✅"
-                text = f"{icon} {title}  {elapsed:.0f}s  ${cost:.2f}\n"
+                text = f"{icon} {title}  {elapsed:.0f}秒  ${cost:.2f}\n"
             elif status == "运行中":
                 icon = "🔄"
-                text = f"{icon} {title}  {status}  {elapsed:.0f}s\n"
+                text = f"{icon} {title}  {status}  {elapsed:.0f}秒\n"
             else:
                 icon = "❌"
                 text = f"{icon} {title}  {status}\n"
@@ -623,8 +628,11 @@ class TranslatorApp:
             total_elapsed = time.time() - self.total_start_time
             total_count = len(self.files)
 
+            # 更新已用时
+            self.elapsed_time_label.config(text=f"{total_elapsed:.0f}秒")
+
             self.progress_label.config(
-                text=f"Time: {total_elapsed:.0f}s | Completed: {self.completed_count}/{total_count}"
+                text=f"总耗时: {total_elapsed:.0f}秒 | 完成: {self.completed_count}/{total_count}"
             )
 
             self.window.after(1000, self.update_progress)
@@ -635,12 +643,12 @@ class TranslatorApp:
         total_elapsed = time.time() - self.total_start_time
         total_cost = sum(r['cost'] for r in self.translation_results.values())
 
+        # 自动保存到Excel
+        self.save_to_excel()
+
         messagebox.showinfo(
-            "Complete",
-            f"Translation completed!\n\n"
-            f"Time: {total_elapsed:.0f}s\n"
-            f"Cost: ${total_cost:.2f}\n"
-            f"Files: {self.completed_count}/{len(self.files)}"
+            "完成",
+            f"翻译完成！\n\n总耗时: {total_elapsed:.0f}秒\n总成本: ${total_cost:.2f}\n完成: {self.completed_count}/{len(self.files)}"
         )
 
         self.reset_ui()
@@ -648,19 +656,21 @@ class TranslatorApp:
     def reset_ui(self):
         """重置UI"""
         self.is_translating = False
-        self.start_btn.itemconfig(
-            self.start_btn.text_obj,
-            text="🚀 Start Translation"
-        )
+        self.start_btn.config(state=tk.NORMAL, text="🚀 开始翻译")
 
     def call_api(self, prompt: str, content: str) -> tuple:
-        """调用API"""
+        """调用API - 使用界面输入的model"""
         try:
             from openai import OpenAI
 
             api_key = self.config_mgr.get_api_key()
             api_base_url = self.config_mgr.get_api_base_url()
-            model_config = self.config_mgr.get_model_config()
+
+            # 从配置读取model（界面输入的）
+            config = self.config_mgr.load_config()
+            model = config.get('model', 'gpt-5.1')
+            temperature = config.get('temperature', 0.8)
+            max_tokens = config.get('max_tokens', 100000)
 
             client = OpenAI(
                 api_key=api_key,
@@ -668,13 +678,13 @@ class TranslatorApp:
             )
 
             response = client.chat.completions.create(
-                model=model_config['model'],
+                model=model,  # 使用界面输入的model
                 messages=[
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": content}
                 ],
-                temperature=model_config['temperature'],
-                max_tokens=model_config['max_tokens']
+                temperature=temperature,
+                max_tokens=max_tokens
             )
 
             translated = response.choices[0].message.content
@@ -684,7 +694,132 @@ class TranslatorApp:
             return (translated, input_tokens, output_tokens)
 
         except Exception as e:
-            raise Exception(f"API call failed: {str(e)}")
+            raise Exception(f"API调用失败: {str(e)}")
+
+    def save_to_excel(self):
+        """自动保存到Excel"""
+        try:
+            summary = self.config_mgr.load_summary()
+            if not summary['records']:
+                return
+
+            df = pd.DataFrame(summary['records'])
+
+            # 确保data目录存在
+            os.makedirs("data", exist_ok=True)
+
+            excel_file = os.path.join("data", "translation_history.xlsx")
+            df.to_excel(excel_file, index=False, engine='openpyxl')
+
+            print(f"✅ 记录已保存到: {excel_file}")
+
+        except Exception as e:
+            print(f"❌ Excel保存失败: {str(e)}")
+
+    def export_to_excel(self):
+        """手动导出Excel"""
+        try:
+            summary = self.config_mgr.load_summary()
+            if not summary['records']:
+                messagebox.showinfo("提示", "暂无翻译记录")
+                return
+
+            filename = filedialog.asksaveasfilename(
+                title="导出Excel",
+                defaultextension=".xlsx",
+                filetypes=[("Excel文件", "*.xlsx"), ("所有文件", "*.*")],
+                initialfile=f"translation_history_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            )
+
+            if filename:
+                df = pd.DataFrame(summary['records'])
+                df.to_excel(filename, index=False, engine='openpyxl')
+                messagebox.showinfo("成功", f"已导出到:\n{filename}")
+
+        except Exception as e:
+            messagebox.showerror("错误", f"导出失败: {str(e)}")
+
+    def show_history(self):
+        """显示历史记录"""
+        summary = self.config_mgr.load_summary()
+
+        if not summary['records']:
+            messagebox.showinfo("提示", "暂无历史记录")
+            return
+
+        history_window = tk.Toplevel(self.window)
+        history_window.title("📋 历史翻译记录")
+        history_window.geometry("950x650")
+
+        tk.Label(
+            history_window,
+            text="历史翻译记录",
+            font=("Arial", 14, "bold")
+        ).pack(pady=10)
+
+        # Treeview
+        tree_frame = tk.Frame(history_window)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        scrollbar = tk.Scrollbar(tree_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        columns = ('日期', '原书名', '类型', '风格', '字数', '耗时(秒)', '成本($)')
+        tree = ttk.Treeview(
+            tree_frame,
+            columns=columns,
+            show='headings',
+            yscrollcommand=scrollbar.set
+        )
+
+        for col in columns:
+            tree.heading(col, text=col)
+            if col == '原书名':
+                tree.column(col, width=150)
+            elif col == '类型':
+                tree.column(col, width=80)
+            elif col == '风格':
+                tree.column(col, width=130)
+            else:
+                tree.column(col, width=100)
+
+        # 插入数据
+        for record in summary['records']:
+            tree.insert('', tk.END, values=(
+                record.get('date', '-'),
+                record.get('original', '-'),
+                record.get('genre', '-'),
+                record.get('author_style', '-'),
+                record.get('word_count', 0),
+                record.get('time', 0),
+                f"${record.get('cost', 0):.2f}"
+            ))
+
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=tree.yview)
+
+        # 统计
+        total_count = len(summary['records'])
+        total_cost = sum(r.get('cost', 0) for r in summary['records'])
+        total_time = sum(r.get('time', 0) for r in summary['records'])
+
+        stats_label = tk.Label(
+            history_window,
+            text=f"总计: {total_count} 本 | 总成本: ${total_cost:.2f} | 总耗时: {total_time:.0f}秒",
+            font=("Arial", 10, "bold")
+        )
+        stats_label.pack(pady=10)
+
+        tk.Button(
+            history_window,
+            text="关闭",
+            command=history_window.destroy,
+            bg="#95a5a6",
+            fg="white",
+            relief=tk.FLAT,
+            padx=20,
+            pady=5
+        ).pack(pady=10)
 
     def run(self):
         """运行应用"""
