@@ -50,6 +50,11 @@ class TranslatorApp:
         # 创建UI
         self.create_widgets()
 
+        # 启动日志
+        self.log("="*60, "INFO")
+        self.log("小说翻译工具 v1.1 启动", "SUCCESS")
+        self.log("="*60, "INFO")
+
         # 加载配置
         self.load_config()
 
@@ -292,95 +297,193 @@ class TranslatorApp:
         )
         self.progress_label.pack(pady=5)
 
+        # ========== 日志区 ==========
+        log_frame = tk.LabelFrame(self.window, text="实时日志", padx=10, pady=10)
+        log_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+
+        self.log_text = scrolledtext.ScrolledText(
+            log_frame,
+            height=8,
+            font=("Consolas", 8),
+            state=tk.DISABLED,
+            bg="#f8f9fa",
+            fg="#2c3e50"
+        )
+        self.log_text.pack(fill=tk.BOTH, expand=True)
+
+    def log(self, message: str, level: str = "INFO"):
+        """写入日志"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+
+        # 颜色标记
+        if level == "ERROR":
+            prefix = "❌"
+            color = "red"
+        elif level == "SUCCESS":
+            prefix = "✅"
+            color = "green"
+        elif level == "WARNING":
+            prefix = "⚠️"
+            color = "orange"
+        else:
+            prefix = "ℹ️"
+            color = "#2c3e50"
+
+        log_entry = f"[{timestamp}] {prefix} {message}\n"
+
+        def _update():
+            self.log_text.config(state=tk.NORMAL)
+            self.log_text.insert(tk.END, log_entry)
+            self.log_text.see(tk.END)
+            self.log_text.config(state=tk.DISABLED)
+
+        # 如果在主线程，直接更新；否则调度到主线程
+        try:
+            self.window.after(0, _update)
+        except:
+            _update()
+
     def load_config(self):
         """加载配置"""
+        self.log("正在加载配置...")
+
         api_key = self.config_mgr.get_api_key()
         if api_key:
             self.api_key_entry.insert(0, api_key)
+            self.log(f"API Key已加载 (长度: {len(api_key)})")
 
         api_url = self.config_mgr.get_api_base_url()
         if api_url:
             self.api_url_entry.insert(0, api_url)
+            self.log(f"Base URL已加载: {api_url}")
 
         # 加载model
         config = self.config_mgr.load_config()
         model = config.get('model', 'gpt-5.1')
         self.model_entry.insert(0, model)
+        self.log(f"Model已加载: {model}")
 
         workers = self.config_mgr.get_max_workers()
         self.workers_spinbox.delete(0, tk.END)
         self.workers_spinbox.insert(0, str(workers))
+        self.log(f"线程数已设置: {workers}")
+
+        self.log("配置加载完成", "SUCCESS")
 
     def set_model(self, model_name: str):
         """快捷设置Model"""
-        self.model_entry.delete(0, tk.END)
-        self.model_entry.insert(0, model_name)
-        # 自动保存
-        config = self.config_mgr.load_config()
-        config['model'] = model_name
-        self.config_mgr.save_config(config)
-        messagebox.showinfo("成功", f"Model已设置为: {model_name}")
+        self.log(f"设置Model为: {model_name}")
+        try:
+            self.model_entry.delete(0, tk.END)
+            self.model_entry.insert(0, model_name)
+            # 自动保存
+            config = self.config_mgr.load_config()
+            config['model'] = model_name
+            self.config_mgr.save_config(config)
+            self.log(f"Model设置成功: {model_name}", "SUCCESS")
+            messagebox.showinfo("成功", f"Model已设置为: {model_name}")
+        except Exception as e:
+            self.log(f"设置Model失败: {str(e)}", "ERROR")
+            messagebox.showerror("错误", f"设置Model失败: {str(e)}")
 
     def test_api(self):
         """测试API连接"""
-        api_key = self.api_key_entry.get().strip()
-        if not api_key:
-            messagebox.showwarning("警告", "请先输入 API Key")
-            return
+        self.log("开始测试API连接...")
+        try:
+            api_key = self.api_key_entry.get().strip()
+            if not api_key:
+                self.log("API Key为空", "WARNING")
+                messagebox.showwarning("警告", "请先输入 API Key")
+                return
 
-        api_url = self.api_url_entry.get().strip()
-        if not api_url:
-            messagebox.showwarning("警告", "请先输入 Base URL")
-            return
+            api_url = self.api_url_entry.get().strip()
+            if not api_url:
+                self.log("Base URL为空", "WARNING")
+                messagebox.showwarning("警告", "请先输入 Base URL")
+                return
 
-        model = self.model_entry.get().strip()
-        if not model:
-            messagebox.showwarning("警告", "请先输入 Model")
-            return
+            model = self.model_entry.get().strip()
+            if not model:
+                self.log("Model为空", "WARNING")
+                messagebox.showwarning("警告", "请先输入 Model")
+                return
 
-        # 保存配置
-        self.config_mgr.set_api_key(api_key)
-        self.config_mgr.set_api_base_url(api_url)
+            self.log(f"API配置 - URL: {api_url}, Model: {model}")
 
-        config = self.config_mgr.load_config()
-        config['model'] = model
-        self.config_mgr.save_config(config)
+            # 保存配置
+            self.config_mgr.set_api_key(api_key)
+            self.config_mgr.set_api_base_url(api_url)
 
-        # 更新状态
-        self.api_status_label.config(text="● 测试中...", fg="orange")
-        self.test_btn.config(state=tk.DISABLED)
+            config = self.config_mgr.load_config()
+            config['model'] = model
+            self.config_mgr.save_config(config)
 
-        # 在新线程中测试
-        def test_thread():
-            result = self.translator.test_api_connection(self.call_api)
-            self.window.after(0, lambda: self.update_api_status(result))
+            self.log("配置已保存，正在测试连接...")
 
-        threading.Thread(target=test_thread, daemon=True).start()
+            # 更新状态
+            self.api_status_label.config(text="● 测试中...", fg="orange")
+            self.test_btn.config(state=tk.DISABLED)
+
+            # 在新线程中测试
+            def test_thread():
+                try:
+                    self.log("测试线程已启动")
+                    result = self.translator.test_api_connection(self.call_api)
+                    self.log(f"测试结果: {result}")
+                    self.window.after(0, lambda: self.update_api_status(result))
+                except Exception as e:
+                    self.log(f"测试线程异常: {str(e)}", "ERROR")
+                    error_result = {'success': False, 'message': f"测试失败: {str(e)}"}
+                    self.window.after(0, lambda: self.update_api_status(error_result))
+
+            threading.Thread(target=test_thread, daemon=True).start()
+            self.log("测试线程已创建")
+
+        except Exception as e:
+            self.log(f"测试API异常: {str(e)}", "ERROR")
+            messagebox.showerror("错误", f"测试失败: {str(e)}")
 
     def update_api_status(self, result):
         """更新API状态"""
-        if result['success']:
-            self.api_status_label.config(text="● " + result['message'], fg="green")
-        else:
-            self.api_status_label.config(text="● " + result['message'], fg="red")
-        self.test_btn.config(state=tk.NORMAL)
+        self.log(f"更新API状态: {result}")
+        try:
+            if result['success']:
+                self.api_status_label.config(text="● " + result['message'], fg="green")
+                self.log("API连接测试成功", "SUCCESS")
+            else:
+                self.api_status_label.config(text="● " + result['message'], fg="red")
+                self.log(f"API连接测试失败: {result['message']}", "ERROR")
+            self.test_btn.config(state=tk.NORMAL)
+        except Exception as e:
+            self.log(f"更新API状态异常: {str(e)}", "ERROR")
 
     def add_files(self):
         """添加文件"""
-        files = filedialog.askopenfilenames(
-            title="选择小说文件",
-            filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
-        )
-        for file in files:
-            if file not in self.files:
-                self.files.append(file)
-                basename = os.path.basename(file)
-                size = os.path.getsize(file)
-                word_count = size // 3
-                display = f"{basename} ({word_count/10000:.1f}w字)"
-                self.file_listbox.insert(tk.END, display)
+        self.log("打开文件选择对话框...")
+        try:
+            files = filedialog.askopenfilenames(
+                title="选择小说文件",
+                filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
+            )
+            if files:
+                self.log(f"选中 {len(files)} 个文件")
+                for file in files:
+                    if file not in self.files:
+                        self.files.append(file)
+                        basename = os.path.basename(file)
+                        size = os.path.getsize(file)
+                        word_count = size // 3
+                        display = f"{basename} ({word_count/10000:.1f}w字)"
+                        self.file_listbox.insert(tk.END, display)
+                        self.log(f"添加文件: {basename}")
 
-        self.update_stats()
+                self.update_stats()
+                self.log(f"文件添加完成，当前共 {len(self.files)} 个文件", "SUCCESS")
+            else:
+                self.log("未选择文件")
+        except Exception as e:
+            self.log(f"添加文件失败: {str(e)}", "ERROR")
+            messagebox.showerror("错误", f"添加文件失败: {str(e)}")
 
     def add_folder(self):
         """添加文件夹"""
@@ -412,41 +515,46 @@ class TranslatorApp:
 
     def show_preview(self):
         """显示Preview窗口"""
-        if not self.files:
-            messagebox.showwarning("警告", "请先添加文件")
-            return
+        self.log("打开Preview窗口...")
+        try:
+            if not self.files:
+                self.log("文件列表为空，无法Preview", "WARNING")
+                messagebox.showwarning("警告", "请先添加文件")
+                return
 
-        # 分配资源
-        resources = self.resource_mgr.allocate_resources(self.files)
+            # 分配资源
+            self.log("正在分配资源用于Preview...")
+            resources = self.resource_mgr.allocate_resources(self.files)
+            self.log(f"资源分配完成，准备显示 {len(resources)} 本书的Preview")
 
-        # 创建Preview窗口
-        preview_window = tk.Toplevel(self.window)
-        preview_window.title("🔍 Preview - Prompt & Resources")
-        preview_window.geometry("850x750")
+            # 创建Preview窗口
+            preview_window = tk.Toplevel(self.window)
+            preview_window.title("🔍 Preview - Prompt & Resources")
+            preview_window.geometry("850x750")
 
-        # Notebook
-        notebook = ttk.Notebook(preview_window)
-        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            # Notebook
+            notebook = ttk.Notebook(preview_window)
+            notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # 遍历每个文件
-        for i, (file, resource) in enumerate(zip(self.files[:5], resources[:5])):
-            title = self.resource_mgr.extract_title(file)
-            genre = resource['genre']
+            # 遍历每个文件
+            for i, (file, resource) in enumerate(zip(self.files[:5], resources[:5])):
+                title = self.resource_mgr.extract_title(file)
+                genre = resource['genre']
 
-            # 创建标签页
-            tab = tk.Frame(notebook)
-            notebook.add(tab, text=f"{title} ({genre})")
+                # 创建标签页
+                tab = tk.Frame(notebook)
+                notebook.add(tab, text=f"{title} ({genre})")
 
-            # 内容区
-            content_text = scrolledtext.ScrolledText(
-                tab,
-                font=("Consolas", 9),
-                wrap=tk.WORD
-            )
-            content_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+                # 内容区
+                content_text = scrolledtext.ScrolledText(
+                    tab,
+                    font=("Consolas", 9),
+                    wrap=tk.WORD
+                )
+                content_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-            # 构建显示内容
-            preview_content = f"""{'='*70}
+                # 构建显示内容
+                preview_content = f"""{'='*70}
 📖 文件: {os.path.basename(file)}
 📂 类型: {genre}
 ✍️  风格作者: {resource['author']}
@@ -460,111 +568,145 @@ class TranslatorApp:
 
 男性角色 (前10个):
 """
-            names_data = self.resource_mgr.load_names()
-            male_names = [n for n in resource['names'] if n in names_data['male']][:10]
-            for name in male_names:
-                preview_content += f"  • {name['fullname']} (first: {name['firstname']}, last: {name['lastname']})\n"
+                names_data = self.resource_mgr.load_names()
+                male_names = [n for n in resource['names'] if n in names_data['male']][:10]
+                for name in male_names:
+                    preview_content += f"  • {name['fullname']} (first: {name['firstname']}, last: {name['lastname']})\n"
 
-            preview_content += "\n女性角色 (前10个):\n"
-            female_names = [n for n in resource['names'] if n in names_data['female']][:10]
-            for name in female_names:
-                preview_content += f"  • {name['fullname']} (first: {name['firstname']}, last: {name['lastname']})\n"
+                preview_content += "\n女性角色 (前10个):\n"
+                female_names = [n for n in resource['names'] if n in names_data['female']][:10]
+                for name in female_names:
+                    preview_content += f"  • {name['fullname']} (first: {name['firstname']}, last: {name['lastname']})\n"
 
-            preview_content += f"\n{'='*70}\n"
-            preview_content += "【完整Prompt（前2000字符）】\n\n"
+                preview_content += f"\n{'='*70}\n"
+                preview_content += "【完整Prompt（前2000字符）】\n\n"
 
-            # 构建完整Prompt
-            full_prompt = self.translator.build_prompt(resource['style'], resource['names'])
-            preview_content += full_prompt[:2000] + "\n\n... (省略部分内容)"
+                # 构建完整Prompt
+                full_prompt = self.translator.build_prompt(resource['style'], resource['names'])
+                preview_content += full_prompt[:2000] + "\n\n... (省略部分内容)"
 
-            content_text.insert(1.0, preview_content)
-            content_text.config(state=tk.DISABLED)
+                content_text.insert(1.0, preview_content)
+                content_text.config(state=tk.DISABLED)
 
-        # 关闭按钮
-        tk.Button(
-            preview_window,
-            text="关闭",
-            command=preview_window.destroy,
-            bg="#95a5a6",
-            fg="white",
-            relief=tk.FLAT,
-            padx=20,
-            pady=5
-        ).pack(pady=10)
+            # 关闭按钮
+            tk.Button(
+                preview_window,
+                text="关闭",
+                command=preview_window.destroy,
+                bg="#95a5a6",
+                fg="white",
+                relief=tk.FLAT,
+                padx=20,
+                pady=5
+            ).pack(pady=10)
+
+            self.log("Preview窗口已打开", "SUCCESS")
+
+        except Exception as e:
+            self.log(f"打开Preview失败: {str(e)}", "ERROR")
+            messagebox.showerror("错误", f"打开Preview失败: {str(e)}")
 
     def start_translation(self):
         """开始翻译"""
-        if self.is_translating:
-            messagebox.showwarning("警告", "正在翻译中，请稍候")
-            return
+        self.log("=== 开始翻译流程 ===")
+        try:
+            if self.is_translating:
+                self.log("已有翻译任务在运行", "WARNING")
+                messagebox.showwarning("警告", "正在翻译中，请稍候")
+                return
 
-        if not self.files:
-            messagebox.showwarning("警告", "请先添加要翻译的文件")
-            return
+            if not self.files:
+                self.log("文件列表为空", "WARNING")
+                messagebox.showwarning("警告", "请先添加要翻译的文件")
+                return
 
-        api_key = self.api_key_entry.get().strip()
-        if not api_key:
-            messagebox.showwarning("警告", "请先输入 API Key")
-            return
+            api_key = self.api_key_entry.get().strip()
+            if not api_key:
+                self.log("API Key为空", "WARNING")
+                messagebox.showwarning("警告", "请先输入 API Key")
+                return
 
-        api_url = self.api_url_entry.get().strip()
-        if not api_url:
-            messagebox.showwarning("警告", "请先输入 Base URL")
-            return
+            api_url = self.api_url_entry.get().strip()
+            if not api_url:
+                self.log("Base URL为空", "WARNING")
+                messagebox.showwarning("警告", "请先输入 Base URL")
+                return
 
-        model = self.model_entry.get().strip()
-        if not model:
-            messagebox.showwarning("警告", "请先输入 Model")
-            return
+            model = self.model_entry.get().strip()
+            if not model:
+                self.log("Model为空", "WARNING")
+                messagebox.showwarning("警告", "请先输入 Model")
+                return
 
-        # 保存配置
-        self.config_mgr.set_api_key(api_key)
-        self.config_mgr.set_api_base_url(api_url)
+            self.log(f"配置检查通过 - 文件数: {len(self.files)}, Model: {model}")
 
-        config = self.config_mgr.load_config()
-        config['model'] = model
-        self.config_mgr.save_config(config)
+            # 保存配置
+            self.config_mgr.set_api_key(api_key)
+            self.config_mgr.set_api_base_url(api_url)
 
-        workers = int(self.workers_spinbox.get())
-        self.config_mgr.set_max_workers(workers)
+            config = self.config_mgr.load_config()
+            config['model'] = model
+            self.config_mgr.save_config(config)
 
-        # 确认
-        if not messagebox.askyesno("确认", f"准备翻译 {len(self.files)} 本小说\n使用模型: {model}\n使用 {workers} 个线程\n\n是否开始？"):
-            return
+            workers = int(self.workers_spinbox.get())
+            self.config_mgr.set_max_workers(workers)
 
-        # 开始翻译
-        self.is_translating = True
-        self.start_btn.config(state=tk.DISABLED, text="⏳ 翻译中...")
-        self.completed_count = 0
-        self.total_start_time = time.time()
-        self.translation_results = {}
+            self.log(f"配置已保存 - 线程数: {workers}")
 
-        # 显示开始时间
-        start_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.start_time_label.config(text=start_time_str)
+            # 确认
+            if not messagebox.askyesno("确认", f"准备翻译 {len(self.files)} 本小说\n使用模型: {model}\n使用 {workers} 个线程\n\n是否开始？"):
+                self.log("用户取消翻译")
+                return
 
-        # 清空状态显示
-        self.status_text.config(state=tk.NORMAL)
-        self.status_text.delete(1.0, tk.END)
-        self.status_text.config(state=tk.DISABLED)
+            self.log("用户确认开始翻译")
 
-        # 在新线程中执行翻译
-        threading.Thread(target=self.translate_all, daemon=True).start()
+            # 开始翻译
+            self.is_translating = True
+            self.start_btn.config(state=tk.DISABLED, text="⏳ 翻译中...")
+            self.completed_count = 0
+            self.total_start_time = time.time()
+            self.translation_results = {}
 
-        # 启动进度更新
-        self.update_progress()
+            # 显示开始时间
+            start_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.start_time_label.config(text=start_time_str)
+
+            self.log(f"翻译任务启动 - 开始时间: {start_time_str}", "SUCCESS")
+
+            # 清空状态显示
+            self.status_text.config(state=tk.NORMAL)
+            self.status_text.delete(1.0, tk.END)
+            self.status_text.config(state=tk.DISABLED)
+
+            # 在新线程中执行翻译
+            threading.Thread(target=self.translate_all, daemon=True).start()
+
+            self.log("翻译线程已创建")
+
+            # 启动进度更新
+            self.update_progress()
+
+        except Exception as e:
+            self.log(f"开始翻译异常: {str(e)}", "ERROR")
+            messagebox.showerror("错误", f"启动翻译失败: {str(e)}")
 
     def translate_all(self):
         """批量翻译"""
+        self.log("translate_all 线程开始执行")
         try:
+            self.log("正在分配资源（风格和人名）...")
             resources = self.resource_mgr.allocate_resources(self.files)
             self.current_resources = resources
+            self.log(f"资源分配完成 - 共 {len(resources)} 个任务")
 
             workers = self.config_mgr.get_max_workers()
             self.executor = ThreadPoolExecutor(max_workers=workers)
+            self.log(f"线程池已创建 - 线程数: {workers}")
 
             futures = []
-            for file, resource in zip(self.files, resources):
+            for i, (file, resource) in enumerate(zip(self.files, resources)):
+                title = os.path.basename(file)
+                self.log(f"提交任务 {i+1}/{len(self.files)}: {title}")
                 future = self.executor.submit(
                     self.translator.translate_one,
                     file,
@@ -574,14 +716,22 @@ class TranslatorApp:
                 )
                 futures.append(future)
 
-            for future in as_completed(futures):
-                result = future.result()
-                if result['success']:
-                    self.completed_count += 1
+            self.log(f"所有任务已提交，等待完成...")
 
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    if result['success']:
+                        self.completed_count += 1
+                        self.log(f"任务完成 ({self.completed_count}/{len(self.files)})")
+                except Exception as e:
+                    self.log(f"任务执行异常: {str(e)}", "ERROR")
+
+            self.log("所有任务已完成，准备收尾...", "SUCCESS")
             self.window.after(0, self.translation_complete)
 
         except Exception as e:
+            self.log(f"translate_all 异常: {str(e)}", "ERROR")
             self.window.after(0, lambda: messagebox.showerror("错误", f"翻译失败: {str(e)}"))
             self.window.after(0, self.reset_ui)
 
@@ -639,19 +789,29 @@ class TranslatorApp:
 
     def translation_complete(self):
         """翻译完成"""
-        self.is_translating = False
-        total_elapsed = time.time() - self.total_start_time
-        total_cost = sum(r['cost'] for r in self.translation_results.values())
+        self.log("=== 翻译任务全部完成 ===", "SUCCESS")
+        try:
+            self.is_translating = False
+            total_elapsed = time.time() - self.total_start_time
+            total_cost = sum(r['cost'] for r in self.translation_results.values())
 
-        # 自动保存到Excel
-        self.save_to_excel()
+            self.log(f"总耗时: {total_elapsed:.0f}秒")
+            self.log(f"总成本: ${total_cost:.2f}")
+            self.log(f"完成数量: {self.completed_count}/{len(self.files)}")
 
-        messagebox.showinfo(
-            "完成",
-            f"翻译完成！\n\n总耗时: {total_elapsed:.0f}秒\n总成本: ${total_cost:.2f}\n完成: {self.completed_count}/{len(self.files)}"
-        )
+            # 自动保存到Excel
+            self.log("正在保存到Excel...")
+            self.save_to_excel()
 
-        self.reset_ui()
+            messagebox.showinfo(
+                "完成",
+                f"翻译完成！\n\n总耗时: {total_elapsed:.0f}秒\n总成本: ${total_cost:.2f}\n完成: {self.completed_count}/{len(self.files)}"
+            )
+
+            self.reset_ui()
+
+        except Exception as e:
+            self.log(f"翻译完成处理异常: {str(e)}", "ERROR")
 
     def reset_ui(self):
         """重置UI"""
@@ -672,6 +832,8 @@ class TranslatorApp:
             temperature = config.get('temperature', 0.8)
             max_tokens = config.get('max_tokens', 100000)
 
+            self.log(f"调用API - Model: {model}, URL: {api_base_url}")
+
             client = OpenAI(
                 api_key=api_key,
                 base_url=api_base_url
@@ -691,9 +853,12 @@ class TranslatorApp:
             input_tokens = response.usage.prompt_tokens
             output_tokens = response.usage.completion_tokens
 
+            self.log(f"API调用成功 - 输入tokens: {input_tokens}, 输出tokens: {output_tokens}")
+
             return (translated, input_tokens, output_tokens)
 
         except Exception as e:
+            self.log(f"API调用异常: {str(e)}", "ERROR")
             raise Exception(f"API调用失败: {str(e)}")
 
     def save_to_excel(self):
