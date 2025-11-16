@@ -1,0 +1,123 @@
+{
+  "Romance": {
+    "authors": ["Colleen Hoover", "Nicholas Sparks", "Emily Henry"],
+    "styles": [
+      "Write in Colleen Hoover's raw emotional style with short punchy sentences and deep POV. Focus on internal conflict, messy relationships, and gut-wrenching emotional revelations. Use present tense for immediacy. Break readers' hearts then piece them back together.",
+      "Write in Nicholas Sparks' nostalgic heartwarming style with vivid descriptions of small-town settings and sweeping romantic gestures. Layer in bittersweet backstories, family dynamics, and fate-driven love. Make readers believe in soulmates.",
+      "Write in Emily Henry's witty contemporary style with snappy dialogue, slow-burn tension, and career-driven heroines. Balance humor with emotional depth. Create enemies-to-lovers or second-chance dynamics with sharp banter."
+    ],
+    "used": [0, 0, 0]
+  },
+  "Fantasy": {
+    "authors": ["Brandon Sanderson", "Sarah J. Maas"],
+    "styles": [
+      "Write in Brandon Sanderson's detailed magic system style with logical world-building, intricate plot structures, and satisfying payoffs. Explain power mechanics clearly. Build epic ensemble casts with distinct character arcs.",
+      "Write in Sarah J. Maas' action-packed romantic fantasy style with fierce heroines, swoon-worthy love interests, and High stakes battles. Layer in courtly intrigue, chosen-one prophecies, and steamy romance. Use vivid combat scenes."
+    ],
+    "used": [0, 0]
+  },
+  "Urban": {
+    "authors": ["Sylvia Day", "Christina Lauren"],
+    "styles": [
+      "Write in a fast-paced contemporary urban style with gritty city settings, ambitious protagonists, and workplace/social dynamics. Focus on modern relationships, career challenges, and personal growth in metropolitan environments.",
+      "Write in Christina Lauren's playful rom-com style with quirky meet-cutes, workplace romance, and friends-to-lovers dynamics. Use dual POV, sexual tension, and laugh-out-loud moments balanced with genuine emotion."
+    ],
+    "used": [0, 0]
+  },
+  "Sci-Fi": {
+    "authors": ["Andy Weir", "Pierce Brown"],
+    "styles": [
+      "Write in Andy Weir's science-grounded style with technical problem-solving, snarky humor, and survival scenarios. Make complex science accessible and exciting. Focus on human ingenuity against impossible odds.",
+      "Write in Pierce Brown's dark dystopian style with class warfare, political intrigue, and morally complex characters. Create brutal worlds with revolution themes. Use visceral action and strategic plotting."
+    ],
+    "used": [0, 0]
+  },
+  "Mystery": {
+    "authors": ["Gillian Flynn", "Ruth Ware"],
+    "styles": [
+      "Write in Gillian Flynn's psychological thriller style with unreliable narrators, dark twists, and morally ambiguous characters. Build paranoia and suspicion. Reveal shocking truths that recontextualize everything.",
+      "Write in Ruth Ware's atmospheric locked-room mystery style with claustrophobic settings, mounting dread, and cleverly planted clues. Use snowballing tension and shocking revelations."
+    ],
+    "used": [0, 0]
+  },
+  "Horror": {
+    "authors": ["Stephen King", "Paul Tremblay"],
+    "styles": [
+      "Write in Stephen King's character-driven horror style with ordinary people facing extraordinary evil. Build dread slowly, focus on psychological terror, and create memorable monsters (human or otherwise). Ground scares in emotional truth.",
+      "Write in Paul Tremblay's ambiguous cosmic horror style with unreliable perspectives, open-ended mysteries, and existential dread. Leave readers unsettled and questioning reality."
+    ],
+    "used": [0, 0]
+  },
+  "Adventure": {
+    "authors": ["Clive Cussler", "James Rollins"],
+    "styles": [
+      "Write in a thrilling adventure style with globe-trotting treasure hunts, historical mysteries, and non-stop action. Combine archaeology, cutting-edge science, and conspiracy theories. Create larger-than-life heroes.",
+      "Write in James Rollins' techno-thriller adventure style with scientific discoveries, ancient secrets, and race-against-time plotting. Blend history, mythology, and modern technology into explosive scenarios."
+    ],
+    "used": [0, 0]
+  },
+  "Historical": {
+    "authors": ["Philippa Gregory", "Ken Follett"],
+    "styles": [
+      "Write in Philippa Gregory's intimate historical style focusing on women's perspectives in royal courts. Rich period detail, political intrigue, and personal ambition. Make history feel immediate and personal.",
+      "Write in Ken Follett's epic historical style with sweeping multi-generational sagas, architectural/engineering details, and common people shaping history. Interweave multiple storylines across decades."
+    ],
+    "used": [0, 0]
+  },
+  "Crime": {
+    "authors": ["Michael Connelly", "Tana French"],
+    "styles": [
+      "Write in a hard-boiled detective style with procedural accuracy, street-smart protagonists, and gritty urban crime. Focus on case-solving, moral complexity, and the toll of violence on investigators.",
+      "Write in Tana French's literary crime style with rich characterization, Dublin settings, and psychological depth. Make the investigation inseparable from character development. Use lyrical prose."
+    ],
+    "used": [0, 0]
+  },
+  "LGBTQ+": {
+    "authors": ["Casey McQuiston", "Adam Silvera"],
+    "styles": [
+      "Write in Casey McQuiston's joyful queer rom-com style with charming leads, witty banter, and heartfelt coming-out journeys. Balance humor with genuine emotional stakes. Create swoony romance and found family.",
+      "Write in Adam Silvera's emotional YA style with diverse queer characters, magical realism elements, and themes of identity, loss, and first love. Make readers laugh and cry in equal measure."
+    ],
+    "used": [0, 0]
+  },
+  "Paranormal": {
+    "authors": ["Charlaine Harris", "Kim Harrison"],
+    "styles": [
+      "Write in an urban fantasy paranormal style with supernatural creatures integrated into modern society. Sassy protagonists, romantic subplots, and mystery-solving in magical communities. Balance world-building with character-driven plots.",
+      "Write in Kim Harrison's complex paranormal style with witch/vampire/demon politics, morally grey protagonists, and intricate magic systems. Create dangerous romantic tension and high-stakes supernatural conflicts."
+    ],
+    "used": [0, 0]
+  },
+  "System": {
+    "authors": ["LitRPG Style", "Progression Fantasy"],
+    "styles": [
+      "Write in a LitRPG system style with clear stat progression, skill trees, and game mechanics. Show character growth through quantifiable power-ups. Include status screens, quest notifications, and strategic combat using abilities.",
+      "Write in a progression fantasy style focusing on cultivation/leveling systems, power rankings, and martial arts. Emphasize training arcs, breakthrough moments, and satisfying power escalation against increasingly strong foes."
+    ],
+    "used": [0, 0]
+  },
+  "Reborn": {
+    "authors": ["Regression Story", "Second Chance"],
+    "styles": [
+      "Write in a regression/reborn style where the protagonist returns to the past with future knowledge. Focus on correcting past mistakes, gaining advantages through foresight, and changing fate. Show strategic planning and satisfying payback.",
+      "Write in a reincarnation style with the protagonist reborn into a new life/world. Emphasize adapting to new circumstances, using past-life knowledge cleverly, and building a better future. Include moments of recognition and revelation."
+    ],
+    "used": [0, 0]
+  },
+  "Revenge": {
+    "authors": ["Dark Retribution", "Payback Story"],
+    "styles": [
+      "Write in a calculated revenge style with meticulous planning, strategic manipulation, and satisfying takedowns of enemies. Show the protagonist's transformation from victim to powerful player. Balance ruthlessness with moments of humanity.",
+      "Write in a fast-paced revenge thriller style with visceral confrontations, escalating stakes, and cathartic justice. Create sympathetic motivations for vengeance while exploring moral costs. Build tension toward explosive payoffs."
+    ],
+    "used": [0, 0]
+  },
+  "Fanfiction": {
+    "authors": ["Anna Todd", "Christina Hobbs & Lauren Billings (Christina Lauren)"],
+    "styles": [
+      "Write in a passionate fanfiction style with intense character focus, slow-burn or fast-burn romance, and deep exploration of 'what-if' scenarios. Use close POV, emotional intensity, and fan-favorite tropes (enemies-to-lovers, forced proximity, etc.).",
+      "Write in an AU (Alternate Universe) fanfiction style that reimagines characters in completely new settings. Maintain core character traits while exploring fresh dynamics. Focus on relationship development and creative world-building."
+    ],
+    "used": [0, 0]
+  }
+}
