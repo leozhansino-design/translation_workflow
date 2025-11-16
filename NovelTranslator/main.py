@@ -16,6 +16,7 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import os
 import threading
 import time
+import asyncio
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict
@@ -703,48 +704,120 @@ class TranslatorApp:
             self.log(f"开始翻译异常: {str(e)}", "ERROR")
             messagebox.showerror("错误", f"启动翻译失败: {str(e)}")
 
-    def translate_all(self):
-        """批量翻译"""
-        self.log("translate_all 线程开始执行")
+    async def translate_all_async(self):
+        """异步批量翻译 - 真正的并发"""
+        self.log("异步翻译开始...")
         try:
             self.log("正在分配资源（风格和人名）...")
             resources = self.resource_mgr.allocate_resources(self.files)
             self.current_resources = resources
             self.log(f"资源分配完成 - 共 {len(resources)} 个任务")
 
-            workers = self.config_mgr.get_max_workers()
-            self.executor = ThreadPoolExecutor(max_workers=workers)
-            self.log(f"线程池已创建 - 线程数: {workers}")
-
-            futures = []
+            # 创建异步任务列表
+            tasks = []
             for i, (file, resource) in enumerate(zip(self.files, resources)):
                 title = os.path.basename(file)
-                self.log(f"提交任务 {i+1}/{len(self.files)}: {title}")
-                future = self.executor.submit(
-                    self.translator.translate_one,
-                    file,
-                    resource,
-                    self.update_status,
-                    self.call_api
-                )
-                futures.append(future)
+                self.log(f"创建异步任务 {i+1}/{len(self.files)}: {title}")
+                task = self.translate_one_async(file, resource)
+                tasks.append(task)
 
-            self.log(f"所有任务已提交，等待完成...")
+            self.log(f"所有异步任务已创建，开始并发执行...")
 
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    if result['success']:
-                        self.completed_count += 1
-                        # 保存prompt到translation_results
-                        if result['title'] in self.translation_results:
-                            self.translation_results[result['title']]['prompt'] = result.get('prompt', '')
-                        self.log(f"任务完成 ({self.completed_count}/{len(self.files)})")
-                except Exception as e:
-                    self.log(f"任务执行异常: {str(e)}", "ERROR")
+            # 并发执行所有任务
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            self.log("所有任务已完成，准备收尾...", "SUCCESS")
+            # 处理结果
+            for result in results:
+                if isinstance(result, Exception):
+                    self.log(f"任务执行异常: {str(result)}", "ERROR")
+                elif result and result.get('success'):
+                    self.completed_count += 1
+                    # 保存prompt和tags到translation_results
+                    if result['title'] in self.translation_results:
+                        self.translation_results[result['title']]['prompt'] = result.get('prompt', '')
+                        self.translation_results[result['title']]['tags'] = result.get('tags', [])
+                    self.log(f"任务完成 ({self.completed_count}/{len(self.files)})")
+
+            self.log("所有异步任务已完成，准备收尾...", "SUCCESS")
             self.window.after(0, self.translation_complete)
+
+        except Exception as e:
+            self.log(f"异步翻译异常: {str(e)}", "ERROR")
+            self.window.after(0, lambda: messagebox.showerror("错误", f"翻译失败: {str(e)}"))
+            self.window.after(0, self.reset_ui)
+
+    async def translate_one_async(self, file_path: str, resource: dict):
+        """异步翻译单个文件"""
+        try:
+            title = self.resource_mgr.extract_title(file_path)
+
+            # 读取文件
+            content = self.translator.read_file(file_path)
+
+            # 构建Prompt
+            prompt = self.translator.build_prompt(resource['style'], resource['names'])
+
+            # 更新状态：运行中
+            self.window.after(0, lambda: self.update_status(title, "运行中", 0, 0, prompt))
+
+            # 异步调用API
+            start_time = time.time()
+            translated, input_tokens, output_tokens = await self.call_api_async(prompt, content)
+
+            # 计算成本和耗时
+            duration = time.time() - start_time
+            cost = self.config_mgr.calculate_cost(input_tokens, output_tokens)
+
+            # 保存结果
+            output_file = self.translator.save_result(title, translated)
+
+            # 提取tags
+            tags = self.translator.extract_tags(translated)
+
+            # 提取使用的人名并更新使用次数
+            used_names = self.translator.extract_used_names(translated, resource['names'])
+            self.resource_mgr.update_name_usage(used_names)
+
+            # 记录到summary
+            record = {
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "original": title,
+                "translated": output_file,
+                "genre": resource['genre'],
+                "author_style": resource['author'],
+                "names": used_names,
+                "tags": tags,
+                "word_count": self.translator.count_words(content),
+                "time": round(duration, 2),
+                "cost": round(cost, 2),
+                "prompt": prompt
+            }
+            self.config_mgr.add_record(record)
+
+            # 更新状态：完成
+            self.window.after(0, lambda: self.update_status(title, "完成", duration, cost, prompt))
+
+            return {
+                'success': True,
+                'title': title,
+                'prompt': prompt,
+                'tags': tags
+            }
+
+        except Exception as e:
+            self.log(f"翻译 {title} 失败: {str(e)}", "ERROR")
+            return {
+                'success': False,
+                'title': title,
+                'error': str(e)
+            }
+
+    def translate_all(self):
+        """批量翻译 - 使用异步并发"""
+        self.log("translate_all 线程开始执行")
+        try:
+            # 在新的事件循环中运行异步任务
+            asyncio.run(self.translate_all_async())
 
         except Exception as e:
             self.log(f"translate_all 异常: {str(e)}", "ERROR")
@@ -836,7 +909,7 @@ class TranslatorApp:
         self.start_btn.config(state=tk.NORMAL, text="🚀 开始翻译")
 
     def call_api(self, prompt: str, content: str) -> tuple:
-        """调用API - 使用界面输入的model"""
+        """调用API - 同步版本（用于测试连接）"""
         try:
             from openai import OpenAI
 
@@ -876,6 +949,49 @@ class TranslatorApp:
 
         except Exception as e:
             self.log(f"API调用异常: {str(e)}", "ERROR")
+            raise Exception(f"API调用失败: {str(e)}")
+
+    async def call_api_async(self, prompt: str, content: str) -> tuple:
+        """调用API - 异步版本（用于并发翻译）"""
+        try:
+            from openai import AsyncOpenAI
+
+            api_key = self.config_mgr.get_api_key()
+            api_base_url = self.config_mgr.get_api_base_url()
+
+            # 从配置读取model
+            config = self.config_mgr.load_config()
+            model = config.get('model', 'gpt-5.1')
+            temperature = config.get('temperature', 0.8)
+            max_tokens = config.get('max_tokens', 100000)
+
+            self.log(f"异步调用API - Model: {model}")
+
+            client = AsyncOpenAI(
+                api_key=api_key,
+                base_url=api_base_url
+            )
+
+            response = await client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": content}
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+
+            translated = response.choices[0].message.content
+            input_tokens = response.usage.prompt_tokens
+            output_tokens = response.usage.completion_tokens
+
+            self.log(f"异步API调用成功 - 输入tokens: {input_tokens}, 输出tokens: {output_tokens}")
+
+            return (translated, input_tokens, output_tokens)
+
+        except Exception as e:
+            self.log(f"异步API调用异常: {str(e)}", "ERROR")
             raise Exception(f"API调用失败: {str(e)}")
 
     def save_to_excel(self):
@@ -1024,7 +1140,7 @@ class TranslatorApp:
         scrollbar = tk.Scrollbar(tree_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        columns = ('日期', '原书名', '类型', '风格', '字数', '耗时(秒)', '成本($)', 'Prompt')
+        columns = ('日期', '原书名', '类型', '风格', 'Tags', '字数', '耗时(秒)', '成本($)', 'Prompt')
         tree = ttk.Treeview(
             tree_frame,
             columns=columns,
@@ -1036,8 +1152,10 @@ class TranslatorApp:
             tree.heading(col, text=col)
             if col == '原书名':
                 tree.column(col, width=150)
+            elif col == 'Tags':
+                tree.column(col, width=250)
             elif col == 'Prompt':
-                tree.column(col, width=200)
+                tree.column(col, width=150)
             elif col == '类型':
                 tree.column(col, width=80)
             elif col == '风格':
@@ -1048,12 +1166,17 @@ class TranslatorApp:
         # 插入数据
         for record in summary['records']:
             prompt = record.get('prompt', '')
-            prompt_preview = (prompt[:50] + '...') if len(prompt) > 50 else prompt
+            prompt_preview = (prompt[:30] + '...') if len(prompt) > 30 else prompt
+
+            tags = record.get('tags', [])
+            tags_str = ' '.join([f"#{tag}" for tag in tags]) if tags else '-'
+
             tree.insert('', tk.END, values=(
                 record.get('date', '-'),
                 record.get('original', '-'),
                 record.get('genre', '-'),
                 record.get('author_style', '-'),
+                tags_str,
                 record.get('word_count', 0),
                 record.get('time', 0),
                 f"${record.get('cost', 0):.2f}",

@@ -19,10 +19,18 @@ class Translator:
         os.makedirs(output_dir, exist_ok=True)
 
     def build_prompt(self, style: str, names: list) -> str:
-        """构建翻译Prompt - English Version"""
+        """构建翻译Prompt - English Version with Tags"""
         base = """You are a native English webnovel author creating a viral, fully localized English novel from a Chinese source. Write for native English readers with natural pacing and style. DO NOT follow the original chapter structure—restructure freely for maximum impact. Each chapter must exceed 1000 words.
 
 Provide a catchy Wattpad-style title, chapter titles, a blurb (under 3000 characters), and select the genre (Fantasy, Romance, Urban, Sci-Fi, Mystery, Horror, Adventure, Historical, Crime, LGBTQ+, Paranormal, System, Reborn, Revenge, Fanfiction). All character names must be creative and fully localized.
+
+【TAGS REQUIREMENT - CRITICAL】
+Based on the novel's content, generate 5-20 tags that describe the story.
+- Tags must be SINGLE WORDS ONLY (no spaces allowed)
+- Can use internet slang, memes, or trending terms
+- Examples: #enemiestolovers #alphamale #reborn #revenge #billionaire #mafia #omegaverse #slowburn #powercouple #faceslapping #op-mc #cultivation #gamelit #isekai #transmigration #villainess #yandere #harem #obsession #toxic #greenflags #redflags
+- Tags should capture: themes, tropes, character types, plot elements, vibes
+- Format: Put tags at the VERY BEGINNING of output, separated by spaces
 
 【LOCALIZATION REQUIREMENTS】
 
@@ -101,6 +109,8 @@ DO NOT respond conversationally. DO NOT say "I will create..." or "Next I'll giv
 
 IMMEDIATELY output in this exact format:
 
+Tags: #tag1 #tag2 #tag3 #tag4 #tag5 [continue with 5-20 total tags, single words only]
+
 Title: [Your Wattpad-style title]
 Genre: [Selected genre]
 
@@ -140,6 +150,21 @@ START TRANSLATING NOW. Output the complete novel immediately."""
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(content)
         return output_file
+
+    def extract_tags(self, content: str) -> list:
+        """从翻译结果中提取Tags"""
+        try:
+            # 查找Tags行 (格式: Tags: #tag1 #tag2 #tag3...)
+            match = re.search(r'^Tags:\s*(.+?)$', content, re.MULTILINE | re.IGNORECASE)
+            if match:
+                tags_line = match.group(1).strip()
+                # 提取所有#开头的标签
+                tags = re.findall(r'#(\w+)', tags_line)
+                return tags if tags else []
+            return []
+        except Exception as e:
+            print(f"提取Tags失败: {str(e)}")
+            return []
 
     def extract_used_names(self, content: str, available_names: list) -> list:
         """从翻译结果中提取实际使用的人名（全名格式）"""
@@ -223,11 +248,14 @@ START TRANSLATING NOW. Output the complete novel immediately."""
             # 保存结果
             output_file = self.save_result(title, translated)
 
+            # 提取tags
+            tags = self.extract_tags(translated)
+
             # 提取使用的人名并更新使用次数
             used_names = self.extract_used_names(translated, resource['names'])
             self.resource_mgr.update_name_usage(used_names)
 
-            # 记录到summary (添加prompt字段)
+            # 记录到summary (添加prompt和tags字段)
             record = {
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "original": title,
@@ -235,6 +263,7 @@ START TRANSLATING NOW. Output the complete novel immediately."""
                 "genre": genre,
                 "author_style": resource['author'],
                 "names": used_names,
+                "tags": tags,  # 添加tags字段
                 "word_count": word_count,
                 "time": round(duration, 2),
                 "cost": round(cost, 2),
@@ -252,7 +281,8 @@ START TRANSLATING NOW. Output the complete novel immediately."""
                 'translated_file': output_file,
                 'duration': duration,
                 'cost': cost,
-                'prompt': prompt  # 返回prompt
+                'prompt': prompt,  # 返回prompt
+                'tags': tags  # 返回tags
             }
 
         except Exception as e:
