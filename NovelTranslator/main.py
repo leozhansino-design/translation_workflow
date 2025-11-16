@@ -90,7 +90,7 @@ class TranslatorApp:
         )
         history_btn.pack(side=tk.RIGHT, padx=10, pady=10)
 
-        # Excel导出按钮  
+        # Excel导出按钮
         excel_btn = tk.Button(
             title_frame,
             text="📊 导出Excel",
@@ -103,6 +103,20 @@ class TranslatorApp:
             pady=5
         )
         excel_btn.pack(side=tk.RIGHT, padx=10, pady=10)
+
+        # 编辑Default Prompt按钮
+        prompt_editor_btn = tk.Button(
+            title_frame,
+            text="📝 编辑Default Prompt",
+            command=self.show_prompt_editor,
+            bg="#1abc9c",
+            fg="white",
+            font=("Arial", 10),
+            relief=tk.FLAT,
+            padx=15,
+            pady=5
+        )
+        prompt_editor_btn.pack(side=tk.RIGHT, padx=10, pady=10)
 
         # ========== API配置区 ==========
         api_frame = tk.LabelFrame(self.window, text="API 配置", padx=10, pady=10)
@@ -1114,6 +1128,150 @@ class TranslatorApp:
         except Exception as e:
             self.log(f"打开Prompts窗口失败: {str(e)}", "ERROR")
             messagebox.showerror("错误", f"打开Prompts失败: {str(e)}")
+
+    def show_prompt_editor(self):
+        """显示Default Prompt编辑器"""
+        self.log("打开Default Prompt编辑器...")
+        try:
+            import json
+
+            # 创建编辑器窗口
+            editor_window = tk.Toplevel(self.window)
+            editor_window.title("📝 编辑Default Prompt")
+            editor_window.geometry("950x750")
+
+            # 标题
+            tk.Label(
+                editor_window,
+                text="Default Prompt 编辑器",
+                font=("Arial", 14, "bold"),
+                bg="#1abc9c",
+                fg="white",
+                pady=10
+            ).pack(fill=tk.X)
+
+            # 说明
+            info_frame = tk.Frame(editor_window, bg="#ecf0f1")
+            info_frame.pack(fill=tk.X, padx=10, pady=10)
+            tk.Label(
+                info_frame,
+                text="ℹ️ 这是所有翻译任务使用的默认Prompt。修改后点击\"保存\"生效，点击\"取消\"放弃修改。",
+                font=("Arial", 9),
+                bg="#ecf0f1",
+                fg="#2c3e50",
+                wraplength=900,
+                justify=tk.LEFT
+            ).pack(padx=10, pady=5)
+
+            # 文本编辑区
+            text_frame = tk.Frame(editor_window)
+            text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+            prompt_text = scrolledtext.ScrolledText(
+                text_frame,
+                font=("Consolas", 10),
+                wrap=tk.WORD,
+                bg="#f8f9fa",
+                fg="#2c3e50"
+            )
+            prompt_text.pack(fill=tk.BOTH, expand=True)
+
+            # 加载当前prompt
+            default_prompt_path = os.path.join("data", "default_prompt.json")
+            if os.path.exists(default_prompt_path):
+                with open(default_prompt_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    current_prompt = data.get('base_prompt', '')
+                    prompt_text.insert(1.0, current_prompt)
+            else:
+                messagebox.showwarning("警告", "default_prompt.json文件不存在，将使用内置prompt")
+                current_prompt = self.translator._get_fallback_prompt()
+                prompt_text.insert(1.0, current_prompt)
+
+            # 按钮区
+            btn_frame = tk.Frame(editor_window)
+            btn_frame.pack(fill=tk.X, padx=10, pady=10)
+
+            def save_prompt():
+                """保存Prompt到JSON文件"""
+                try:
+                    new_prompt = prompt_text.get(1.0, tk.END).strip()
+                    if not new_prompt:
+                        messagebox.showwarning("警告", "Prompt不能为空")
+                        return
+
+                    # 保存到JSON文件
+                    os.makedirs("data", exist_ok=True)
+                    data = {"base_prompt": new_prompt}
+                    with open(default_prompt_path, 'w', encoding='utf-8') as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+
+                    self.log("Default Prompt已保存", "SUCCESS")
+                    messagebox.showinfo("成功", "Default Prompt已保存！\n下次翻译时将使用新的Prompt。")
+                    editor_window.destroy()
+
+                except Exception as e:
+                    self.log(f"保存Prompt失败: {str(e)}", "ERROR")
+                    messagebox.showerror("错误", f"保存失败: {str(e)}")
+
+            def cancel_edit():
+                """取消编辑"""
+                if messagebox.askyesno("确认", "确定要放弃修改吗？"):
+                    self.log("用户取消编辑Default Prompt")
+                    editor_window.destroy()
+
+            # 保存按钮
+            tk.Button(
+                btn_frame,
+                text="💾 保存",
+                command=save_prompt,
+                bg="#27ae60",
+                fg="white",
+                font=("Arial", 11, "bold"),
+                relief=tk.FLAT,
+                padx=30,
+                pady=8
+            ).pack(side=tk.LEFT, padx=10)
+
+            # 取消按钮
+            tk.Button(
+                btn_frame,
+                text="❌ 取消",
+                command=cancel_edit,
+                bg="#e74c3c",
+                fg="white",
+                font=("Arial", 11, "bold"),
+                relief=tk.FLAT,
+                padx=30,
+                pady=8
+            ).pack(side=tk.LEFT, padx=10)
+
+            # 恢复默认按钮
+            def restore_default():
+                """恢复到内置默认Prompt"""
+                if messagebox.askyesno("确认", "确定要恢复到内置默认Prompt吗？\n这将覆盖当前内容。"):
+                    default = self.translator._get_fallback_prompt()
+                    prompt_text.delete(1.0, tk.END)
+                    prompt_text.insert(1.0, default)
+                    self.log("已恢复默认Prompt")
+
+            tk.Button(
+                btn_frame,
+                text="🔄 恢复默认",
+                command=restore_default,
+                bg="#95a5a6",
+                fg="white",
+                font=("Arial", 10),
+                relief=tk.FLAT,
+                padx=20,
+                pady=8
+            ).pack(side=tk.RIGHT, padx=10)
+
+            self.log("Default Prompt编辑器已打开", "SUCCESS")
+
+        except Exception as e:
+            self.log(f"打开Prompt编辑器失败: {str(e)}", "ERROR")
+            messagebox.showerror("错误", f"打开编辑器失败: {str(e)}")
 
     def show_history(self):
         """显示历史记录"""
