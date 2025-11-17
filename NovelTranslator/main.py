@@ -29,6 +29,7 @@ import pandas as pd
 from config import ConfigManager
 from resource_mgr import ResourceManager
 from translator import Translator
+from path_utils import get_data_dir
 
 # 导入macOS特定功能
 try:
@@ -1212,8 +1213,9 @@ class TranslatorApp:
             )
             prompt_text.pack(fill=tk.BOTH, expand=True)
 
-            # 加载当前prompt
-            default_prompt_path = os.path.join("data", "default_prompt.json")
+            # 加载当前prompt（使用正确的路径）
+            data_dir = get_data_dir()
+            default_prompt_path = os.path.join(data_dir, "default_prompt.json")
             if os.path.exists(default_prompt_path):
                 with open(default_prompt_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -1236,8 +1238,8 @@ class TranslatorApp:
                         messagebox.showwarning("警告", "Prompt不能为空")
                         return
 
-                    # 保存到JSON文件
-                    os.makedirs("data", exist_ok=True)
+                    # 保存到JSON文件（使用正确的路径）
+                    os.makedirs(data_dir, exist_ok=True)
                     data = {"base_prompt": new_prompt}
                     with open(default_prompt_path, 'w', encoding='utf-8') as f:
                         json.dump(data, f, ensure_ascii=False, indent=2)
