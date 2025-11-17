@@ -83,11 +83,13 @@ class TranslatorApp:
             text="📋 历史记录",
             command=self.show_history,
             bg="#9b59b6",
-            fg="white",
+            fg="#ffffff",
             font=("Arial", 10),
             relief=tk.FLAT,
             padx=15,
-            pady=5
+            pady=5,
+            activebackground="#8e44ad",
+            activeforeground="#ffffff"
         )
         history_btn.pack(side=tk.RIGHT, padx=10, pady=10)
 
@@ -97,11 +99,13 @@ class TranslatorApp:
             text="📊 导出Excel",
             command=self.export_to_excel,
             bg="#e67e22",
-            fg="white",
+            fg="#ffffff",
             font=("Arial", 10),
             relief=tk.FLAT,
             padx=15,
-            pady=5
+            pady=5,
+            activebackground="#d35400",
+            activeforeground="#ffffff"
         )
         excel_btn.pack(side=tk.RIGHT, padx=10, pady=10)
 
@@ -111,11 +115,13 @@ class TranslatorApp:
             text="📝 编辑Default Prompt",
             command=self.show_prompt_editor,
             bg="#1abc9c",
-            fg="white",
+            fg="#ffffff",
             font=("Arial", 10),
             relief=tk.FLAT,
             padx=15,
-            pady=5
+            pady=5,
+            activebackground="#16a085",
+            activeforeground="#ffffff"
         )
         prompt_editor_btn.pack(side=tk.RIGHT, padx=10, pady=10)
 
@@ -133,9 +139,11 @@ class TranslatorApp:
             text="测试连接",
             command=self.test_api,
             bg="#27ae60",
-            fg="white",
+            fg="#ffffff",
             relief=tk.FLAT,
-            padx=10
+            padx=10,
+            activebackground="#229954",
+            activeforeground="#ffffff"
         )
         self.test_btn.grid(row=0, column=3, padx=5)
 
@@ -162,11 +170,13 @@ class TranslatorApp:
             text="gpt-5.1",
             command=lambda: self.set_model("gpt-5.1"),
             bg="#3498db",
-            fg="white",
+            fg="#ffffff",
             relief=tk.FLAT,
             padx=10,
             pady=3,
-            font=("Arial", 9)
+            font=("Arial", 9),
+            activebackground="#2980b9",
+            activeforeground="#ffffff"
         ).grid(row=2, column=2, padx=5)
 
         tk.Button(
@@ -174,11 +184,13 @@ class TranslatorApp:
             text="gemini-2.5-pro",
             command=lambda: self.set_model("gemini-2.5-pro"),
             bg="#16a085",
-            fg="white",
+            fg="#ffffff",
             relief=tk.FLAT,
             padx=10,
             pady=3,
-            font=("Arial", 9)
+            font=("Arial", 9),
+            activebackground="#138d75",
+            activeforeground="#ffffff"
         ).grid(row=2, column=3, padx=5)
 
         # 线程数
@@ -199,10 +211,12 @@ class TranslatorApp:
             text="+ 添加文件",
             command=self.add_files,
             bg="#3498db",
-            fg="white",
+            fg="#ffffff",
             relief=tk.FLAT,
             padx=15,
-            pady=5
+            pady=5,
+            activebackground="#2980b9",
+            activeforeground="#ffffff"
         ).pack(side=tk.LEFT, padx=5)
 
         tk.Button(
@@ -210,10 +224,12 @@ class TranslatorApp:
             text="+ 添加文件夹",
             command=self.add_folder,
             bg="#3498db",
-            fg="white",
+            fg="#ffffff",
             relief=tk.FLAT,
             padx=15,
-            pady=5
+            pady=5,
+            activebackground="#2980b9",
+            activeforeground="#ffffff"
         ).pack(side=tk.LEFT, padx=5)
 
         tk.Button(
@@ -221,10 +237,12 @@ class TranslatorApp:
             text="清空列表",
             command=self.clear_files,
             bg="#e74c3c",
-            fg="white",
+            fg="#ffffff",
             relief=tk.FLAT,
             padx=15,
-            pady=5
+            pady=5,
+            activebackground="#c0392b",
+            activeforeground="#ffffff"
         ).pack(side=tk.LEFT, padx=5)
 
         tk.Button(
@@ -232,10 +250,12 @@ class TranslatorApp:
             text="🔍 Preview",
             command=self.show_preview,
             bg="#9b59b6",
-            fg="white",
+            fg="#ffffff",
             relief=tk.FLAT,
             padx=15,
-            pady=5
+            pady=5,
+            activebackground="#8e44ad",
+            activeforeground="#ffffff"
         ).pack(side=tk.LEFT, padx=5)
 
         # 文件列表
@@ -266,17 +286,37 @@ class TranslatorApp:
         self.stats_label.pack(pady=5)
 
         # ========== 开始翻译按钮 ==========
+        btn_container = tk.Frame(self.window)
+        btn_container.pack(fill=tk.X, padx=20, pady=10)
+
         self.start_btn = tk.Button(
-            self.window,
+            btn_container,
             text="🚀 开始翻译",
             command=self.start_translation,
             bg="#27ae60",
-            fg="white",
+            fg="#ffffff",
             font=("Arial", 14, "bold"),
             relief=tk.FLAT,
-            pady=10
+            pady=10,
+            activebackground="#229954",
+            activeforeground="#ffffff"
         )
-        self.start_btn.pack(fill=tk.X, padx=20, pady=10)
+        self.start_btn.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+
+        # 打开输出文件夹按钮
+        self.open_output_btn = tk.Button(
+            btn_container,
+            text="📂 打开输出文件夹",
+            command=self.open_output_folder,
+            bg="#3498db",
+            fg="#ffffff",
+            font=("Arial", 12, "bold"),
+            relief=tk.FLAT,
+            pady=10,
+            activebackground="#2980b9",
+            activeforeground="#ffffff"
+        )
+        self.open_output_btn.pack(side=tk.LEFT, padx=(5, 0))
 
         # ========== 翻译状态区 ==========
         status_frame = tk.LabelFrame(self.window, text="翻译状态", padx=10, pady=10)
@@ -319,11 +359,13 @@ class TranslatorApp:
             text="🔍 查看Prompts",
             command=self.show_prompts,
             bg="#3498db",
-            fg="white",
+            fg="#ffffff",
             relief=tk.FLAT,
             padx=15,
             pady=5,
-            font=("Arial", 9)
+            font=("Arial", 9),
+            activebackground="#2980b9",
+            activeforeground="#ffffff"
         ).pack(pady=5)
 
         # ========== 日志区 ==========
@@ -923,6 +965,32 @@ class TranslatorApp:
         self.is_translating = False
         self.start_btn.config(state=tk.NORMAL, text="🚀 开始翻译")
 
+    def open_output_folder(self):
+        """打开输出文件夹"""
+        try:
+            import subprocess
+            import sys
+            from path_utils import get_output_dir
+
+            output_dir = get_output_dir()
+
+            # 确保目录存在
+            os.makedirs(output_dir, exist_ok=True)
+
+            # 根据操作系统打开文件夹
+            if sys.platform == 'darwin':  # macOS
+                subprocess.run(['open', output_dir])
+            elif sys.platform == 'win32':  # Windows
+                subprocess.run(['explorer', output_dir])
+            else:  # Linux
+                subprocess.run(['xdg-open', output_dir])
+
+            self.log(f"已打开输出文件夹: {output_dir}", "SUCCESS")
+
+        except Exception as e:
+            self.log(f"打开输出文件夹失败: {str(e)}", "ERROR")
+            messagebox.showerror("错误", f"打开文件夹失败: {str(e)}")
+
     def call_api(self, prompt: str, content: str) -> tuple:
         """调用API - 同步版本（用于测试连接）"""
         try:
@@ -967,9 +1035,10 @@ class TranslatorApp:
             raise Exception(f"API调用失败: {str(e)}")
 
     async def call_api_async(self, prompt: str, content: str) -> tuple:
-        """调用API - 异步版本（用于并发翻译）"""
+        """调用API - 异步版本（使用aiohttp进行高效并发）"""
         try:
-            from openai import AsyncOpenAI
+            import aiohttp
+            import json
 
             api_key = self.config_mgr.get_api_key()
             api_base_url = self.config_mgr.get_api_base_url()
@@ -980,28 +1049,40 @@ class TranslatorApp:
             temperature = config.get('temperature', 0.8)
             max_tokens = config.get('max_tokens', 100000)
 
-            self.log(f"异步调用API - Model: {model}")
+            self.log(f"异步调用API (aiohttp) - Model: {model}")
 
-            client = AsyncOpenAI(
-                api_key=api_key,
-                base_url=api_base_url
-            )
-
-            response = await client.chat.completions.create(
-                model=model,
-                messages=[
+            # 构建API请求
+            url = f"{api_base_url.rstrip('/')}/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": model,
+                "messages": [
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": content}
                 ],
-                temperature=temperature,
-                max_tokens=max_tokens
-            )
+                "temperature": temperature,
+                "max_tokens": max_tokens
+            }
 
-            translated = response.choices[0].message.content
-            input_tokens = response.usage.prompt_tokens
-            output_tokens = response.usage.completion_tokens
+            # 使用aiohttp进行异步请求（超时1小时）
+            timeout = aiohttp.ClientTimeout(total=3600)  # 1小时超时
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(url, headers=headers, json=payload) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        raise Exception(f"API返回错误 {response.status}: {error_text}")
 
-            self.log(f"异步API调用成功 - 输入tokens: {input_tokens}, 输出tokens: {output_tokens}")
+                    result = await response.json()
+
+            # 解析返回结果
+            translated = result['choices'][0]['message']['content']
+            input_tokens = result['usage']['prompt_tokens']
+            output_tokens = result['usage']['completion_tokens']
+
+            self.log(f"异步API调用成功 (aiohttp) - 输入tokens: {input_tokens}, 输出tokens: {output_tokens}")
 
             return (translated, input_tokens, output_tokens)
 
