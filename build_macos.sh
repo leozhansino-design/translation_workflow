@@ -47,11 +47,13 @@ pyinstaller \
     --windowed \
     --onefile \
     --add-data "data:data" \
+    --add-data "path_utils.py:." \
     --hidden-import=tkinter \
     --hidden-import=openai \
     --hidden-import=pandas \
     --hidden-import=openpyxl \
     --hidden-import=aiohttp \
+    --hidden-import=path_utils \
     --clean \
     main.py
 

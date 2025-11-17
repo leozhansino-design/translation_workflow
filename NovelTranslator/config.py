@@ -5,12 +5,20 @@
 import json
 import os
 from typing import Optional
+from path_utils import get_data_dir
 
 
 class ConfigManager:
-    def __init__(self, data_dir: str = "data"):
+    def __init__(self, data_dir: str = None):
+        # 使用正确的路径（开发模式和打包模式都支持）
+        if data_dir is None:
+            data_dir = get_data_dir()
+        self.data_dir = data_dir
         self.config_file = os.path.join(data_dir, "config.json")
         self.summary_file = os.path.join(data_dir, "summary.json")
+
+        # 确保data目录存在
+        os.makedirs(data_dir, exist_ok=True)
 
     def load_config(self) -> dict:
         """加载配置"""

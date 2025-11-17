@@ -8,20 +8,27 @@ import json
 from datetime import datetime
 from typing import Dict, Any, Callable, Optional
 import re
+from path_utils import get_data_dir, get_output_dir
 
 
 class Translator:
-    def __init__(self, config_manager, resource_manager, output_dir: str = "output"):
+    def __init__(self, config_manager, resource_manager, output_dir: str = None):
         self.config_mgr = config_manager
         self.resource_mgr = resource_manager
+
+        # 使用正确的路径（开发模式和打包模式都支持）
+        if output_dir is None:
+            output_dir = get_output_dir()
         self.output_dir = output_dir
-        self.default_prompt_path = os.path.join("data", "default_prompt.json")
+
+        data_dir = get_data_dir()
+        self.default_prompt_path = os.path.join(data_dir, "default_prompt.json")
 
         # 确保输出目录存在
         os.makedirs(output_dir, exist_ok=True)
 
         # 确保data目录存在
-        os.makedirs("data", exist_ok=True)
+        os.makedirs(data_dir, exist_ok=True)
 
     def load_default_prompt(self) -> str:
         """从JSON文件加载默认Prompt"""
