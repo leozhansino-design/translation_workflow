@@ -4,6 +4,7 @@
 
 import os
 import time
+import json
 from datetime import datetime
 from typing import Dict, Any, Callable, Optional
 import re
@@ -14,13 +15,31 @@ class Translator:
         self.config_mgr = config_manager
         self.resource_mgr = resource_manager
         self.output_dir = output_dir
+        self.default_prompt_path = os.path.join("data", "default_prompt.json")
 
         # 确保输出目录存在
         os.makedirs(output_dir, exist_ok=True)
 
-    def build_prompt(self, style: str, names: list) -> str:
-        """构建翻译Prompt - English Version with Tags"""
-        base = """You are a native English webnovel author creating a viral, fully localized English novel from a Chinese source. Write for native English readers with natural pacing and style. DO NOT follow the original chapter structure—restructure freely for maximum impact. Each chapter must exceed 1000 words.
+        # 确保data目录存在
+        os.makedirs("data", exist_ok=True)
+
+    def load_default_prompt(self) -> str:
+        """从JSON文件加载默认Prompt"""
+        try:
+            if os.path.exists(self.default_prompt_path):
+                with open(self.default_prompt_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return data.get('base_prompt', self._get_fallback_prompt())
+            else:
+                # 如果文件不存在，返回默认prompt
+                return self._get_fallback_prompt()
+        except Exception as e:
+            print(f"加载default_prompt.json失败: {str(e)}, 使用内置prompt")
+            return self._get_fallback_prompt()
+
+    def _get_fallback_prompt(self) -> str:
+        """备用的内置Prompt（防止JSON文件损坏）"""
+        return """You are a native English webnovel author creating a viral, fully localized English novel from a Chinese source. Write for native English readers with natural pacing and style. DO NOT follow the original chapter structure—restructure freely for maximum impact. Each chapter must exceed 1000 words.
 
 Provide a catchy Wattpad-style title, chapter titles, a blurb (under 3000 characters), and select the genre (Fantasy, Romance, Urban, Sci-Fi, Mystery, Horror, Adventure, Historical, Crime, LGBTQ+, Paranormal, System, Reborn, Revenge, Fanfiction). All character names must be creative and fully localized.
 
@@ -130,6 +149,11 @@ Chapter 2: [Punchy chapter title]
 [Continue with all chapters...]
 
 START TRANSLATING NOW. Output the complete novel immediately."""
+
+    def build_prompt(self, style: str, names: list) -> str:
+        """构建翻译Prompt - English Version with Tags"""
+        # 从JSON文件加载base prompt
+        base = self.load_default_prompt()
 
         style_part = f"\n\n【WRITING STYLE TO EMULATE】\n{style}"
 
