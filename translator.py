@@ -123,7 +123,7 @@ class Translator:
             count: 要分配的名字数量
 
         Returns:
-            分配的名字列表
+            分配的名字列表（字符串列表）
         """
         male_names = names_db.get("male", [])
         female_names = names_db.get("female", [])
@@ -133,11 +133,20 @@ class Translator:
         male_count = count // 2
         female_count = count - male_count
 
+        # 提取fullname字段
         if len(male_names) >= male_count:
-            allocated.extend(male_names[:male_count])
+            for name_obj in male_names[:male_count]:
+                if isinstance(name_obj, dict):
+                    allocated.append(name_obj.get("fullname", ""))
+                else:
+                    allocated.append(str(name_obj))
 
         if len(female_names) >= female_count:
-            allocated.extend(female_names[:female_count])
+            for name_obj in female_names[:female_count]:
+                if isinstance(name_obj, dict):
+                    allocated.append(name_obj.get("fullname", ""))
+                else:
+                    allocated.append(str(name_obj))
 
         return allocated
 
