@@ -1,0 +1,18 @@
+{
+  "comment": "每个环境使用不同的names.json文件",
+  "environments": {
+    "windows1": {
+      "names_file": "data/names_windows1.json",
+      "description": "Windows环境1"
+    },
+    "windows2": {
+      "names_file": "data/names_windows2.json",
+      "description": "Windows环境2"
+    },
+    "mac1": {
+      "names_file": "data/names_mac1.json",
+      "description": "Mac环境1"
+    }
+  },
+  "current_env": "windows1"
+}

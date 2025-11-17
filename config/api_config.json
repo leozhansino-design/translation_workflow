@@ -1,0 +1,8 @@
+{
+  "api_key": "sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln",
+  "base_url": "https://yunwuapi.com/v1/",
+  "model": "gemini-2.5-pro",
+  "temperature": 0.7,
+  "max_tokens": 100000,
+  "timeout": 3600
+}
