@@ -285,7 +285,7 @@ class Translator:
                     {"role": "user", "content": novel_content}
                 ],
                 temperature=0.7,
-                max_tokens=16000,
+                max_tokens=100000,
                 stream=True
             )
 
