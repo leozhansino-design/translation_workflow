@@ -253,6 +253,8 @@ class Translator:
             novel_content = self.read_novel_file(file_path)
 
             if progress_callback:
+                input_length = len(novel_content)
+                progress_callback(f"📖 输入文件: {input_length} 字符")
                 progress_callback(f"📝 生成Unique prompt中...")
 
             # 加载人名库并分配人名(选择使用次数最少的)
@@ -297,19 +299,50 @@ class Translator:
             # 获取流式翻译结果
             translated_content = ""
             total_tokens = 0
+            finish_reason = None
+            chunk_count = 0
 
             for chunk in stream:
+                chunk_count += 1
+
                 if chunk.choices and len(chunk.choices) > 0:
-                    delta = chunk.choices[0].delta
+                    choice = chunk.choices[0]
+                    delta = choice.delta
+
+                    # 接收内容
                     if hasattr(delta, 'content') and delta.content:
                         translated_content += delta.content
+
+                        # 每接收100个chunk更新一次进度
+                        if chunk_count % 100 == 0:
+                            current_length = len(translated_content)
+                            if progress_callback:
+                                progress_callback(f"📥 已接收 {current_length} 字符...")
+
+                    # 检查是否结束
+                    if hasattr(choice, 'finish_reason') and choice.finish_reason:
+                        finish_reason = choice.finish_reason
 
                 # 更新token统计(如果有)
                 if hasattr(chunk, 'usage') and chunk.usage:
                     total_tokens = chunk.usage.total_tokens
 
+            # 检查finish_reason
+            if progress_callback:
+                if finish_reason == "length":
+                    progress_callback(f"⚠️ 警告: 翻译因达到max_tokens限制而停止，可能不完整！")
+                elif finish_reason == "stop":
+                    progress_callback(f"✓ 翻译正常完成")
+                else:
+                    progress_callback(f"⚠️ 翻译结束原因: {finish_reason}")
+
             if progress_callback:
                 progress_callback(f"💾 正在保存结果...")
+
+            # 显示接收到的内容统计
+            content_length = len(translated_content)
+            if progress_callback:
+                progress_callback(f"📊 接收到 {content_length} 字符, {chunk_count} 个chunks")
 
             # 创建输出文件夹（使用绝对路径）
             output_base = os.path.join(self.script_dir, "output")
