@@ -24,6 +24,7 @@ class TranslatorApp:
         self.base_url_var = tk.StringVar(value="https://yunwuapi.com/v1/")
         self.model_var = tk.StringVar(value="gemini-2.5-pro")
         self.custom_model_var = tk.StringVar()
+        self.max_tokens_var = tk.IntVar(value=100000)
         self.names_db_var = tk.IntVar(value=1)
 
         # 文件列表
@@ -97,10 +98,18 @@ class TranslatorApp:
             width=20
         ).grid(row=2, column=3, sticky=tk.W, pady=2, padx=5)
 
+        # Max Tokens配置
+        tk.Label(config_frame, text="Max Tokens:").grid(row=3, column=0, sticky=tk.W, pady=2)
+        tk.Entry(
+            config_frame,
+            textvariable=self.max_tokens_var,
+            width=20
+        ).grid(row=3, column=1, sticky=tk.W, pady=2, padx=5)
+
         # 人名库选择
-        tk.Label(config_frame, text="人名库:").grid(row=3, column=0, sticky=tk.W, pady=2)
+        tk.Label(config_frame, text="人名库:").grid(row=4, column=0, sticky=tk.W, pady=2)
         names_frame = tk.Frame(config_frame)
-        names_frame.grid(row=3, column=1, columnspan=3, sticky=tk.W, pady=2, padx=5)
+        names_frame.grid(row=4, column=1, columnspan=3, sticky=tk.W, pady=2, padx=5)
         for i in [1, 2, 3]:
             tk.Radiobutton(
                 names_frame,
@@ -117,10 +126,10 @@ class TranslatorApp:
             bg="#2196F3",
             fg="white"
         )
-        self.test_btn.grid(row=4, column=0, columnspan=4, pady=10)
+        self.test_btn.grid(row=5, column=0, columnspan=4, pady=10)
 
         self.connection_status = tk.Label(config_frame, text="", fg="gray")
-        self.connection_status.grid(row=5, column=0, columnspan=4)
+        self.connection_status.grid(row=6, column=0, columnspan=4)
 
         # Prompt管理区
         prompt_frame = tk.LabelFrame(parent, text="Prompt管理", padx=10, pady=10)
@@ -343,7 +352,8 @@ class TranslatorApp:
         return Translator(
             api_key=self.api_key_var.get(),
             base_url=self.base_url_var.get(),
-            model=model
+            model=model,
+            max_tokens=self.max_tokens_var.get()
         )
 
     def test_connection(self):

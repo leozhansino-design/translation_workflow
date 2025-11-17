@@ -15,7 +15,7 @@ class Translator:
     # 类级别的锁,用于保护names数据库的读写
     _names_lock = threading.Lock()
 
-    def __init__(self, api_key, base_url, model):
+    def __init__(self, api_key, base_url, model, max_tokens=100000):
         """
         初始化翻译器
 
@@ -23,10 +23,12 @@ class Translator:
             api_key: API密钥
             base_url: API基础URL
             model: 模型名称
+            max_tokens: 最大token数量
         """
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
+        self.max_tokens = max_tokens
         self.client = None
 
         # 获取脚本所在目录的绝对路径
@@ -285,7 +287,7 @@ class Translator:
                     {"role": "user", "content": novel_content}
                 ],
                 temperature=0.7,
-                max_tokens=100000,
+                max_tokens=self.max_tokens,
                 stream=True
             )
 
