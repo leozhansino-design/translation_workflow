@@ -107,7 +107,7 @@ class TranslatorApp:
 
         # 编辑Default Prompt按钮
         # 云端同步设置按钮
-        cloud_sync_btn = tk.Button(
+        self.cloud_sync_btn = tk.Button(
             title_frame,
             text="☁️ 云端同步",
             command=self.show_cloud_sync_settings,
@@ -118,7 +118,7 @@ class TranslatorApp:
             padx=15,
             pady=5
         )
-        cloud_sync_btn.pack(side=tk.RIGHT, padx=5, pady=10)
+        self.cloud_sync_btn.pack(side=tk.RIGHT, padx=5, pady=10)
 
         prompt_editor_btn = tk.Button(
             title_frame,
@@ -199,6 +199,41 @@ class TranslatorApp:
         tk.Label(api_frame, text="线程数:").grid(row=3, column=0, sticky=tk.W, pady=5)
         self.workers_spinbox = tk.Spinbox(api_frame, from_=1, to=20, width=10)
         self.workers_spinbox.grid(row=3, column=1, sticky=tk.W, padx=5)
+
+        # ========== 云端同步状态显示 ==========
+        cloud_status_frame = tk.LabelFrame(self.window, text="☁️ 云端同步状态", padx=10, pady=10)
+        cloud_status_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        # 状态显示
+        self.cloud_status_label = tk.Label(
+            cloud_status_frame,
+            text="● 未启用",
+            font=("Arial", 10, "bold"),
+            fg="gray"
+        )
+        self.cloud_status_label.pack(side=tk.LEFT, padx=5)
+
+        # 路径显示
+        self.cloud_path_label = tk.Label(
+            cloud_status_frame,
+            text="",
+            font=("Consolas", 9),
+            fg="#2c3e50"
+        )
+        self.cloud_path_label.pack(side=tk.LEFT, padx=10)
+
+        # 刷新按钮
+        tk.Button(
+            cloud_status_frame,
+            text="🔄 刷新",
+            command=self.refresh_cloud_status,
+            bg="#95a5a6",
+            fg="white",
+            relief=tk.FLAT,
+            padx=10,
+            pady=3,
+            font=("Arial", 9)
+        ).pack(side=tk.RIGHT, padx=5)
 
         # ========== 文件管理区 ==========
         file_frame = tk.LabelFrame(self.window, text="文件管理", padx=10, pady=10)
@@ -428,6 +463,41 @@ class TranslatorApp:
         self.log(f"线程数已设置: {workers}")
 
         self.log("配置加载完成", "SUCCESS")
+
+        # 加载云端同步状态
+        self.refresh_cloud_status()
+
+    def refresh_cloud_status(self):
+        """刷新云端同步状态显示"""
+        try:
+            from cloud_sync import CloudSync
+            cloud_sync = CloudSync()
+
+            if cloud_sync.is_enabled():
+                cloud_path = cloud_sync.get_cloud_path()
+                if cloud_path:
+                    self.cloud_status_label.config(text="● 已启用", fg="#27ae60")
+                    # 缩短路径显示
+                    display_path = cloud_path
+                    if len(display_path) > 60:
+                        display_path = "..." + display_path[-57:]
+                    self.cloud_path_label.config(text=f"路径: {display_path}")
+                    self.cloud_sync_btn.config(bg="#27ae60")  # 绿色表示已启用
+                    self.log("云端同步已启用", "SUCCESS")
+                else:
+                    self.cloud_status_label.config(text="● 配置错误", fg="#e74c3c")
+                    self.cloud_path_label.config(text="路径无效")
+                    self.cloud_sync_btn.config(bg="#e74c3c")
+            else:
+                self.cloud_status_label.config(text="● 未启用", fg="gray")
+                self.cloud_path_label.config(text="点击 '☁️ 云端同步' 按钮进行配置")
+                self.cloud_sync_btn.config(bg="#9b59b6")
+                self.log("云端同步未启用")
+
+        except Exception as e:
+            self.cloud_status_label.config(text="● 状态未知", fg="#e74c3c")
+            self.cloud_path_label.config(text=f"错误: {str(e)}")
+            self.log(f"获取云端同步状态失败: {str(e)}", "ERROR")
 
     def set_model(self, model_name: str):
         """快捷设置Model"""
@@ -1407,6 +1477,34 @@ class TranslatorApp:
             # 当前配置
             current_config = cloud_sync.cloud_config
 
+            # 当前配置状态提示框
+            status_info_frame = tk.Frame(content_frame, bg="#ecf0f1", relief=tk.SOLID, borderwidth=1)
+            status_info_frame.pack(fill=tk.X, pady=(0, 15))
+
+            if current_config.get('enabled', False):
+                status_icon = "✅"
+                status_text = "当前状态: 已启用"
+                status_color = "#27ae60"
+                current_path = current_config.get('cloud_path', '')
+                if current_path:
+                    path_info = f"\n当前路径: {current_path}"
+                else:
+                    path_info = "\n当前路径: 未设置"
+            else:
+                status_icon = "⚪"
+                status_text = "当前状态: 未启用"
+                status_color = "gray"
+                path_info = ""
+
+            tk.Label(
+                status_info_frame,
+                text=f"{status_icon} {status_text}{path_info}",
+                font=("Arial", 10, "bold"),
+                fg=status_color,
+                bg="#ecf0f1",
+                justify=tk.LEFT
+            ).pack(padx=10, pady=10, anchor=tk.W)
+
             # 启用/禁用开关
             enable_var = tk.BooleanVar(value=current_config.get('enabled', False))
             tk.Checkbutton(
@@ -1544,7 +1642,20 @@ class TranslatorApp:
                     # 保存配置
                     if cloud_sync.save_config(new_config):
                         self.log("云端同步设置已保存", "SUCCESS")
-                        messagebox.showinfo("成功", "设置已保存！\n重启应用后生效。")
+
+                        # 构建保存成功提示信息
+                        if new_config['enabled']:
+                            success_msg = f"✅ 云端同步已启用！\n\n"
+                            success_msg += f"📁 路径: {path}\n\n"
+                            success_msg += "配置已保存并立即生效。"
+                        else:
+                            success_msg = "云端同步已禁用。\n配置已保存。"
+
+                        messagebox.showinfo("保存成功", success_msg)
+
+                        # 刷新主界面的云端状态显示
+                        self.refresh_cloud_status()
+
                         settings_window.destroy()
                     else:
                         messagebox.showerror("错误", "保存设置失败")
