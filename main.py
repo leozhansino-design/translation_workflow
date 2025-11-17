@@ -25,6 +25,7 @@ class TranslatorApp:
         self.model_var = tk.StringVar(value="gemini-2.5-pro")
         self.custom_model_var = tk.StringVar()
         self.max_tokens_var = tk.IntVar(value=100000)
+        self.use_streaming_var = tk.BooleanVar(value=False)  # 默认不使用流式
         self.names_db_var = tk.IntVar(value=1)
 
         # 文件列表
@@ -105,6 +106,13 @@ class TranslatorApp:
             textvariable=self.max_tokens_var,
             width=20
         ).grid(row=3, column=1, sticky=tk.W, pady=2, padx=5)
+
+        # 流式API选项
+        tk.Checkbutton(
+            config_frame,
+            text="使用流式API (可能触发content_filter)",
+            variable=self.use_streaming_var
+        ).grid(row=3, column=2, columnspan=2, sticky=tk.W, pady=2, padx=5)
 
         # 人名库选择
         tk.Label(config_frame, text="人名库:").grid(row=4, column=0, sticky=tk.W, pady=2)
@@ -353,7 +361,8 @@ class TranslatorApp:
             api_key=self.api_key_var.get(),
             base_url=self.base_url_var.get(),
             model=model,
-            max_tokens=self.max_tokens_var.get()
+            max_tokens=self.max_tokens_var.get(),
+            use_streaming=self.use_streaming_var.get()
         )
 
     def test_connection(self):

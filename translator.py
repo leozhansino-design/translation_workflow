@@ -15,7 +15,7 @@ class Translator:
     # 类级别的锁,用于保护names数据库的读写
     _names_lock = threading.Lock()
 
-    def __init__(self, api_key, base_url, model, max_tokens=100000):
+    def __init__(self, api_key, base_url, model, max_tokens=100000, use_streaming=False):
         """
         初始化翻译器
 
@@ -24,11 +24,13 @@ class Translator:
             base_url: API基础URL
             model: 模型名称
             max_tokens: 最大token数量
+            use_streaming: 是否使用流式API
         """
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
         self.max_tokens = max_tokens
+        self.use_streaming = use_streaming
         self.client = None
 
         # 获取脚本所在目录的绝对路径
@@ -287,65 +289,99 @@ class Translator:
             )
 
             if progress_callback:
-                progress_callback(f"🚀 正在发送翻译请求...")
+                mode_text = "流式" if self.use_streaming else "非流式"
+                progress_callback(f"🚀 正在发送翻译请求 ({mode_text})...")
 
-            # 使用流式API进行翻译,避免长时间等待
-            stream = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": full_prompt},
-                    {"role": "user", "content": novel_content}
-                ],
-                temperature=0.7,
-                max_tokens=self.max_tokens,
-                stream=True
-            )
+            # 根据配置选择流式或非流式API
+            if self.use_streaming:
+                # 流式API
+                stream = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": full_prompt},
+                        {"role": "user", "content": novel_content}
+                    ],
+                    temperature=0.7,
+                    max_tokens=self.max_tokens,
+                    stream=True
+                )
 
-            if progress_callback:
-                progress_callback(f"📥 正在接收翻译结果...")
+                if progress_callback:
+                    progress_callback(f"📥 正在接收翻译结果...")
 
-            # 获取流式翻译结果
-            translated_content = ""
-            total_tokens = 0
-            finish_reason = None
-            chunk_count = 0
+                # 获取流式翻译结果
+                translated_content = ""
+                total_tokens = 0
+                finish_reason = None
+                chunk_count = 0
 
-            for chunk in stream:
-                chunk_count += 1
+                for chunk in stream:
+                    chunk_count += 1
 
-                if chunk.choices and len(chunk.choices) > 0:
-                    choice = chunk.choices[0]
-                    delta = choice.delta
+                    if chunk.choices and len(chunk.choices) > 0:
+                        choice = chunk.choices[0]
+                        delta = choice.delta
 
-                    # 接收内容
-                    if hasattr(delta, 'content') and delta.content:
-                        translated_content += delta.content
+                        # 接收内容
+                        if hasattr(delta, 'content') and delta.content:
+                            translated_content += delta.content
 
-                        # 每接收100个chunk更新一次进度
-                        if chunk_count % 100 == 0:
-                            current_length = len(translated_content)
-                            if progress_callback:
-                                progress_callback(f"📥 已接收 {current_length} 字符...")
+                            # 每接收100个chunk更新一次进度
+                            if chunk_count % 100 == 0:
+                                current_length = len(translated_content)
+                                if progress_callback:
+                                    progress_callback(f"📥 已接收 {current_length} 字符...")
 
-                    # 检查是否结束
-                    if hasattr(choice, 'finish_reason') and choice.finish_reason:
-                        finish_reason = choice.finish_reason
+                        # 检查是否结束
+                        if hasattr(choice, 'finish_reason') and choice.finish_reason:
+                            finish_reason = choice.finish_reason
 
-                # 更新token统计(如果有)
-                if hasattr(chunk, 'usage') and chunk.usage:
-                    total_tokens = chunk.usage.total_tokens
+                    # 更新token统计(如果有)
+                    if hasattr(chunk, 'usage') and chunk.usage:
+                        total_tokens = chunk.usage.total_tokens
 
-            # 检查finish_reason
-            if progress_callback:
-                if finish_reason == "length":
-                    progress_callback(f"⚠️ 警告: 翻译因达到max_tokens限制而停止，可能不完整！")
-                elif finish_reason == "stop":
-                    progress_callback(f"✓ 翻译正常完成")
-                elif finish_reason == "content_filter":
-                    progress_callback(f"⚠️ 错误: API内容过滤器触发! 恐怖/敏感内容被拦截")
-                    progress_callback(f"💡 建议: 1) 修改prompt强调文学翻译 2) 更换API提供商")
-                else:
-                    progress_callback(f"⚠️ 翻译结束原因: {finish_reason}")
+                # 检查finish_reason
+                if progress_callback:
+                    if finish_reason == "length":
+                        progress_callback(f"⚠️ 警告: 翻译因达到max_tokens限制而停止，可能不完整！")
+                    elif finish_reason == "stop":
+                        progress_callback(f"✓ 翻译正常完成")
+                    elif finish_reason == "content_filter":
+                        progress_callback(f"⚠️ 错误: API内容过滤器触发! 恐怖/敏感内容被拦截")
+                        progress_callback(f"💡 建议: 关闭流式API选项后重试")
+                    else:
+                        progress_callback(f"⚠️ 翻译结束原因: {finish_reason}")
+            else:
+                # 非流式API (原来的方式)
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": full_prompt},
+                        {"role": "user", "content": novel_content}
+                    ],
+                    temperature=0.7,
+                    max_tokens=self.max_tokens,
+                    stream=False
+                )
+
+                if progress_callback:
+                    progress_callback(f"📥 正在接收翻译结果...")
+
+                # 获取翻译结果
+                translated_content = response.choices[0].message.content
+                total_tokens = response.usage.total_tokens
+                finish_reason = response.choices[0].finish_reason
+
+                # 检查finish_reason
+                if progress_callback:
+                    if finish_reason == "length":
+                        progress_callback(f"⚠️ 警告: 翻译因达到max_tokens限制而停止，可能不完整！")
+                    elif finish_reason == "stop":
+                        progress_callback(f"✓ 翻译正常完成")
+                    elif finish_reason == "content_filter":
+                        progress_callback(f"⚠️ 错误: API内容过滤器触发!")
+                    else:
+                        progress_callback(f"⚠️ 翻译结束原因: {finish_reason}")
 
             if progress_callback:
                 progress_callback(f"💾 正在保存结果...")
@@ -353,7 +389,10 @@ class Translator:
             # 显示接收到的内容统计
             content_length = len(translated_content)
             if progress_callback:
-                progress_callback(f"📊 接收到 {content_length} 字符, {chunk_count} 个chunks")
+                if self.use_streaming:
+                    progress_callback(f"📊 接收到 {content_length} 字符, {chunk_count} 个chunks")
+                else:
+                    progress_callback(f"📊 接收到 {content_length} 字符")
 
             # 创建输出文件夹（使用绝对路径）
             output_base = os.path.join(self.script_dir, "output")
