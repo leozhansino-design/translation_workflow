@@ -405,7 +405,9 @@ class TranslatorApp:
 
     def open_output_folder(self):
         """打开输出文件夹"""
-        output_path = os.path.abspath("output")
+        # 使用脚本所在目录的绝对路径
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        output_path = os.path.join(script_dir, "output")
 
         # 如果文件夹不存在，创建它
         if not os.path.exists(output_path):

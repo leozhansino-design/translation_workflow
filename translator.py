@@ -25,6 +25,10 @@ class Translator:
         self.model = model
         self.client = None
 
+        # 获取脚本所在目录的绝对路径
+        self.script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.data_dir = os.path.join(self.script_dir, "data")
+
     def initialize_client(self):
         """初始化OpenAI客户端"""
         if not self.client:
@@ -48,7 +52,7 @@ class Translator:
 
     def load_prompt_template(self):
         """加载prompt模板"""
-        template_path = os.path.join("data", "default_prompt.txt")
+        template_path = os.path.join(self.data_dir, "default_prompt.txt")
         if os.path.exists(template_path):
             with open(template_path, 'r', encoding='utf-8') as f:
                 return f.read()
@@ -57,13 +61,13 @@ class Translator:
 
     def save_prompt_template(self, content):
         """保存prompt模板"""
-        template_path = os.path.join("data", "default_prompt.txt")
+        template_path = os.path.join(self.data_dir, "default_prompt.txt")
         with open(template_path, 'w', encoding='utf-8') as f:
             f.write(content)
 
     def load_styles(self):
         """加载作家风格库"""
-        styles_path = os.path.join("data", "styles.json")
+        styles_path = os.path.join(self.data_dir, "styles.json")
         if os.path.exists(styles_path):
             with open(styles_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -104,7 +108,7 @@ class Translator:
         Returns:
             包含male和female列表的字典
         """
-        db_path = os.path.join("data", f"names_{db_number}.json")
+        db_path = os.path.join(self.data_dir, f"names_{db_number}.json")
         if os.path.exists(db_path):
             with open(db_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -246,8 +250,9 @@ class Translator:
             if progress_callback:
                 progress_callback(f"💾 正在保存结果...")
 
-            # 创建输出文件夹
-            output_folder = os.path.join("output", filename_no_ext)
+            # 创建输出文件夹（使用绝对路径）
+            output_base = os.path.join(self.script_dir, "output")
+            output_folder = os.path.join(output_base, filename_no_ext)
             os.makedirs(output_folder, exist_ok=True)
 
             # 保存到content.txt
