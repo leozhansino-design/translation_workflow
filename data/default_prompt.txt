@@ -96,6 +96,8 @@ Genre: [Selected genre]
 Blurb:
 [Your blurb under 3000 characters]
 
+---
+
 Chapter 1: [Punchy chapter title]
 
 [Full chapter text with blank lines between paragraphs, 1000+ words]

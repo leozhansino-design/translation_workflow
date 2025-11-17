@@ -6,6 +6,8 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import os
 import json
+import subprocess
+import platform
 from translator import Translator
 
 
@@ -164,6 +166,14 @@ class TranslatorApp:
             fg="white"
         ).pack(side=tk.LEFT, padx=2)
 
+        tk.Button(
+            btn_frame,
+            text="打开输出文件夹",
+            command=self.open_output_folder,
+            bg="#2196F3",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=2)
+
         # 文件列表（使用Treeview显示更多信息）
         list_frame = tk.Frame(file_frame)
         list_frame.pack(fill=tk.BOTH, expand=True)
@@ -249,11 +259,15 @@ class TranslatorApp:
             names_db = translator.load_names_database(self.names_db_var.get())
             allocated_names = translator.allocate_names(names_db, count=20)
 
+            # 随机选择作家风格
+            author_style = translator.get_random_author_style(genre)
+
             # 构建完整prompt
             full_prompt = translator.build_translation_prompt(
                 prompt_template,
                 genre,
-                allocated_names
+                allocated_names,
+                author_style
             )
 
             # 显示prompt
@@ -388,6 +402,26 @@ class TranslatorApp:
             self.file_tree.delete(item)
         self.update_stats()
         self.update_prompt_previews()
+
+    def open_output_folder(self):
+        """打开输出文件夹"""
+        output_path = os.path.abspath("output")
+
+        # 如果文件夹不存在，创建它
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+            messagebox.showinfo("提示", f"输出文件夹已创建：{output_path}")
+
+        # 根据操作系统打开文件夹
+        try:
+            if platform.system() == "Windows":
+                os.startfile(output_path)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.Popen(["open", output_path])
+            else:  # Linux
+                subprocess.Popen(["xdg-open", output_path])
+        except Exception as e:
+            messagebox.showerror("错误", f"无法打开文件夹：{str(e)}\n路径：{output_path}")
 
     def update_stats(self):
         """更新统计信息"""

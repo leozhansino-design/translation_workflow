@@ -4,6 +4,7 @@
 import os
 import time
 import json
+import random
 from openai import OpenAI
 
 
@@ -60,6 +61,39 @@ class Translator:
         with open(template_path, 'w', encoding='utf-8') as f:
             f.write(content)
 
+    def load_styles(self):
+        """加载作家风格库"""
+        styles_path = os.path.join("data", "styles.json")
+        if os.path.exists(styles_path):
+            with open(styles_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+
+    def get_random_author_style(self, genre):
+        """
+        随机选择作家风格
+
+        Args:
+            genre: 小说类型
+
+        Returns:
+            选中的风格描述文本
+        """
+        styles_data = self.load_styles()
+
+        # 如果没有对应genre的风格，返回空字符串
+        if genre not in styles_data:
+            return ""
+
+        genre_data = styles_data[genre]
+        styles = genre_data.get("styles", [])
+
+        if not styles:
+            return ""
+
+        # 随机选择一个风格
+        return random.choice(styles)
+
     def load_names_database(self, db_number):
         """
         加载人名库
@@ -103,7 +137,7 @@ class Translator:
 
         return allocated
 
-    def build_translation_prompt(self, prompt_template, genre, names=None):
+    def build_translation_prompt(self, prompt_template, genre, names=None, author_style=None):
         """
         构建翻译提示词
 
@@ -111,12 +145,17 @@ class Translator:
             prompt_template: prompt模板
             genre: 小说类型
             names: 分配的人名列表（可选）
+            author_style: 作家风格描述（可选）
 
         Returns:
             完整的prompt
         """
         # 基础prompt
         full_prompt = prompt_template
+
+        # 添加作家风格（在人名之前）
+        if author_style:
+            full_prompt += f"\n\n【AUTHOR STYLE】\n{author_style}"
 
         # 如果有人名，添加人名列表
         if names and len(names) > 0:
@@ -173,11 +212,15 @@ class Translator:
             # 加载prompt模板
             prompt_template = self.load_prompt_template()
 
+            # 随机选择作家风格
+            author_style = self.get_random_author_style(genre)
+
             # 构建完整prompt
             full_prompt = self.build_translation_prompt(
                 prompt_template,
                 genre,
-                allocated_names
+                allocated_names,
+                author_style
             )
 
             if progress_callback:
