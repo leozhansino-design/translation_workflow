@@ -1,137 +1,572 @@
 {
   "Romance": {
-    "authors": ["Colleen Hoover", "Nicholas Sparks", "Emily Henry"],
+    "authors": [
+      "Colleen Hoover",
+      "Nicholas Sparks",
+      "Emily Henry",
+      "Ana Huang",
+      "Tessa Bailey",
+      "Ali Hazelwood",
+      "Christina Lauren",
+      "Sally Thorne",
+      "Taylor Jenkins Reid",
+      "K.A. Tucker"
+    ],
     "styles": [
       "Write in Colleen Hoover's raw emotional style with short punchy sentences and deep POV. Focus on intense emotional moments, internal monologue, and contemporary angst. Use present tense for immediacy and visceral reactions.",
       "Write in Nicholas Sparks' nostalgic heartwarming style with vivid descriptions of settings and tender moments. Use lyrical prose, Southern charm, and bittersweet emotional arcs with hope at the core.",
-      "Write in Emily Henry's witty contemporary style with snappy dialogue and quirky humor. Blend romance with personal growth, use smart banter, and create emotionally authentic but fun relationships."
+      "Write in Emily Henry's witty contemporary style with snappy dialogue and quirky humor. Blend romance with personal growth, use smart banter, and create emotionally authentic but fun relationships.",
+      "Write in Ana Huang's addictive dark-romance style with fast pacing, alpha heroes, morally gray dynamics, rich-girl/bad-boy tension, and high heat. Use short chapters and constant emotional cliffhangers.",
+      "Write in Tessa Bailey's spicy rom-com style with bold flirtation, dirty talk, confident heroines, and tender-but-hot male leads. Mix high sexual tension with comedic timing.",
+      "Write in Ali Hazelwood's STEM-romance style with academic settings, nerdy humor, slow-burn tension, and smart awkward protagonists who overthink everything.",
+      "Write in Christina Lauren's breezy commercial romance style with high-energy banter, satisfying tropes, and clean cinematic pacing. Blend humor, heart, and unforgettable chemistry.",
+      "Write in Sally Thorne's enemies-to-lovers office-romance style with snarky dialogue, strong inner monologue, simmering tension, and quirky character dynamics.",
+      "Write in Taylor Jenkins Reid's emotional reflective character-first style with nonlinear timelines, nostalgic tones, and relationships shaped by ambition, fame, or time.",
+      "Write in K.A. Tucker's gritty contemporary romance style with emotional realism, flawed characters, small-town charm blended with darker secrets, and slow-building intimacy."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Fantasy": {
-    "authors": ["Brandon Sanderson", "Sarah J. Maas", "Holly Black"],
+    "authors": [
+      "Brandon Sanderson",
+      "Sarah J. Maas",
+      "Holly Black",
+      "Leigh Bardugo",
+      "V.E. Schwab",
+      "Patrick Rothfuss",
+      "Naomi Novik",
+      "Sabaa Tahir",
+      "Cassandra Clare",
+      "Rick Riordan"
+    ],
     "styles": [
       "Write in Brandon Sanderson's detailed magic system style with clear rules and logical worldbuilding. Use action-packed sequences, multiple POVs, and intricate plot threads that weave together.",
       "Write in Sarah J. Maas' action-packed romantic fantasy style with fierce heroines and swoon-worthy romance. Blend high-stakes battles, court intrigue, and steamy tension with epic fantasy elements.",
-      "Write in Holly Black's dark fairy tale style with morally gray characters and dangerous fae politics. Use lush Gothic imagery, unreliable narrators, and twisted romance in magical settings."
+      "Write in Holly Black's dark fairy tale style with morally gray characters and dangerous fae politics. Use lush Gothic imagery, unreliable narrators, and twisted romance in magical settings.",
+      "Write in Leigh Bardugo's shadowy atmospheric fantasy style with morally gray crews, heists, Eastern-European folklore, and sleek cinematic action.",
+      "Write in V.E. Schwab's high-concept fantasy style with lyrical prose, morally ambiguous protagonists, parallel worlds, and stylish supernatural conflicts.",
+      "Write in Patrick Rothfuss' poetic slow-burn epic fantasy style with musical prose, intimate character introspection, and mythic storytelling.",
+      "Write in Naomi Novik's fairy-tale–inspired fantasy style with folklore, lush imagery, clever heroines, and grounded emotional journeys.",
+      "Write in Sabaa Tahir's brutal fast-paced YA fantasy style with empire oppression, emotional bonds, and relentless life-or-death stakes.",
+      "Write in Cassandra Clare's urban fantasy style blending witty banter, romance, and demon-fighting crews in glamorous modern settings.",
+      "Write in Rick Riordan's humorous myth-based adventure style with first-person snarky voices, fast pacing, and modern teens meeting gods."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Urban": {
-    "authors": ["Colleen Hoover", "Emily Henry", "Casey McQuiston"],
+    "authors": [
+      "Colleen Hoover",
+      "Emily Henry",
+      "Casey McQuiston",
+      "Sally Rooney",
+      "Jojo Moyes",
+      "Jennifer Weiner",
+      "Rainbow Rowell",
+      "Emma Straub",
+      "Taylor Jenkins Reid",
+      "Beth O'Leary"
+    ],
     "styles": [
       "Write in contemporary urban style with gritty city settings and modern relationships. Focus on career-driven characters, fast-paced dialogue, and realistic conflicts in metropolitan life.",
       "Write in Emily Henry's contemporary rom-com style set in urban environments. Use witty banter, quirky situations, and heartfelt moments against city backdrops.",
-      "Write in Casey McQuiston's diverse contemporary style with inclusive characters and modern romance. Blend humor, pop culture references, and emotional depth in urban settings."
+      "Write in Casey McQuiston's inclusive queer-positive comedic style with pop-culture energy, chaotic friendships, and joyful romantic chaos.",
+      "Write in Sally Rooney's minimalist emotional style with clipped dialogue, internal tension, and brutally realistic modern relationships.",
+      "Write in Jojo Moyes' tender life-and-love style with emotionally vulnerable characters navigating personal reinvention in the city.",
+      "Write in Jennifer Weiner's commercial women's fiction style with humor, career struggles, body image themes, and relatable urban dilemmas.",
+      "Write in Rainbow Rowell's warm quirky style with fandom references, heartfelt awkwardness, and soft messy city love stories.",
+      "Write in Emma Straub's multigenerational urban style with neighborhood charm, ensemble casts, and laid-back emotional clarity.",
+      "Write in Taylor Jenkins Reid's celebrity/urban realism style with nonlinear timelines, fame, ambition, and relationships shaped by the city.",
+      "Write in Beth O’Leary's high-concept urban-romance style with charming tropes, cozy vibes, and endearing awkward characters."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Sci-Fi": {
-    "authors": ["Andy Weir", "Pierce Brown", "Blake Crouch"],
+    "authors": [
+      "Andy Weir",
+      "Pierce Brown",
+      "Blake Crouch",
+      "Michael Crichton",
+      "Ernest Cline",
+      "Neal Stephenson",
+      "James S.A. Corey",
+      "Martha Wells",
+      "Liu Cixin",
+      "John Scalzi"
+    ],
     "styles": [
       "Write in Andy Weir's science-heavy survival style with technical problem-solving and dark humor. Use first-person narration, scientific accuracy, and protagonists who think their way through crises.",
       "Write in Pierce Brown's brutal dystopian style with complex power struggles and war tactics. Use visceral action, political intrigue, and morally complex characters in futuristic societies.",
-      "Write in Blake Crouch's mind-bending thriller style with quantum concepts and reality-warping plots. Blend hard science with psychological tension and philosophical questions."
+      "Write in Blake Crouch's mind-bending thriller style with quantum concepts and reality-warping plots. Blend hard science with psychological tension and philosophical questions.",
+      "Write in Michael Crichton's techno-thriller style with scientific danger, corporate conspiracies, and frighteningly plausible worst-case scenarios.",
+      "Write in Ernest Cline's geek-culture sci-fi style with VR worlds, 80s nostalgia, pop-culture puzzles, and adventure-driven pacing.",
+      "Write in Neal Stephenson's cyber-literary style with dense worldbuilding, philosophical depth, and sharp futurist speculation.",
+      "Write in James S.A. Corey's space-opera style with political factions, ground-level characters, and cinematic ship combat.",
+      "Write in Martha Wells' Murderbot style with sarcastic machine narration, social anxiety, and reluctant heroism.",
+      "Write in Liu Cixin's grand speculative style with cosmic perspectives, philosophical dilemmas, and high-intellect world-shaking concepts.",
+      "Write in John Scalzi's humorous military sci-fi style with sharp banter, clean worldbuilding, and fast-paced accessible action."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Mystery": {
-    "authors": ["Gillian Flynn", "Ruth Ware", "Riley Sager"],
+    "authors": [
+      "Gillian Flynn",
+      "Ruth Ware",
+      "Riley Sager",
+      "Tana French",
+      "Harlan Coben",
+      "Karin Slaughter",
+      "Lisa Jewell",
+      "A.J. Finn",
+      "Paula Hawkins",
+      "Shari Lapena"
+    ],
     "styles": [
       "Write in Gillian Flynn's dark psychological thriller style with unreliable narrators and shocking twists. Use multiple timelines, disturbed characters, and nihilistic undertones.",
-      "Write in Ruth Ware's atmospheric locked-room mystery style with claustrophobic settings. Build slow-burn tension, use isolated locations, and create paranoid protagonists.",
-      "Write in Riley Sager's twisty page-turner style with suburban horror and dark secrets. Blend nostalgia with dread, use dual timelines, and deliver gasp-worthy reveals."
+      "Write in Ruth Ware's atmospheric locked-room mystery style with claustrophobic settings. Build slow-burn tension, isolated locations, and paranoid protagonists.",
+      "Write in Riley Sager's twist-heavy suspense style blending nostalgia, mounting dread, and gasp-worthy final reveals.",
+      "Write in Tana French's literary detective style with immersive Irish atmosphere, psychological depth, and emotional investigations.",
+      "Write in Harlan Coben's high-speed domestic thriller style with sudden revelations, suburban secrets, and cliffhanger pacing.",
+      "Write in Karin Slaughter's dark procedural style with graphic realism, emotional trauma, and relentlessly escalating stakes.",
+      "Write in Lisa Jewell's intimate domestic-noir style with tangled relationships, creeping dread, and intertwined POVs.",
+      "Write in A.J. Finn's Hitchcock-inspired style with voyeuristic tension, unreliable perceptions, and stylish psychological twists.",
+      "Write in Paula Hawkins' emotional suspense style with flawed women, shifting perspectives, and simmering secrets.",
+      "Write in Shari Lapena's suburban suspense style with short chapters, fast pacing, and twisty neighborhood betrayals."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Horror": {
-    "authors": ["Stephen King", "Paul Tremblay", "Grady Hendrix"],
+    "authors": [
+      "Stephen King",
+      "Paul Tremblay",
+      "Grady Hendrix",
+      "Silvia Moreno-Garcia",
+      "Josh Malerman",
+      "Shirley Jackson",
+      "Adam Nevill",
+      "Clive Barker",
+      "Mark Z. Danielewski",
+      "Thomas Olde Heuvelt"
+    ],
     "styles": [
       "Write in Stephen King's character-driven horror style with small-town settings and cosmic dread. Use rich character development, slow-building terror, and supernatural threats that mirror human fears.",
       "Write in Paul Tremblay's ambiguous psychological horror style with unreliable reality. Blur the line between supernatural and psychological, use family dynamics, and leave questions unanswered.",
-      "Write in Grady Hendrix's nostalgic horror-comedy style with 80s/90s throwback vibes. Blend genuine scares with dark humor, use pop culture references, and create likable characters in terrible situations."
+      "Write in Grady Hendrix's nostalgic horror-comedy style with 80s/90s throwback vibes. Blend genuine scares with dark humor, pop culture references, and likable characters in terrible situations.",
+      "Write in Silvia Moreno-Garcia's Gothic Latin-American style with lush atmosphere, creeping dread, and social commentary.",
+      "Write in Josh Malerman's high-concept horror style with sensory deprivation, primal terror, and relentless unseen threats.",
+      "Write in Shirley Jackson's classic psychological horror style with domestic unease, repressed emotion, and quiet madness.",
+      "Write in Adam Nevill's ritualistic folk-horror style with isolated wilderness, cult dread, and decaying ancient forces.",
+      "Write in Clive Barker's dark fantastical horror style with grotesque imagery, seductive evil, and mythological nightmares.",
+      "Write in Mark Z. Danielewski's experimental horror style with fractured structure, labyrinthine settings, and reality bending.",
+      "Write in Thomas Olde Heuvelt's modern curse-horror style blending folklore, emotional trauma, and community paranoia."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
   },
   "Adventure": {
-    "authors": ["Clive Cussler", "James Rollins", "Matthew Reilly"],
-    "styles": [
-      "Write in Clive Cussler's treasure-hunting adventure style with historical mysteries and marine settings. Use globe-trotting plots, detailed research, and larger-than-life heroes.",
-      "Write in James Rollins' action-packed thriller style blending history, science, and adventure. Use exotic locations, ancient secrets, and non-stop pacing with smart protagonists.",
-      "Write in Matthew Reilly's high-octane blockbuster style with impossible stunts and military hardware. Use short chapters, visual action sequences, and relentless forward momentum."
+    "authors": [
+      "Clive Cussler",
+      "James Rollins",
+      "Matthew Reilly",
+      "Dan Brown",
+      "Wilbur Smith",
+      "Tom Clancy",
+      "Michael Crichton",
+      "Lee Child",
+      "Robin Hobb",
+      "Jack Carr"
     ],
-    "used": [0, 0, 0]
+    "styles": [
+      "Write in Clive Cussler's treasure-hunting adventure style with historical mysteries, globe-trotting missions, and charismatic larger-than-life heroes.",
+      "Write in James Rollins' action-thriller adventure style blending science, history, and nonstop danger in exotic locations.",
+      "Write in Matthew Reilly's high-octane blockbuster style with impossible stunts, rapid-fire pacing, and cinematic action set pieces.",
+      "Write in Dan Brown's puzzle-driven thriller style with symbology, ancient secrets, shocking reveals, and time-sensitive chases.",
+      "Write in Wilbur Smith's rugged epic style with African landscapes, survival stakes, and multigenerational adventure.",
+      "Write in Tom Clancy's military-tech adventure style with geopolitical stakes, tactical detail, and grounded realism.",
+      "Write in Michael Crichton's scientific adventure style with dangerous discoveries, escalating chaos, and ethical dilemmas.",
+      "Write in Lee Child's lone-wolf drifter style with tactical improvisation, concise action, and relentless forward motion.",
+      "Write in Robin Hobb's character-driven adventure style with emotional depth, animal bonds, and vivid secondary worlds.",
+      "Write in Jack Carr's modern military adventure style with gritty realism, revenge-driven missions, and tactical authenticity."
+    ],
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Historical": {
-    "authors": ["Philippa Gregory", "Ken Follett", "Hilary Mantel"],
+    "authors": [
+      "Philippa Gregory",
+      "Ken Follett",
+      "Hilary Mantel",
+      "Bernard Cornwell",
+      "Colson Whitehead",
+      "Madeline Miller",
+      "Kate Quinn",
+      "Diana Gabaldon",
+      "Amor Towles",
+      "Min Jin Lee"
+    ],
     "styles": [
       "Write in Philippa Gregory's intimate historical drama style focusing on women's perspectives. Use rich period detail, court intrigue, and personal stakes in grand historical events.",
       "Write in Ken Follett's epic historical saga style spanning generations. Blend multiple storylines, detailed historical research, and ordinary people caught in extraordinary times.",
-      "Write in Hilary Mantel's immersive first-person historical style. Use present tense for immediacy, deep character psychology, and make historical figures feel modern and accessible."
+      "Write in Hilary Mantel's immersive first-person historical style. Use present tense for immediacy, deep character psychology, and make historical figures feel modern and accessible.",
+      "Write in Bernard Cornwell's battle-heavy historical adventure style with shield walls, warrior honor, and gritty realism.",
+      "Write in Colson Whitehead's literary historical style blending brutal truth, surreal edges, and emotionally resonant character arcs.",
+      "Write in Madeline Miller's myth-retelling style with lyrical prose, intimate relationships, and modern emotional clarity.",
+      "Write in Kate Quinn's female-centered espionage historical style with strong heroines, sharp dialogue, and wartime intrigue.",
+      "Write in Diana Gabaldon's time-slip historical-romance style with sensuality, lush detail, and sweeping epic arcs.",
+      "Write in Amor Towles' elegant mid-century style with refined prose, gentlemanly characters, and atmospheric settings.",
+      "Write in Min Jin Lee's generational-immigrant historical style with compassionate detail and quiet emotional power."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Crime": {
-    "authors": ["Michael Connelly", "Tana French", "Lee Child"],
+    "authors": [
+      "Michael Connelly",
+      "Tana French",
+      "Lee Child",
+      "Don Winslow",
+      "James Patterson",
+      "Gillian Flynn",
+      "Patricia Highsmith",
+      "Ian Rankin",
+      "Jo Nesbø",
+      "Dennis Lehane"
+    ],
     "styles": [
       "Write in Michael Connelly's police procedural style with gritty Los Angeles crime. Use detailed detective work, morally complex cops, and realistic investigation procedures.",
       "Write in Tana French's literary crime style with atmospheric Irish settings. Focus on character psychology, lyrical prose, and how crimes affect investigators personally.",
-      "Write in Lee Child's action thriller style with a drifter hero solving crimes. Use short sentences, strategic thinking, and brutal efficiency in confrontations."
+      "Write in Lee Child's action thriller style with a drifter hero solving crimes. Use short sentences, strategic thinking, and brutal efficiency in confrontations.",
+      "Write in Don Winslow's cartel-crime style with sprawling narratives, moral ambiguity, and scorching social commentary.",
+      "Write in James Patterson's ultra-fast commercial crime style with short addictive chapters, high thrills, and clean plot hooks.",
+      "Write in Gillian Flynn's dark psychological crime style with toxic relationships, manipulation, and razor-sharp prose.",
+      "Write in Patricia Highsmith's unsettling psychological style with charming sociopaths, moral decay, and slow-burn tension.",
+      "Write in Ian Rankin's Scottish noir style with bleak atmosphere, introspective detectives, and social realism.",
+      "Write in Jo Nesbø's Nordic noir style with chilling violence, flawed heroes, and twist-heavy investigations.",
+      "Write in Dennis Lehane's gritty Boston crime style with emotional weight, flawed humanity, and tragic inevitability."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "LGBTQ+": {
-    "authors": ["Casey McQuiston", "Adam Silvera", "Becky Albertalli"],
+    "authors": [
+      "Casey McQuiston",
+      "Adam Silvera",
+      "Becky Albertalli",
+      "T.J. Klune",
+      "Alice Oseman",
+      "Taylor Jenkins Reid",
+      "Madeline Miller",
+      "André Aciman",
+      "Benjamin Alire Sáenz",
+      "Leah Johnson"
+    ],
     "styles": [
       "Write in Casey McQuiston's joyful queer romance style with found family and political themes. Use humor, pop culture savvy, and characters who are proudly out and thriving.",
       "Write in Adam Silvera's emotional coming-of-age style with LGBTQ+ teens facing life-or-death stakes. Blend romance with fantasy elements, use diverse characters, and don't shy from tragedy.",
-      "Write in Becky Albertalli's sweet contemporary style with awkward queer teens and first love. Focus on realistic dialogue, school settings, and the nervous excitement of coming out."
+      "Write in Becky Albertalli's sweet contemporary style with awkward queer teens and first love. Focus on realistic dialogue, school settings, and the nervous excitement of coming out.",
+      "Write in T.J. Klune's cozy hopeful queer fantasy style with warm humor, wholesome relationships, and gentle messages about belonging.",
+      "Write in Alice Oseman's quiet emotional YA style with introverted characters, mental health themes, and soft queer romance.",
+      "Write in Taylor Jenkins Reid's glamorous queer celebrity-drama style with nonlinear timelines, emotional ambiguity, and intense character relationships.",
+      "Write in Madeline Miller's lyrical queer-myth style with intimate bonds, lush poetic prose, and timeless tragic beauty.",
+      "Write in André Aciman's sensual introspective style exploring longing, identity, and bittersweet queer desire.",
+      "Write in Benjamin Alire Sáenz's poetic coming-of-age style with tender emotion, desert imagery, and profound introspection.",
+      "Write in Leah Johnson's joyful YA queer-rom-com style with school politics, energetic humor, and uplifting romance."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Paranormal": {
-    "authors": ["Charlaine Harris", "Kelley Armstrong", "Patricia Briggs"],
+    "authors": [
+      "Charlaine Harris",
+      "Kelley Armstrong",
+      "Patricia Briggs",
+      "Ilona Andrews",
+      "Nalini Singh",
+      "Laurell K. Hamilton",
+      "Chloe Neill",
+      "Kim Harrison",
+      "Jeaniene Frost",
+      "Karen Marie Moning"
+    ],
     "styles": [
       "Write in Charlaine Harris' Southern paranormal style with supernatural creatures in small-town settings. Use first-person POV, romantic subplots, and blend horror with humor.",
       "Write in Kelley Armstrong's urban fantasy style with werewolves and witches in modern cities. Focus on strong female leads, pack dynamics, and supernatural politics.",
-      "Write in Patricia Briggs' shapeshifter urban fantasy style with pack hierarchy and mate bonds. Use action-driven plots, loyal protagonists, and complex supernatural world-building."
+      "Write in Patricia Briggs' shapeshifter urban fantasy style with pack hierarchy and mate bonds. Use action-driven plots, loyal protagonists, and complex supernatural world-building.",
+      "Write in Ilona Andrews' snarky action-heavy urban fantasy style with strong heroines, magic-meets-tech worlds, and sizzling romance.",
+      "Write in Nalini Singh's paranormal romance style with psychic powers, immortal beings, intense mate bonds, and high-sensory emotional tension.",
+      "Write in Laurell K. Hamilton's dark erotic paranormal style with vampires, necromancers, and violent supernatural conflict.",
+      "Write in Chloe Neill's sleek urban-vampire style with political intrigue, sarcastic banter, and stylish action.",
+      "Write in Kim Harrison's witch-heavy urban fantasy style with quirky sidekicks, magical ecology, and fast-moving plots.",
+      "Write in Jeaniene Frost's sexy vampire-hunter style with bold heroines, deadly missions, and scorching chemistry.",
+      "Write in Karen Marie Moning's fae-paranormal style with Celtic mythology, seductive danger, and twisty supernatural revelations."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "System": {
-    "authors": ["Andy Weir", "Ernest Cline", "Blake Crouch"],
+    "authors": [
+      "Andy Weir",
+      "Ernest Cline",
+      "Blake Crouch",
+      "Alec Hutson",
+      "Will Wight",
+      "Hugh Howey",
+      "Shemer Kuznits",
+      "Dakota Krout",
+      "Luke Chmilenko",
+      "Travis Bagwell"
+    ],
     "styles": [
       "Write in LitRPG/System style with game-like progression and stat displays. Use level-ups, skill acquisition, and strategic character builds. Include system notifications and quantified growth.",
       "Write in Ernest Cline's geek culture style with virtual reality and gaming references. Blend 80s nostalgia with futuristic technology, use puzzle-solving, and reward encyclopedic knowledge.",
-      "Write in progression fantasy style with cultivation-like power systems. Focus on training montages, power scaling, and characters who optimize their abilities through smart choices."
+      "Write in progression fantasy style with cultivation-like power systems. Focus on training montages, power scaling, and characters who optimize their abilities through smart choices.",
+      "Write in Alec Hutson's classic progression fantasy style with mystical worlds, thoughtful upgrades, and lyrical adventure pacing.",
+      "Write in Will Wight's fast-paced progression style with clear advancement, magical rules, and tournament-like challenges.",
+      "Write in Hugh Howey's survival-driven soft-system style with resource management, harsh environments, and slow-building power.",
+      "Write in Shemer Kuznits' crunchy game-system style with stat optimization, crafting, and dungeon crawling.",
+      "Write in Dakota Krout's humorous self-aware LitRPG style with meta-jokes, clever skill use, and lighthearted power leveling.",
+      "Write in Luke Chmilenko's combat-heavy LitRPG style with tactical battles, party dynamics, and immersive VR environments.",
+      "Write in Travis Bagwell's dark LitRPG style with morally gray antiheroes, intense leveling arcs, and ruthless world logic."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Reborn": {
-    "authors": ["Blake Crouch", "Audrey Niffenegger", "Ken Grimwood"],
+    "authors": [
+      "Blake Crouch",
+      "Audrey Niffenegger",
+      "Ken Grimwood",
+      "Kate Atkinson",
+      "Claire North",
+      "Matt Haig",
+      "Lauren Oliver",
+      "Diana Gabaldon",
+      "Ted Chiang",
+      "Jodi Picoult"
+    ],
     "styles": [
       "Write in second-chance time loop style with protagonist using future knowledge. Focus on fixing past mistakes, relationship do-overs, and the psychological weight of living twice.",
       "Write in Audrey Niffenegger's non-linear timeline style with romance across different ages. Use poetic prose, bittersweet tone, and explore how foreknowledge affects choices.",
-      "Write in Ken Grimwood's Replay style with multiple life do-overs. Focus on existential questions, changing historical events, and finding meaning when nothing is permanent."
+      "Write in Ken Grimwood's Replay style with multiple life do-overs. Focus on existential questions, changing historical events, and finding meaning when nothing is permanent.",
+      "Write in Kate Atkinson's looping historical-literary style with layered timelines, emotional intricacy, and philosophical musing.",
+      "Write in Claire North's identity-shifting time-reset style with high-concept rules and sharp reflective narration.",
+      "Write in Matt Haig's comforting multiverse style with gentle introspection, emotional healing, and alternate-life possibilities.",
+      "Write in Lauren Oliver's YA time-reset style with intense emotion, internal conflict, and teen-centered turning points.",
+      "Write in Diana Gabaldon's time-slip romance style with sensory detail, emotional stakes, and historical immersion.",
+      "Write in Ted Chiang's philosophical sci-fi style with tight concepts, emotional clarity, and mind-bending implications.",
+      "Write in Jodi Picoult's moral-dilemma style with alternating POVs, emotional decisions, and ripple-effects across timelines."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Revenge": {
-    "authors": ["Alexandre Dumas", "Gillian Flynn", "V.E. Schwab"],
+    "authors": [
+      "Alexandre Dumas",
+      "Gillian Flynn",
+      "V.E. Schwab",
+      "Stieg Larsson",
+      "Donna Tartt",
+      "S.J. Watson",
+      "Ruth Rendell",
+      "Caroline Kepnes",
+      "Samantha Downing",
+      "Megan Abbott"
+    ],
     "styles": [
       "Write in classic revenge tragedy style with elaborate long-term schemes. Use dramatic irony, morally gray protagonists, and explore whether vengeance brings satisfaction or emptiness.",
       "Write in Gillian Flynn's dark revenge thriller style with unreliable narrators. Focus on psychological manipulation, shocking reveals, and characters who become monsters in pursuit of payback.",
-      "Write in V.E. Schwab's morally complex revenge fantasy style. Blend supernatural elements with questions of justice vs. vengeance, use lyrical prose, and create sympathetic villains."
+      "Write in V.E. Schwab's morally complex revenge fantasy style. Blend supernatural elements with questions of justice vs. vengeance, use lyrical prose, and create sympathetic villains.",
+      "Write in Stieg Larsson's tech-noir revenge style with hacked secrets, abused victims fighting back, and tense investigative pacing.",
+      "Write in Donna Tartt's literary crime style with intellectual obsession, destructive friendships, and slow-burning moral collapse.",
+      "Write in S.J. Watson's memory-fractured style with unreliable identity, emotional fog, and dangerous rediscovery.",
+      "Write in Ruth Rendell's psychological revenge style with twisted motives, social commentary, and chillingly realistic escalation.",
+      "Write in Caroline Kepnes' obsessive stalker-narration style with dark humor, internal monologues, and intimate manipulation.",
+      "Write in Samantha Downing's suburban revenge style with domestic warfare, cheery narration hiding malice, and shocking twists.",
+      "Write in Megan Abbott's femme-focused noir style with toxic ambition, competitive friendships, and spiraling tension."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   "Fanfiction": {
-    "authors": ["Rainbow Rowell", "Marissa Meyer", "Naomi Novik"],
+    "authors": [
+      "Rainbow Rowell",
+      "Marissa Meyer",
+      "Naomi Novik",
+      "Cassandra Clare",
+      "Sarah J. Maas",
+      "Victoria Aveyard",
+      "Leigh Bardugo",
+      "Stephanie Meyer",
+      "Rick Riordan",
+      "Eoin Colfer"
+    ],
     "styles": [
       "Write in Rainbow Rowell's fandom-aware style celebrating fan culture. Use meta-commentary, characters who love fictional worlds, and blend reality with fan passion.",
       "Write in Marissa Meyer's fairy tale retelling style with familiar stories reimagined. Give classic characters new agency, blend genres, and surprise readers with fresh takes on old tales.",
-      "Write in Naomi Novik's transformative fanwork style that honors source material while telling new stories. Focus on character relationships, fix-it narratives, and exploring what-if scenarios."
+      "Write in Naomi Novik's transformative fanwork style that honors source material while telling new stories. Focus on character relationships, fix-it narratives, and exploring what-if scenarios.",
+      "Write in Cassandra Clare's fanfiction-rooted urban fantasy style with dramatic emotions, steamy romance, and stylish supernatural drama.",
+      "Write in Sarah J. Maas' fandom-loved high-intensity fantasy style with powerful heroines, lethal males, and epic emotional arcs.",
+      "Write in Victoria Aveyard's dystopian fantasy style with rebellion, court intrigue, and shippable high-drama tension.",
+      "Write in Leigh Bardugo's fandom-heavy heist-fantasy style with charismatic crews, clever plots, and strong shipping potential.",
+      "Write in Stephenie Meyer's paranormal romance style with brooding supernatural love interests, emotional melodrama, and addictive pacing.",
+      "Write in Rick Riordan's humorous youthful myth-fanfic style with snarky voices and playful reinterpretations of ancient lore.",
+      "Write in Eoin Colfer's mischievous adventure-fanfic style with clever child-geniuses, chaotic magic, and comedic danger."
     ],
-    "used": [0, 0, 0]
+    "used": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   }
 }
