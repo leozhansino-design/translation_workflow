@@ -176,14 +176,14 @@ START TRANSLATING NOW. Output the complete novel immediately."""
             return f.read()
 
     def save_result(self, title: str, content: str):
-        """保存翻译结果到专属文件夹"""
+        """保存翻译结果到专属文件夹（统一格式：原文件名/content.txt）"""
         # 创建以原文件名命名的文件夹（去掉.txt后缀）
         folder_name = title.replace('.txt', '').replace('_translated', '')
         output_folder = os.path.join(self.output_dir, folder_name)
         os.makedirs(output_folder, exist_ok=True)
 
-        # 在文件夹内保存翻译结果
-        output_file = os.path.join(output_folder, f"{folder_name}_translated.txt")
+        # 统一保存为content.txt
+        output_file = os.path.join(output_folder, "content.txt")
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(content)
         return output_file
