@@ -5,11 +5,15 @@ import os
 import time
 import json
 import random
+import threading
 from openai import OpenAI
 
 
 class Translator:
     """翻译器 - 简化版本"""
+
+    # 类级别的锁,用于保护names数据库的读写
+    _names_lock = threading.Lock()
 
     def __init__(self, api_key, base_url, model):
         """
@@ -32,9 +36,11 @@ class Translator:
     def initialize_client(self):
         """初始化OpenAI客户端"""
         if not self.client:
+            # 设置更长的超时时间(3600秒=1小时)
             self.client = OpenAI(
                 api_key=self.api_key,
-                base_url=self.base_url
+                base_url=self.base_url,
+                timeout=3600.0
             )
 
     def test_connection(self):
@@ -114,41 +120,73 @@ class Translator:
                 return json.load(f)
         return {"male": [], "female": []}
 
-    def allocate_names(self, names_db, count=20):
+    def save_names_database(self, db_number, names_db):
         """
-        从人名库中分配人名
+        保存人名库
+
+        Args:
+            db_number: 1, 2, 或 3
+            names_db: 人名库字典
+        """
+        db_path = os.path.join(self.data_dir, f"names_{db_number}.json")
+        with open(db_path, 'w', encoding='utf-8') as f:
+            json.dump(names_db, f, ensure_ascii=False, indent=2)
+
+    def allocate_names(self, names_db, db_number, count=20):
+        """
+        从人名库中分配人名(选择使用次数最少的名字)
 
         Args:
             names_db: 人名库字典
+            db_number: 数据库编号(用于保存更新)
             count: 要分配的名字数量
 
         Returns:
             分配的名字列表（字符串列表）
         """
-        male_names = names_db.get("male", [])
-        female_names = names_db.get("female", [])
+        # 使用类级别的锁来确保线程安全
+        with Translator._names_lock:
+            male_names = names_db.get("male", [])
+            female_names = names_db.get("female", [])
 
-        # 简单分配：男女各一半
-        allocated = []
-        male_count = count // 2
-        female_count = count - male_count
+            # 简单分配：男女各一半
+            male_count = count // 2
+            female_count = count - male_count
 
-        # 提取fullname字段
-        if len(male_names) >= male_count:
-            for name_obj in male_names[:male_count]:
-                if isinstance(name_obj, dict):
-                    allocated.append(name_obj.get("fullname", ""))
-                else:
-                    allocated.append(str(name_obj))
+            allocated = []
 
-        if len(female_names) >= female_count:
-            for name_obj in female_names[:female_count]:
-                if isinstance(name_obj, dict):
-                    allocated.append(name_obj.get("fullname", ""))
-                else:
-                    allocated.append(str(name_obj))
+            # 为男性名字按used字段排序,选择使用最少的
+            if len(male_names) >= male_count:
+                # 排序:按used字段升序
+                sorted_male = sorted(male_names, key=lambda x: x.get("used", 0) if isinstance(x, dict) else 0)
 
-        return allocated
+                for i in range(male_count):
+                    name_obj = sorted_male[i]
+                    if isinstance(name_obj, dict):
+                        allocated.append(name_obj.get("fullname", ""))
+                        # 更新used计数
+                        name_obj["used"] = name_obj.get("used", 0) + 1
+                    else:
+                        allocated.append(str(name_obj))
+
+            # 为女性名字按used字段排序,选择使用最少的
+            if len(female_names) >= female_count:
+                # 排序:按used字段升序
+                sorted_female = sorted(female_names, key=lambda x: x.get("used", 0) if isinstance(x, dict) else 0)
+
+                for i in range(female_count):
+                    name_obj = sorted_female[i]
+                    if isinstance(name_obj, dict):
+                        allocated.append(name_obj.get("fullname", ""))
+                        # 更新used计数
+                        name_obj["used"] = name_obj.get("used", 0) + 1
+                    else:
+                        allocated.append(str(name_obj))
+
+            # 保存更新后的names数据库
+            self.save_names_database(db_number, names_db)
+
+            return allocated
 
     def build_translation_prompt(self, prompt_template, genre, names=None, author_style=None):
         """
@@ -213,11 +251,11 @@ class Translator:
             novel_content = self.read_novel_file(file_path)
 
             if progress_callback:
-                progress_callback(f"📝 正在分配人名...")
+                progress_callback(f"📝 生成Unique prompt中...")
 
-            # 加载人名库并分配人名
+            # 加载人名库并分配人名(选择使用次数最少的)
             names_db = self.load_names_database(names_db_num)
-            allocated_names = self.allocate_names(names_db, count=20)
+            allocated_names = self.allocate_names(names_db, names_db_num, count=20)
 
             if progress_callback:
                 progress_callback(f"✍️ 正在构建提示词...")
@@ -239,22 +277,34 @@ class Translator:
             if progress_callback:
                 progress_callback(f"🚀 正在发送翻译请求...")
 
-            # 调用API进行翻译
-            response = self.client.chat.completions.create(
+            # 使用流式API进行翻译,避免长时间等待
+            stream = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": full_prompt},
                     {"role": "user", "content": novel_content}
                 ],
                 temperature=0.7,
-                max_tokens=16000
+                max_tokens=16000,
+                stream=True
             )
 
             if progress_callback:
                 progress_callback(f"📥 正在接收翻译结果...")
 
-            # 获取翻译结果
-            translated_content = response.choices[0].message.content
+            # 获取流式翻译结果
+            translated_content = ""
+            total_tokens = 0
+
+            for chunk in stream:
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if hasattr(delta, 'content') and delta.content:
+                        translated_content += delta.content
+
+                # 更新token统计(如果有)
+                if hasattr(chunk, 'usage') and chunk.usage:
+                    total_tokens = chunk.usage.total_tokens
 
             if progress_callback:
                 progress_callback(f"💾 正在保存结果...")
@@ -274,11 +324,15 @@ class Translator:
             if progress_callback:
                 progress_callback(f"✅ 翻译完成！用时 {duration:.1f}秒")
 
+            # 如果没有获取到token统计,使用估算值
+            if total_tokens == 0:
+                total_tokens = len(novel_content) + len(translated_content)
+
             return {
                 'success': True,
                 'output_folder': output_folder,
                 'duration': duration,
-                'tokens': response.usage.total_tokens,
+                'tokens': total_tokens,
                 'filename': filename
             }
 

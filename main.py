@@ -27,7 +27,7 @@ class TranslatorApp:
         self.names_db_var = tk.IntVar(value=1)
 
         # 文件列表
-        self.files = []  # [(file_path, genre, status), ...]
+        self.files = []  # [(file_path, genre, status, start_time), ...]
         self.file_listbox = None
         self.file_status = {}  # {file_path: status_label}
         self.translation_threads = {}  # {file_path: thread}
@@ -160,6 +160,14 @@ class TranslatorApp:
 
         tk.Button(
             btn_frame,
+            text="删除选中",
+            command=self.delete_selected,
+            bg="#FF9800",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=2)
+
+        tk.Button(
+            btn_frame,
             text="清空列表",
             command=self.clear_files,
             bg="#F44336",
@@ -183,17 +191,19 @@ class TranslatorApp:
 
         self.file_tree = ttk.Treeview(
             list_frame,
-            columns=("filename", "genre", "status"),
+            columns=("filename", "genre", "start_time", "status"),
             show="headings",
             yscrollcommand=scrollbar.set,
             height=10
         )
         self.file_tree.heading("filename", text="文件名")
         self.file_tree.heading("genre", text="类型")
+        self.file_tree.heading("start_time", text="开始时间")
         self.file_tree.heading("status", text="状态")
-        self.file_tree.column("filename", width=400)
-        self.file_tree.column("genre", width=100)
-        self.file_tree.column("status", width=200)
+        self.file_tree.column("filename", width=300)
+        self.file_tree.column("genre", width=80)
+        self.file_tree.column("start_time", width=150)
+        self.file_tree.column("status", width=150)
         self.file_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.file_tree.yview)
 
@@ -248,7 +258,9 @@ class TranslatorApp:
         translator = self.get_translator()
         prompt_template = translator.load_prompt_template()
 
-        for file_path, genre, _ in self.files:
+        for file_info in self.files:
+            file_path = file_info[0]
+            genre = file_info[1]
             filename = os.path.basename(file_path)
 
             # 创建标签页
@@ -257,7 +269,7 @@ class TranslatorApp:
 
             # 加载人名库
             names_db = translator.load_names_database(self.names_db_var.get())
-            allocated_names = translator.allocate_names(names_db, count=20)
+            allocated_names = translator.allocate_names(names_db, self.names_db_var.get(), count=20)
 
             # 随机选择作家风格
             author_style = translator.get_random_author_style(genre)
@@ -362,11 +374,11 @@ class TranslatorApp:
                 genre = translator.extract_genre_from_filename(filename)
 
                 # 添加到列表
-                self.files.append((file, genre, "等待中"))
+                self.files.append((file, genre, "等待中", ""))
                 self.file_tree.insert(
                     "",
                     tk.END,
-                    values=(filename, genre, "等待中")
+                    values=(filename, genre, "", "等待中")
                 )
 
         self.update_stats()
@@ -385,12 +397,34 @@ class TranslatorApp:
                         genre = translator.extract_genre_from_filename(filename)
 
                         # 添加到列表
-                        self.files.append((file_path, genre, "等待中"))
+                        self.files.append((file_path, genre, "等待中", ""))
                         self.file_tree.insert(
                             "",
                             tk.END,
-                            values=(filename, genre, "等待中")
+                            values=(filename, genre, "", "等待中")
                         )
+
+        self.update_stats()
+        self.update_prompt_previews()
+
+    def delete_selected(self):
+        """删除选中的文件"""
+        selected_items = self.file_tree.selection()
+        if not selected_items:
+            messagebox.showwarning("警告", "请先选择要删除的文件")
+            return
+
+        if not messagebox.askyesno("确认", f"确定要删除选中的 {len(selected_items)} 个文件吗?"):
+            return
+
+        # 获取选中项的索引
+        for item in selected_items:
+            index = self.file_tree.index(item)
+            # 删除对应的文件记录
+            if index < len(self.files):
+                del self.files[index]
+            # 删除tree view中的项
+            self.file_tree.delete(item)
 
         self.update_stats()
         self.update_prompt_previews()
@@ -429,18 +463,27 @@ class TranslatorApp:
         """更新统计信息"""
         self.stats_label.config(text=f"共{len(self.files)}本小说")
 
-    def update_file_status(self, file_path, status):
+    def update_file_status(self, file_path, status, start_time=None):
         """更新文件状态"""
         # 找到对应的tree item并更新
-        for i, (fp, genre, _) in enumerate(self.files):
+        for i, file_info in enumerate(self.files):
+            fp = file_info[0]
             if fp == file_path:
-                self.files[i] = (fp, genre, status)
+                genre = file_info[1]
+                current_start_time = file_info[3] if len(file_info) > 3 else ""
+
+                # 如果提供了start_time,则更新;否则保持原值
+                if start_time is not None:
+                    current_start_time = start_time
+
+                self.files[i] = (fp, genre, status, current_start_time)
+
                 # 更新tree view
                 items = self.file_tree.get_children()
                 if i < len(items):
                     item_id = items[i]
                     values = self.file_tree.item(item_id, "values")
-                    self.file_tree.item(item_id, values=(values[0], values[1], status))
+                    self.file_tree.item(item_id, values=(values[0], values[1], current_start_time, status))
                 break
 
     def append_status(self, text):
@@ -477,8 +520,15 @@ class TranslatorApp:
         self.append_status(f"{'='*60}\n")
 
         # 为每个文件启动独立线程
-        for file_path, genre, _ in self.files:
-            self.update_file_status(file_path, "翻译中...")
+        import datetime
+        for file_info in self.files:
+            file_path = file_info[0]
+            genre = file_info[1]
+
+            # 记录开始时间
+            start_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.update_file_status(file_path, "翻译中...", start_time)
+
             thread = threading.Thread(
                 target=self.translate_one,
                 args=(file_path, genre),
