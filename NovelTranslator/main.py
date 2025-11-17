@@ -106,6 +106,20 @@ class TranslatorApp:
         excel_btn.pack(side=tk.RIGHT, padx=10, pady=10)
 
         # 编辑Default Prompt按钮
+        # 云端同步设置按钮
+        cloud_sync_btn = tk.Button(
+            title_frame,
+            text="☁️ 云端同步",
+            command=self.show_cloud_sync_settings,
+            bg="#9b59b6",
+            fg="white",
+            font=("Arial", 10),
+            relief=tk.FLAT,
+            padx=15,
+            pady=5
+        )
+        cloud_sync_btn.pack(side=tk.RIGHT, padx=5, pady=10)
+
         prompt_editor_btn = tk.Button(
             title_frame,
             text="📝 编辑Default Prompt",
@@ -117,7 +131,7 @@ class TranslatorApp:
             padx=15,
             pady=5
         )
-        prompt_editor_btn.pack(side=tk.RIGHT, padx=10, pady=10)
+        prompt_editor_btn.pack(side=tk.RIGHT, padx=5, pady=10)
 
         # ========== API配置区 ==========
         api_frame = tk.LabelFrame(self.window, text="API 配置", padx=10, pady=10)
@@ -265,9 +279,12 @@ class TranslatorApp:
         )
         self.stats_label.pack(pady=5)
 
-        # ========== 开始翻译按钮 ==========
+        # ========== 开始翻译按钮和工具按钮 ==========
+        button_frame = tk.Frame(self.window)
+        button_frame.pack(fill=tk.X, padx=20, pady=10)
+
         self.start_btn = tk.Button(
-            self.window,
+            button_frame,
             text="🚀 开始翻译",
             command=self.start_translation,
             bg="#27ae60",
@@ -276,7 +293,20 @@ class TranslatorApp:
             relief=tk.FLAT,
             pady=10
         )
-        self.start_btn.pack(fill=tk.X, padx=20, pady=10)
+        self.start_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+        # 打开output文件夹按钮
+        self.open_output_btn = tk.Button(
+            button_frame,
+            text="📁 打开输出文件夹",
+            command=self.open_output_folder,
+            bg="#3498db",
+            fg="white",
+            font=("Arial", 12, "bold"),
+            relief=tk.FLAT,
+            pady=10
+        )
+        self.open_output_btn.pack(side=tk.LEFT, padx=(5, 0))
 
         # ========== 翻译状态区 ==========
         status_frame = tk.LabelFrame(self.window, text="翻译状态", padx=10, pady=10)
@@ -542,6 +572,37 @@ class TranslatorApp:
         estimated_cost = count * 0.20
         self.stats_label.config(text=f"共 {count} 本 | 预计 ${estimated_cost:.2f}")
 
+    def open_output_folder(self):
+        """打开output文件夹（跨平台支持）"""
+        import platform
+        import subprocess
+
+        try:
+            output_dir = get_output_dir()
+
+            # 确保目录存在
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+
+            system = platform.system()
+
+            if system == 'Darwin':  # macOS
+                subprocess.run(['open', output_dir])
+                self.log(f"已打开output文件夹: {output_dir}")
+            elif system == 'Windows':  # Windows
+                os.startfile(output_dir)
+                self.log(f"已打开output文件夹: {output_dir}")
+            elif system == 'Linux':  # Linux
+                subprocess.run(['xdg-open', output_dir])
+                self.log(f"已打开output文件夹: {output_dir}")
+            else:
+                messagebox.showinfo("路径", f"Output文件夹位置:\n{output_dir}")
+                self.log(f"未知操作系统，显示路径: {output_dir}", "WARNING")
+
+        except Exception as e:
+            self.log(f"打开output文件夹失败: {str(e)}", "ERROR")
+            messagebox.showerror("错误", f"无法打开文件夹:\n{str(e)}\n\n路径: {output_dir}")
+
     def show_preview(self):
         """显示Preview窗口"""
         self.log("打开Preview窗口...")
@@ -779,11 +840,15 @@ class TranslatorApp:
             start_time = time.time()
             translated, input_tokens, output_tokens = await self.call_api_async(prompt, content)
 
-            # 计算成本和耗时
-            duration = time.time() - start_time
-            cost = self.config_mgr.calculate_cost(input_tokens, output_tokens)
+            # 计算API调用时间
+            api_duration = time.time() - start_time
+
+            # ✅ 立即显示"收到翻译件"状态
+            self.window.after(0, lambda: self.update_status(title, f"✅ 收到翻译件 ({int(api_duration)}秒)", api_duration, 0, prompt))
+            self.log(f"✅ {title} - 收到翻译件，开始保存和处理...")
 
             # 保存结果
+            processing_start = time.time()
             output_file = self.translator.save_result(title, translated)
 
             # 提取tags
@@ -792,6 +857,11 @@ class TranslatorApp:
             # 提取使用的人名并更新使用次数
             used_names = self.translator.extract_used_names(translated, resource['names'])
             self.resource_mgr.update_name_usage(used_names)
+
+            # 计算总耗时和处理耗时
+            processing_duration = time.time() - processing_start
+            total_duration = time.time() - start_time
+            cost = self.config_mgr.calculate_cost(input_tokens, output_tokens)
 
             # 记录到summary
             record = {
@@ -803,14 +873,17 @@ class TranslatorApp:
                 "names": used_names,
                 "tags": tags,
                 "word_count": self.translator.count_words(content),
-                "time": round(duration, 2),
+                "api_time": round(api_duration, 2),  # API调用时间
+                "processing_time": round(processing_duration, 2),  # 处理时间
+                "time": round(total_duration, 2),  # 总时间
                 "cost": round(cost, 2),
                 "prompt": prompt
             }
             self.config_mgr.add_record(record)
 
             # 更新状态：完成
-            self.window.after(0, lambda: self.update_status(title, "完成", duration, cost, prompt))
+            self.window.after(0, lambda: self.update_status(title, "完成", total_duration, cost, prompt))
+            self.log(f"🎉 {title} - 全部完成！API:{int(api_duration)}秒, 处理:{int(processing_duration)}秒, 总计:{int(total_duration)}秒")
 
             return {
                 'success': True,
@@ -939,9 +1012,11 @@ class TranslatorApp:
 
             self.log(f"调用API - Model: {model}, URL: {api_base_url}")
 
+            # 设置超时时间为1小时（3600秒）
             client = OpenAI(
                 api_key=api_key,
-                base_url=api_base_url
+                base_url=api_base_url,
+                timeout=3600.0  # 超时时间1小时
             )
 
             response = client.chat.completions.create(
@@ -982,9 +1057,11 @@ class TranslatorApp:
 
             self.log(f"异步调用API - Model: {model}")
 
+            # 设置超时时间为1小时（3600秒）
             client = AsyncOpenAI(
                 api_key=api_key,
-                base_url=api_base_url
+                base_url=api_base_url,
+                timeout=3600.0  # 超时时间1小时
             )
 
             response = await client.chat.completions.create(
@@ -1274,6 +1351,241 @@ class TranslatorApp:
         except Exception as e:
             self.log(f"打开Prompt编辑器失败: {str(e)}", "ERROR")
             messagebox.showerror("错误", f"打开编辑器失败: {str(e)}")
+
+    def show_cloud_sync_settings(self):
+        """显示云端同步设置对话框"""
+        self.log("打开云端同步设置...")
+        try:
+            from cloud_sync import CloudSync
+            from tkinter import filedialog
+
+            cloud_sync = CloudSync()
+
+            # 创建设置窗口
+            settings_window = tk.Toplevel(self.window)
+            settings_window.title("☁️ 云端同步设置")
+            settings_window.geometry("750x650")
+
+            # 标题
+            tk.Label(
+                settings_window,
+                text="云端数据同步配置",
+                font=("Arial", 14, "bold"),
+                bg="#9b59b6",
+                fg="white",
+                pady=10
+            ).pack(fill=tk.X)
+
+            # 说明
+            info_frame = tk.Frame(settings_window, bg="#ecf0f1")
+            info_frame.pack(fill=tk.X, padx=10, pady=10)
+            tk.Label(
+                info_frame,
+                text="💡 多台电脑共享配置文件（prompt, names, styles, summary）\n"
+                     "支持 iCloud Drive, OneDrive, Dropbox, Google Drive 等云存储服务",
+                font=("Arial", 10),
+                bg="#ecf0f1",
+                fg="#2c3e50",
+                justify=tk.LEFT
+            ).pack(padx=10, pady=10)
+
+            # 主内容区
+            content_frame = tk.Frame(settings_window)
+            content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+            # 当前配置
+            current_config = cloud_sync.cloud_config
+
+            # 启用/禁用开关
+            enable_var = tk.BooleanVar(value=current_config.get('enabled', False))
+            tk.Checkbutton(
+                content_frame,
+                text="✅ 启用云端同步",
+                variable=enable_var,
+                font=("Arial", 11, "bold"),
+                fg="#27ae60"
+            ).pack(anchor=tk.W, pady=10)
+
+            # 云端路径选择
+            tk.Label(content_frame, text="云端文件夹路径:", font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=(15, 5))
+
+            path_frame = tk.Frame(content_frame)
+            path_frame.pack(fill=tk.X, pady=5)
+
+            path_entry = tk.Entry(path_frame, font=("Consolas", 10), width=50)
+            path_entry.insert(0, current_config.get('cloud_path', ''))
+            path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+
+            def browse_folder():
+                """浏览文件夹"""
+                folder = filedialog.askdirectory(title="选择云端文件夹")
+                if folder:
+                    path_entry.delete(0, tk.END)
+                    path_entry.insert(0, folder)
+
+            tk.Button(
+                path_frame,
+                text="📁 浏览",
+                command=browse_folder,
+                bg="#3498db",
+                fg="white",
+                relief=tk.FLAT,
+                padx=15
+            ).pack(side=tk.LEFT)
+
+            # 推荐路径
+            suggestions = cloud_sync.get_suggested_paths()
+            if suggestions:
+                tk.Label(content_frame, text="推荐路径（点击复制）:", font=("Arial", 9), fg="gray").pack(anchor=tk.W, pady=(10, 5))
+
+                suggest_frame = tk.Frame(content_frame, bg="#f8f9fa", relief=tk.SOLID, borderwidth=1)
+                suggest_frame.pack(fill=tk.X, pady=5)
+
+                for service, path in suggestions.items():
+                    btn = tk.Button(
+                        suggest_frame,
+                        text=f"{service}: {path}",
+                        command=lambda p=path: (path_entry.delete(0, tk.END), path_entry.insert(0, p)),
+                        bg="#f8f9fa",
+                        fg="#2c3e50",
+                        relief=tk.FLAT,
+                        anchor=tk.W,
+                        font=("Consolas", 9)
+                    )
+                    btn.pack(fill=tk.X, padx=5, pady=2)
+
+            # 同步项目选择
+            tk.Label(content_frame, text="同步项目:", font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=(15, 5))
+
+            sync_items_frame = tk.Frame(content_frame)
+            sync_items_frame.pack(fill=tk.X, pady=5)
+
+            sync_vars = {}
+            sync_items = {
+                'defaultprompt': ('Default Prompt', current_config['sync_items'].get('defaultprompt', True)),
+                'names': ('人名库 (names.json)', current_config['sync_items'].get('names', True)),
+                'styles': ('风格库 (styles.json)', current_config['sync_items'].get('styles', True)),
+                'summary': ('翻译记录 (summary.json)', current_config['sync_items'].get('summary', True))
+            }
+
+            for key, (label, default) in sync_items.items():
+                var = tk.BooleanVar(value=default)
+                sync_vars[key] = var
+                tk.Checkbutton(
+                    sync_items_frame,
+                    text=label,
+                    variable=var,
+                    font=("Arial", 10)
+                ).pack(anchor=tk.W, pady=2)
+
+            # 状态标签
+            status_label = tk.Label(content_frame, text="", font=("Arial", 10), fg="gray")
+            status_label.pack(pady=10)
+
+            # 按钮区
+            btn_frame = tk.Frame(settings_window)
+            btn_frame.pack(fill=tk.X, padx=20, pady=15)
+
+            def test_path():
+                """测试路径"""
+                path = path_entry.get().strip()
+                if not path:
+                    status_label.config(text="❌ 请输入路径", fg="red")
+                    return
+
+                success, message = cloud_sync.test_cloud_path(path)
+                if success:
+                    status_label.config(text=message, fg="green")
+                else:
+                    status_label.config(text=f"❌ {message}", fg="red")
+
+            def save_settings():
+                """保存设置"""
+                try:
+                    path = path_entry.get().strip()
+
+                    if enable_var.get() and not path:
+                        messagebox.showwarning("警告", "启用云端同步时必须设置路径")
+                        return
+
+                    # 构建新配置
+                    new_config = {
+                        "enabled": enable_var.get(),
+                        "cloud_type": "custom",
+                        "cloud_path": path,
+                        "sync_items": {key: var.get() for key, var in sync_vars.items()}
+                    }
+
+                    # 如果启用同步，先设置云端文件夹
+                    if new_config['enabled']:
+                        if not cloud_sync.setup_cloud_folder(path):
+                            messagebox.showerror("错误", "无法创建云端文件夹结构")
+                            return
+
+                        # 询问是否迁移本地数据
+                        if messagebox.askyesno("迁移数据", "是否将本地配置文件复制到云端？\n（已存在的云端文件不会被覆盖）"):
+                            data_dir = get_data_dir()
+                            if cloud_sync.migrate_local_to_cloud(data_dir):
+                                self.log("本地数据已迁移到云端", "SUCCESS")
+                            else:
+                                messagebox.showwarning("警告", "数据迁移失败，但设置已保存")
+
+                    # 保存配置
+                    if cloud_sync.save_config(new_config):
+                        self.log("云端同步设置已保存", "SUCCESS")
+                        messagebox.showinfo("成功", "设置已保存！\n重启应用后生效。")
+                        settings_window.destroy()
+                    else:
+                        messagebox.showerror("错误", "保存设置失败")
+
+                except Exception as e:
+                    self.log(f"保存云端同步设置失败: {str(e)}", "ERROR")
+                    messagebox.showerror("错误", f"保存失败: {str(e)}")
+
+            # 测试按钮
+            tk.Button(
+                btn_frame,
+                text="🧪 测试路径",
+                command=test_path,
+                bg="#f39c12",
+                fg="white",
+                font=("Arial", 10, "bold"),
+                relief=tk.FLAT,
+                padx=20,
+                pady=8
+            ).pack(side=tk.LEFT, padx=5)
+
+            # 保存按钮
+            tk.Button(
+                btn_frame,
+                text="💾 保存",
+                command=save_settings,
+                bg="#27ae60",
+                fg="white",
+                font=("Arial", 11, "bold"),
+                relief=tk.FLAT,
+                padx=30,
+                pady=8
+            ).pack(side=tk.LEFT, padx=5)
+
+            # 取消按钮
+            tk.Button(
+                btn_frame,
+                text="❌ 取消",
+                command=settings_window.destroy,
+                bg="#95a5a6",
+                fg="white",
+                font=("Arial", 11, "bold"),
+                relief=tk.FLAT,
+                padx=30,
+                pady=8
+            ).pack(side=tk.LEFT, padx=5)
+
+            self.log("云端同步设置窗口已打开", "SUCCESS")
+
+        except Exception as e:
+            self.log(f"打开云端同步设置失败: {str(e)}", "ERROR")
+            messagebox.showerror("错误", f"打开设置失败: {str(e)}")
 
     def show_history(self):
         """显示历史记录"""

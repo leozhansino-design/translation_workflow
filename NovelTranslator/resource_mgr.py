@@ -1,5 +1,5 @@
 """
-资源管理器 - 负责分配风格和人名
+资源管理器 - 负责分配风格和人名（支持云端同步）
 确保同批次翻译时：
 1. 同类型小说轮流使用不同风格
 2. 人名不重复
@@ -9,6 +9,7 @@ import json
 import os
 from typing import List, Dict, Any
 from path_utils import get_data_dir
+from cloud_sync import CloudSync
 
 
 class ResourceManager:
@@ -17,8 +18,19 @@ class ResourceManager:
         if data_dir is None:
             data_dir = get_data_dir()
         self.data_dir = data_dir
-        self.styles_file = os.path.join(data_dir, "styles.json")
-        self.names_file = os.path.join(data_dir, "names.json")
+
+        # 初始化云端同步
+        self.cloud_sync = CloudSync()
+
+        # 使用云端路径（如果启用）或本地路径
+        self.styles_file = self.cloud_sync.get_data_file_path(
+            "styles.json",
+            os.path.join(data_dir, "styles.json")
+        )
+        self.names_file = self.cloud_sync.get_data_file_path(
+            "names.json",
+            os.path.join(data_dir, "names.json")
+        )
 
     def load_styles(self) -> Dict:
         """加载风格数据"""

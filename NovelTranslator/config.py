@@ -1,11 +1,12 @@
 """
-配置管理 - 负责读写配置文件
+配置管理 - 负责读写配置文件（支持云端同步）
 """
 
 import json
 import os
 from typing import Optional
 from path_utils import get_data_dir
+from cloud_sync import CloudSync
 
 
 class ConfigManager:
@@ -14,11 +15,26 @@ class ConfigManager:
         if data_dir is None:
             data_dir = get_data_dir()
         self.data_dir = data_dir
-        self.config_file = os.path.join(data_dir, "config.json")
-        self.summary_file = os.path.join(data_dir, "summary.json")
+
+        # 初始化云端同步
+        self.cloud_sync = CloudSync()
+
+        # 使用云端路径（如果启用）或本地路径
+        self.config_file = self._get_file_path("config.json")
+        self.summary_file = self._get_file_path("summary.json")
 
         # 确保data目录存在
         os.makedirs(data_dir, exist_ok=True)
+
+    def _get_file_path(self, filename: str) -> str:
+        """获取文件路径（云端或本地）"""
+        local_path = os.path.join(self.data_dir, filename)
+
+        # 只有特定文件才使用云端同步
+        if filename in ['summary.json', 'names.json', 'styles.json', 'default_prompt.json']:
+            return self.cloud_sync.get_data_file_path(filename, local_path)
+
+        return local_path
 
     def load_config(self) -> dict:
         """加载配置"""

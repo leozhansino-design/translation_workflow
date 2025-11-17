@@ -1,5 +1,5 @@
 """
-翻译逻辑 - 负责实际的翻译工作
+翻译逻辑 - 负责实际的翻译工作（支持云端同步）
 """
 
 import os
@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Dict, Any, Callable, Optional
 import re
 from path_utils import get_data_dir, get_output_dir
+from cloud_sync import CloudSync
 
 
 class Translator:
@@ -21,8 +22,16 @@ class Translator:
             output_dir = get_output_dir()
         self.output_dir = output_dir
 
+        # 初始化云端同步
+        self.cloud_sync = CloudSync()
+
         data_dir = get_data_dir()
-        self.default_prompt_path = os.path.join(data_dir, "default_prompt.json")
+
+        # 使用云端路径（如果启用）或本地路径
+        self.default_prompt_path = self.cloud_sync.get_data_file_path(
+            "default_prompt.json",
+            os.path.join(data_dir, "default_prompt.json")
+        )
 
         # 确保输出目录存在
         os.makedirs(output_dir, exist_ok=True)
