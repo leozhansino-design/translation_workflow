@@ -1,14 +1,18 @@
 """
-小说翻译工具 - 完整增强版 v1.1
+小说翻译工具 - macOS优化版 v1.1
 
 功能列表:
-✅ API Key和Base URL配置  
+✅ API Key和Base URL配置
 ✅ Model自定义输入
 ✅ 全名格式支持
 ✅ 任务开始时间和计时器
 ✅ Preview功能（查看Prompt、风格、人名）
 ✅ 历史任务记录
 ✅ Excel保存和导出
+✅ macOS原生菜单栏
+✅ Retina屏幕优化
+✅ macOS通知中心集成
+✅ 深色模式自动适配
 """
 
 import tkinter as tk
@@ -26,11 +30,32 @@ from config import ConfigManager
 from resource_mgr import ResourceManager
 from translator import Translator
 
+# 导入macOS特定功能
+try:
+    from macos_utils import (
+        is_macos, setup_macos_menu, send_macos_notification,
+        optimize_for_retina, apply_macos_theme, get_macos_paths
+    )
+    MACOS_AVAILABLE = True
+except ImportError:
+    MACOS_AVAILABLE = False
+    def is_macos(): return False
+
 
 class TranslatorApp:
     def __init__(self):
         self.window = tk.Tk()
-        self.window.title("小说翻译工具 v1.1")
+
+        # macOS特定优化
+        if MACOS_AVAILABLE and is_macos():
+            self.window.title("Novel Translator")  # macOS上使用英文标题更原生
+            # Retina屏幕优化
+            optimize_for_retina(self.window)
+            # 设置macOS菜单栏
+            setup_macos_menu(self.window)
+        else:
+            self.window.title("小说翻译工具 v1.1")
+
         self.window.geometry("900x900")
         self.window.resizable(True, True)
 
@@ -53,7 +78,10 @@ class TranslatorApp:
 
         # 启动日志
         self.log("="*60, "INFO")
-        self.log("小说翻译工具 v1.1 启动", "SUCCESS")
+        if MACOS_AVAILABLE and is_macos():
+            self.log("小说翻译工具 v1.1 启动 (macOS优化版)", "SUCCESS")
+        else:
+            self.log("小说翻译工具 v1.1 启动", "SUCCESS")
         self.log("="*60, "INFO")
 
         # 加载配置
@@ -906,6 +934,14 @@ class TranslatorApp:
             # 自动保存到Excel
             self.log("正在保存到Excel...")
             self.save_to_excel()
+
+            # macOS通知
+            if MACOS_AVAILABLE and is_macos():
+                send_macos_notification(
+                    "Novel Translator",
+                    f"翻译完成！共{self.completed_count}本小说，耗时{total_elapsed:.0f}秒",
+                    f"总成本: ${total_cost:.2f}"
+                )
 
             messagebox.showinfo(
                 "完成",
