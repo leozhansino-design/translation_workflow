@@ -574,8 +574,19 @@ class TranslatorApp:
             self.append_status(f"[{filename}] 输出: {result['output_folder']}")
             self.append_status(f"[{filename}] Tokens: {result['tokens']}\n")
         else:
-            final_status = f"❌ 失败: {result['error']}"
-            self.append_status(f"\n[{filename}] {final_status}\n")
+            # 检查是否是content_filter错误
+            if result.get('content_filtered', False):
+                final_status = f"❌ 被内容过滤器拦截"
+                self.append_status(f"\n[{filename}] {final_status}")
+                input_len = result.get('input_length', 0)
+                output_len = result.get('output_length', 0)
+                completion_pct = (output_len / input_len * 100) if input_len > 0 else 0
+                self.append_status(f"[{filename}] 只完成 {completion_pct:.1f}% ({output_len}/{input_len} 字符)")
+                self.append_status(f"[{filename}] ⚠️ API提供商拦截了Horror/敏感内容")
+                self.append_status(f"[{filename}] 💡 建议: 更换支持Horror翻译的API提供商\n")
+            else:
+                final_status = f"❌ 失败: {result.get('error', '未知错误')}"
+                self.append_status(f"\n[{filename}] {final_status}\n")
 
         self.window.after(0, lambda: self.update_file_status(file_path, final_status))
 

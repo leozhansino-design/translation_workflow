@@ -206,6 +206,14 @@ class Translator:
         # 基础prompt
         full_prompt = prompt_template
 
+        # 为敏感类型添加文学翻译免责声明，避免content_filter
+        sensitive_genres = ["Horror", "Crime", "Mystery", "Paranormal"]
+        if genre in sensitive_genres:
+            full_prompt += "\n\n【IMPORTANT DISCLAIMER】\n"
+            full_prompt += "This is a professional literary translation task for published fiction. "
+            full_prompt += "The content is fictional and for entertainment purposes only. "
+            full_prompt += "Please translate the text faithfully while maintaining literary quality."
+
         # 添加作家风格（在人名之前）
         if author_style:
             full_prompt += f"\n\n【AUTHOR STYLE】\n{author_style}"
@@ -333,6 +341,9 @@ class Translator:
                     progress_callback(f"⚠️ 警告: 翻译因达到max_tokens限制而停止，可能不完整！")
                 elif finish_reason == "stop":
                     progress_callback(f"✓ 翻译正常完成")
+                elif finish_reason == "content_filter":
+                    progress_callback(f"⚠️ 错误: API内容过滤器触发! 恐怖/敏感内容被拦截")
+                    progress_callback(f"💡 建议: 1) 修改prompt强调文学翻译 2) 更换API提供商")
                 else:
                     progress_callback(f"⚠️ 翻译结束原因: {finish_reason}")
 
@@ -363,12 +374,20 @@ class Translator:
             if total_tokens == 0:
                 total_tokens = len(novel_content) + len(translated_content)
 
+            # 检查是否被content_filter拦截
+            is_content_filtered = finish_reason == "content_filter"
+            success = not is_content_filtered  # 如果被过滤则标记为失败
+
             return {
-                'success': True,
+                'success': success,
                 'output_folder': output_folder,
                 'duration': duration,
                 'tokens': total_tokens,
-                'filename': filename
+                'filename': filename,
+                'finish_reason': finish_reason,
+                'content_filtered': is_content_filtered,
+                'output_length': len(translated_content),
+                'input_length': len(novel_content)
             }
 
         except Exception as e:
