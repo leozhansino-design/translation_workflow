@@ -1,15 +1,14 @@
 """
-小说翻译工具 - 主程序
+小说翻译工具 - 简化优化版
 """
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
-from concurrent.futures import ThreadPoolExecutor
-import time
 import os
-from config import config
+import json
+import subprocess
+import platform
 from translator import Translator
-from resource_mgr import ResourceManager
 
 
 class TranslatorApp:
@@ -17,88 +16,143 @@ class TranslatorApp:
 
     def __init__(self):
         self.window = tk.Tk()
-        self.window.title("小说翻译工具")
-        self.window.geometry("800x700")
+        self.window.title("小说翻译工具 - 简化优化版")
+        self.window.geometry("1000x800")
 
-        self.translator = Translator()
-        self.resource_mgr = ResourceManager()
+        # 默认配置
+        self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
+        self.base_url_var = tk.StringVar(value="https://yunwuapi.com/v1/")
+        self.model_var = tk.StringVar(value="gemini-2.5-pro")
+        self.custom_model_var = tk.StringVar()
+        self.max_tokens_var = tk.IntVar(value=100000)
+        self.use_streaming_var = tk.BooleanVar(value=False)  # 默认不使用流式
+        self.names_db_var = tk.IntVar(value=1)
 
         # 文件列表
-        self.files = []
+        self.files = []  # [(file_path, genre, status, start_time), ...]
         self.file_listbox = None
-
-        # 翻译状态
-        self.executor = None
-        self.is_translating = False
-        self.status_labels = {}
-        self.start_times = {}
-        self.timer_running = {}
-
-        # 总体统计
-        self.total_completed = 0
-        self.total_start_time = None
+        self.file_status = {}  # {file_path: status_label}
+        self.translation_threads = {}  # {file_path: thread}
 
         # 初始化界面
         self.setup_ui()
 
-        # 加载配置
-        self.load_config()
-
     def setup_ui(self):
         """设置界面"""
-        # 标题
-        title_frame = tk.Frame(self.window)
-        title_frame.pack(fill=tk.X, padx=10, pady=5)
+        # 创建Notebook（标签页）
+        notebook = ttk.Notebook(self.window)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        tk.Label(
-            title_frame,
-            text="小说翻译工具",
-            font=("Arial", 16, "bold")
-        ).pack(side=tk.LEFT)
+        # 标签页1：主界面
+        main_frame = tk.Frame(notebook)
+        notebook.add(main_frame, text="主界面")
 
-        tk.Button(
-            title_frame,
-            text="设置",
-            command=self.show_settings
-        ).pack(side=tk.RIGHT)
+        # 标签页2：Prompt预览
+        self.prompt_preview_frame = tk.Frame(notebook)
+        notebook.add(self.prompt_preview_frame, text="Prompt预览")
 
-        # API配置区域
-        api_frame = tk.LabelFrame(self.window, text="API配置", padx=10, pady=10)
-        api_frame.pack(fill=tk.X, padx=10, pady=5)
+        # ==================== 主界面布局 ====================
+        self.setup_main_frame(main_frame)
+
+        # ==================== Prompt预览界面 ====================
+        self.setup_prompt_preview_frame()
+
+    def setup_main_frame(self, parent):
+        """设置主界面"""
+        # API配置区
+        config_frame = tk.LabelFrame(parent, text="API配置", padx=10, pady=10)
+        config_frame.pack(fill=tk.X, padx=10, pady=5)
 
         # API Key
-        tk.Label(api_frame, text="API Key:").grid(row=0, column=0, sticky=tk.W, pady=2)
-        self.api_key_var = tk.StringVar()
-        self.api_key_entry = tk.Entry(
-            api_frame,
+        tk.Label(config_frame, text="API Key:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        tk.Entry(
+            config_frame,
             textvariable=self.api_key_var,
-            show="*",
-            width=30
+            width=50,
+            show="*"
+        ).grid(row=0, column=1, columnspan=2, sticky=tk.W, pady=2, padx=5)
+
+        # Base URL
+        tk.Label(config_frame, text="Base URL:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        tk.Entry(
+            config_frame,
+            textvariable=self.base_url_var,
+            width=50
+        ).grid(row=1, column=1, columnspan=2, sticky=tk.W, pady=2, padx=5)
+
+        # 模型选择
+        tk.Label(config_frame, text="模型:").grid(row=2, column=0, sticky=tk.W, pady=2)
+        model_menu = ttk.Combobox(
+            config_frame,
+            textvariable=self.model_var,
+            values=["gpt-5.1", "gemini-2.5-pro", "自定义"],
+            state="readonly",
+            width=20
         )
-        self.api_key_entry.grid(row=0, column=1, sticky=tk.W, pady=2, padx=5)
+        model_menu.grid(row=2, column=1, sticky=tk.W, pady=2, padx=5)
+
+        # 自定义模型输入框
+        tk.Label(config_frame, text="自定义模型:").grid(row=2, column=2, sticky=tk.W, pady=2, padx=(20, 0))
+        tk.Entry(
+            config_frame,
+            textvariable=self.custom_model_var,
+            width=20
+        ).grid(row=2, column=3, sticky=tk.W, pady=2, padx=5)
+
+        # Max Tokens配置
+        tk.Label(config_frame, text="Max Tokens:").grid(row=3, column=0, sticky=tk.W, pady=2)
+        tk.Entry(
+            config_frame,
+            textvariable=self.max_tokens_var,
+            width=20
+        ).grid(row=3, column=1, sticky=tk.W, pady=2, padx=5)
+
+        # 流式API选项
+        tk.Checkbutton(
+            config_frame,
+            text="使用流式API (可能触发content_filter)",
+            variable=self.use_streaming_var
+        ).grid(row=3, column=2, columnspan=2, sticky=tk.W, pady=2, padx=5)
+
+        # 人名库选择
+        tk.Label(config_frame, text="人名库:").grid(row=4, column=0, sticky=tk.W, pady=2)
+        names_frame = tk.Frame(config_frame)
+        names_frame.grid(row=4, column=1, columnspan=3, sticky=tk.W, pady=2, padx=5)
+        for i in [1, 2, 3]:
+            tk.Radiobutton(
+                names_frame,
+                text=f"人名库 {i}",
+                variable=self.names_db_var,
+                value=i
+            ).pack(side=tk.LEFT, padx=5)
+
+        # 测试连接按钮
+        self.test_btn = tk.Button(
+            config_frame,
+            text="测试连接",
+            command=self.test_connection,
+            bg="#2196F3",
+            fg="white"
+        )
+        self.test_btn.grid(row=5, column=0, columnspan=4, pady=10)
+
+        self.connection_status = tk.Label(config_frame, text="", fg="gray")
+        self.connection_status.grid(row=6, column=0, columnspan=4)
+
+        # Prompt管理区
+        prompt_frame = tk.LabelFrame(parent, text="Prompt管理", padx=10, pady=10)
+        prompt_frame.pack(fill=tk.X, padx=10, pady=5)
 
         tk.Button(
-            api_frame,
-            text="测试",
-            command=self.test_connection
-        ).grid(row=0, column=2, pady=2, padx=5)
+            prompt_frame,
+            text="编辑默认Prompt",
+            command=self.edit_default_prompt,
+            bg="#FF9800",
+            fg="white"
+        ).pack(pady=5)
 
-        self.connection_status = tk.Label(api_frame, text="", fg="gray")
-        self.connection_status.grid(row=0, column=3, pady=2, padx=5)
-
-        # 线程数
-        tk.Label(api_frame, text="线程数:").grid(row=1, column=0, sticky=tk.W, pady=2)
-        self.threads_var = tk.IntVar(value=10)
-        tk.Spinbox(
-            api_frame,
-            from_=1,
-            to=20,
-            textvariable=self.threads_var,
-            width=10
-        ).grid(row=1, column=1, sticky=tk.W, pady=2, padx=5)
-
-        # 文件管理区域
-        file_frame = tk.LabelFrame(self.window, text="文件管理", padx=10, pady=10)
+        # 文件管理区
+        file_frame = tk.LabelFrame(parent, text="文件管理", padx=10, pady=10)
         file_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
         # 按钮行
@@ -108,46 +162,75 @@ class TranslatorApp:
         tk.Button(
             btn_frame,
             text="添加文件",
-            command=self.add_files
+            command=self.add_files,
+            bg="#4CAF50",
+            fg="white"
         ).pack(side=tk.LEFT, padx=2)
 
         tk.Button(
             btn_frame,
             text="添加文件夹",
-            command=self.add_folder
+            command=self.add_folder,
+            bg="#4CAF50",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=2)
+
+        tk.Button(
+            btn_frame,
+            text="删除选中",
+            command=self.delete_selected,
+            bg="#FF9800",
+            fg="white"
         ).pack(side=tk.LEFT, padx=2)
 
         tk.Button(
             btn_frame,
             text="清空列表",
-            command=self.clear_files
+            command=self.clear_files,
+            bg="#F44336",
+            fg="white"
         ).pack(side=tk.LEFT, padx=2)
 
-        # 文件列表
+        tk.Button(
+            btn_frame,
+            text="打开输出文件夹",
+            command=self.open_output_folder,
+            bg="#2196F3",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=2)
+
+        # 文件列表（使用Treeview显示更多信息）
         list_frame = tk.Frame(file_frame)
         list_frame.pack(fill=tk.BOTH, expand=True)
 
         scrollbar = tk.Scrollbar(list_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.file_listbox = tk.Listbox(
+        self.file_tree = ttk.Treeview(
             list_frame,
+            columns=("filename", "genre", "start_time", "status"),
+            show="headings",
             yscrollcommand=scrollbar.set,
-            height=8
+            height=10
         )
-        self.file_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=self.file_listbox.yview)
+        self.file_tree.heading("filename", text="文件名")
+        self.file_tree.heading("genre", text="类型")
+        self.file_tree.heading("start_time", text="开始时间")
+        self.file_tree.heading("status", text="状态")
+        self.file_tree.column("filename", width=300)
+        self.file_tree.column("genre", width=80)
+        self.file_tree.column("start_time", width=150)
+        self.file_tree.column("status", width=150)
+        self.file_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.file_tree.yview)
 
         # 统计信息
-        self.stats_label = tk.Label(file_frame, text="共0本 | 预计$0.00")
+        self.stats_label = tk.Label(file_frame, text="共0本小说")
         self.stats_label.pack(pady=5)
 
-        # 开始按钮
-        start_frame = tk.Frame(self.window)
-        start_frame.pack(fill=tk.X, padx=10, pady=5)
-
+        # 开始翻译按钮
         self.start_button = tk.Button(
-            start_frame,
+            parent,
             text="🚀 开始翻译",
             command=self.start_translation,
             font=("Arial", 12, "bold"),
@@ -155,102 +238,143 @@ class TranslatorApp:
             fg="white",
             height=2
         )
-        self.start_button.pack(fill=tk.X)
+        self.start_button.pack(fill=tk.X, padx=10, pady=10)
 
-        # 翻译状态区域
-        status_frame = tk.LabelFrame(self.window, text="翻译状态", padx=10, pady=10)
+        # 状态显示区
+        status_frame = tk.LabelFrame(parent, text="翻译状态", padx=10, pady=10)
         status_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-        # 状态文本框
         self.status_text = scrolledtext.ScrolledText(
             status_frame,
-            height=10,
+            height=8,
             state=tk.DISABLED
         )
         self.status_text.pack(fill=tk.BOTH, expand=True)
 
-        # 总体进度
-        self.progress_label = tk.Label(
-            status_frame,
-            text="总耗时: 0分0秒 | 完成: 0/0本",
+    def setup_prompt_preview_frame(self):
+        """设置Prompt预览界面"""
+        # 说明文字
+        info_label = tk.Label(
+            self.prompt_preview_frame,
+            text="添加文件后，此处将显示每个文件的完整Prompt预览",
             font=("Arial", 10)
         )
-        self.progress_label.pack(pady=5)
+        info_label.pack(pady=20)
 
-    def load_config(self):
-        """加载配置"""
-        api_key = config.get_api_key()
-        if api_key:
-            self.api_key_var.set(api_key)
+        # 创建子Notebook用于显示每个文件的prompt
+        self.prompt_notebook = ttk.Notebook(self.prompt_preview_frame)
+        self.prompt_notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        max_workers = config.get_max_workers()
-        self.threads_var.set(max_workers)
+    def update_prompt_previews(self):
+        """更新所有文件的Prompt预览"""
+        # 清空现有标签页
+        for tab in self.prompt_notebook.tabs():
+            self.prompt_notebook.forget(tab)
 
-    def save_config(self):
-        """保存配置"""
-        config.set_api_key(self.api_key_var.get())
-        config.set_max_workers(self.threads_var.get())
+        # 为每个文件创建预览标签页
+        translator = self.get_translator()
+        prompt_template = translator.load_prompt_template()
 
-    def show_settings(self):
-        """显示设置对话框"""
-        settings_win = tk.Toplevel(self.window)
-        settings_win.title("设置")
-        settings_win.geometry("400x300")
+        for file_info in self.files:
+            file_path = file_info[0]
+            genre = file_info[1]
+            filename = os.path.basename(file_path)
 
-        # Model选择
-        tk.Label(settings_win, text="模型:").grid(row=0, column=0, sticky=tk.W, padx=10, pady=5)
-        model_var = tk.StringVar(value=config.get_model())
-        models = ["gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo"]
-        tk.OptionMenu(settings_win, model_var, *models).grid(row=0, column=1, sticky=tk.W, padx=10, pady=5)
+            # 创建标签页
+            tab_frame = tk.Frame(self.prompt_notebook)
+            self.prompt_notebook.add(tab_frame, text=filename[:20] + "...")
 
-        # Temperature
-        tk.Label(settings_win, text="Temperature:").grid(row=1, column=0, sticky=tk.W, padx=10, pady=5)
-        temp_var = tk.DoubleVar(value=config.get_temperature())
-        tk.Scale(
-            settings_win,
-            from_=0,
-            to=1,
-            resolution=0.1,
-            orient=tk.HORIZONTAL,
-            variable=temp_var
-        ).grid(row=1, column=1, sticky=tk.W, padx=10, pady=5)
+            # 加载人名库
+            names_db = translator.load_names_database(self.names_db_var.get())
+            allocated_names = translator.allocate_names(names_db, self.names_db_var.get(), count=20)
 
-        # Max Tokens
-        tk.Label(settings_win, text="Max Tokens:").grid(row=2, column=0, sticky=tk.W, padx=10, pady=5)
-        tokens_var = tk.IntVar(value=config.get_max_tokens())
-        tk.Spinbox(
-            settings_win,
-            from_=1000,
-            to=100000,
-            increment=1000,
-            textvariable=tokens_var,
-            width=10
-        ).grid(row=2, column=1, sticky=tk.W, padx=10, pady=5)
+            # 随机选择作家风格
+            author_style = translator.get_random_author_style(genre)
 
-        def save_settings():
-            config.set('model', model_var.get())
-            config.set('temperature', temp_var.get())
-            config.set('max_tokens', tokens_var.get())
-            messagebox.showinfo("成功", "设置已保存")
-            settings_win.destroy()
+            # 构建完整prompt
+            full_prompt = translator.build_translation_prompt(
+                prompt_template,
+                genre,
+                allocated_names,
+                author_style
+            )
+
+            # 显示prompt
+            text_widget = scrolledtext.ScrolledText(tab_frame, wrap=tk.WORD)
+            text_widget.pack(fill=tk.BOTH, expand=True)
+            text_widget.insert(1.0, full_prompt)
+            text_widget.config(state=tk.DISABLED)
+
+    def edit_default_prompt(self):
+        """编辑默认Prompt"""
+        edit_window = tk.Toplevel(self.window)
+        edit_window.title("编辑默认Prompt")
+        edit_window.geometry("800x600")
+
+        # 文本编辑框
+        text_frame = tk.Frame(edit_window)
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        text_widget = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD)
+        text_widget.pack(fill=tk.BOTH, expand=True)
+
+        # 加载当前prompt
+        translator = self.get_translator()
+        current_prompt = translator.load_prompt_template()
+        text_widget.insert(1.0, current_prompt)
+
+        # 保存按钮
+        def save_prompt():
+            new_prompt = text_widget.get(1.0, tk.END).strip()
+            translator.save_prompt_template(new_prompt)
+            messagebox.showinfo("成功", "Prompt已保存！")
+            edit_window.destroy()
+            # 更新预览
+            self.update_prompt_previews()
+
+        btn_frame = tk.Frame(edit_window)
+        btn_frame.pack(fill=tk.X, padx=10, pady=10)
 
         tk.Button(
-            settings_win,
+            btn_frame,
             text="保存",
-            command=save_settings
-        ).grid(row=3, column=0, columnspan=2, pady=20)
+            command=save_prompt,
+            bg="#4CAF50",
+            fg="white",
+            width=20
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            btn_frame,
+            text="取消",
+            command=edit_window.destroy,
+            width=20
+        ).pack(side=tk.LEFT, padx=5)
+
+    def get_translator(self):
+        """获取配置好的Translator实例"""
+        model = self.model_var.get()
+        if model == "自定义":
+            model = self.custom_model_var.get()
+
+        return Translator(
+            api_key=self.api_key_var.get(),
+            base_url=self.base_url_var.get(),
+            model=model,
+            max_tokens=self.max_tokens_var.get(),
+            use_streaming=self.use_streaming_var.get()
+        )
 
     def test_connection(self):
         """测试API连接"""
-        self.save_config()
-
         def test():
             self.connection_status.config(text="测试中...", fg="orange")
-            success, message = self.translator.test_connection()
+            translator = self.get_translator()
+            success, message = translator.test_connection()
             if success:
                 self.connection_status.config(text="✅ 连接成功", fg="green")
             else:
-                self.connection_status.config(text="❌ " + message, fg="red")
+                self.connection_status.config(text=f"❌ {message}", fg="red")
 
         threading.Thread(target=test, daemon=True).start()
 
@@ -260,198 +384,126 @@ class TranslatorApp:
             title="选择文件",
             filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
         )
+        translator = self.get_translator()
+
         for file in files:
-            if file not in self.files:
-                self.files.append(file)
-                # 显示文件名和字数
-                basename = os.path.basename(file)
-                word_count = self.translator.estimate_word_count(file)
-                display = f"{basename} ({word_count}字)"
-                self.file_listbox.insert(tk.END, display)
+            if file not in [f[0] for f in self.files]:
+                # 自动提取genre
+                filename = os.path.basename(file)
+                genre = translator.extract_genre_from_filename(filename)
+
+                # 添加到列表
+                self.files.append((file, genre, "等待中", ""))
+                self.file_tree.insert(
+                    "",
+                    tk.END,
+                    values=(filename, genre, "", "等待中")
+                )
 
         self.update_stats()
+        self.update_prompt_previews()
 
     def add_folder(self):
         """添加文件夹"""
         folder = filedialog.askdirectory(title="选择文件夹")
         if folder:
+            translator = self.get_translator()
             for filename in os.listdir(folder):
                 if filename.endswith('.txt'):
                     file_path = os.path.join(folder, filename)
-                    if file_path not in self.files:
-                        self.files.append(file_path)
-                        word_count = self.translator.estimate_word_count(file_path)
-                        display = f"{filename} ({word_count}字)"
-                        self.file_listbox.insert(tk.END, display)
+                    if file_path not in [f[0] for f in self.files]:
+                        # 自动提取genre
+                        genre = translator.extract_genre_from_filename(filename)
+
+                        # 添加到列表
+                        self.files.append((file_path, genre, "等待中", ""))
+                        self.file_tree.insert(
+                            "",
+                            tk.END,
+                            values=(filename, genre, "", "等待中")
+                        )
 
         self.update_stats()
+        self.update_prompt_previews()
+
+    def delete_selected(self):
+        """删除选中的文件"""
+        selected_items = self.file_tree.selection()
+        if not selected_items:
+            messagebox.showwarning("警告", "请先选择要删除的文件")
+            return
+
+        if not messagebox.askyesno("确认", f"确定要删除选中的 {len(selected_items)} 个文件吗?"):
+            return
+
+        # 获取选中项的索引
+        for item in selected_items:
+            index = self.file_tree.index(item)
+            # 删除对应的文件记录
+            if index < len(self.files):
+                del self.files[index]
+            # 删除tree view中的项
+            self.file_tree.delete(item)
+
+        self.update_stats()
+        self.update_prompt_previews()
 
     def clear_files(self):
         """清空文件列表"""
         self.files = []
-        self.file_listbox.delete(0, tk.END)
+        for item in self.file_tree.get_children():
+            self.file_tree.delete(item)
         self.update_stats()
+        self.update_prompt_previews()
+
+    def open_output_folder(self):
+        """打开输出文件夹"""
+        # 使用脚本所在目录的绝对路径
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        output_path = os.path.join(script_dir, "output")
+
+        # 如果文件夹不存在，创建它
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+            messagebox.showinfo("提示", f"输出文件夹已创建：{output_path}")
+
+        # 根据操作系统打开文件夹
+        try:
+            if platform.system() == "Windows":
+                os.startfile(output_path)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.Popen(["open", output_path])
+            else:  # Linux
+                subprocess.Popen(["xdg-open", output_path])
+        except Exception as e:
+            messagebox.showerror("错误", f"无法打开文件夹：{str(e)}\n路径：{output_path}")
 
     def update_stats(self):
         """更新统计信息"""
-        total_files = len(self.files)
-        total_cost = sum(self.translator.estimate_cost(f) for f in self.files)
-        self.stats_label.config(text=f"共{total_files}本 | 预计${total_cost:.2f}")
+        self.stats_label.config(text=f"共{len(self.files)}本小说")
 
-    def start_translation(self):
-        """开始翻译"""
-        if not self.files:
-            messagebox.showwarning("警告", "请先添加文件")
-            return
+    def update_file_status(self, file_path, status, start_time=None):
+        """更新文件状态"""
+        # 找到对应的tree item并更新
+        for i, file_info in enumerate(self.files):
+            fp = file_info[0]
+            if fp == file_path:
+                genre = file_info[1]
+                current_start_time = file_info[3] if len(file_info) > 3 else ""
 
-        if not self.api_key_var.get():
-            messagebox.showwarning("警告", "请先设置API Key")
-            return
+                # 如果提供了start_time,则更新;否则保持原值
+                if start_time is not None:
+                    current_start_time = start_time
 
-        if self.is_translating:
-            messagebox.showinfo("提示", "翻译正在进行中")
-            return
+                self.files[i] = (fp, genre, status, current_start_time)
 
-        # 保存配置
-        self.save_config()
-
-        # 确认开始
-        if not messagebox.askyesno("确认", f"确定要翻译 {len(self.files)} 本小说吗？"):
-            return
-
-        # 重置状态
-        self.is_translating = True
-        self.total_completed = 0
-        self.total_start_time = time.time()
-        self.status_labels = {}
-        self.start_times = {}
-        self.timer_running = {}
-
-        # 清空状态文本
-        self.status_text.config(state=tk.NORMAL)
-        self.status_text.delete(1.0, tk.END)
-        self.status_text.config(state=tk.DISABLED)
-
-        # 禁用开始按钮
-        self.start_button.config(state=tk.DISABLED, text="翻译中...")
-
-        # 分配资源
-        self.append_status("正在分配资源...")
-        resources = self.resource_mgr.allocate_resources(self.files)
-        self.append_status(f"资源分配完成，准备翻译 {len(self.files)} 本小说\n")
-
-        # 启动多线程
-        max_workers = self.threads_var.get()
-        self.executor = ThreadPoolExecutor(max_workers=max_workers)
-
-        for file_path, resource in zip(self.files, resources):
-            title = self.resource_mgr.extract_title(file_path)
-            self.start_times[title] = None
-            self.timer_running[title] = False
-
-            # 提交任务
-            self.executor.submit(
-                self.translate_one,
-                file_path,
-                resource
-            )
-
-        # 启动总体计时器
-        self.update_total_progress()
-
-    def translate_one(self, file_path, resource):
-        """翻译单本小说（在线程中运行）"""
-        title = self.resource_mgr.extract_title(file_path)
-
-        # 开始计时
-        self.start_times[title] = time.time()
-        self.timer_running[title] = True
-
-        # 启动计时器
-        self.window.after(0, lambda: self.start_timer(title))
-
-        # 进度回调
-        def progress_callback(t, status, elapsed, cost):
-            self.update_status_safe(t, status, elapsed, cost)
-
-        # 执行翻译
-        result = self.translator.translate_novel(
-            file_path,
-            resource,
-            progress_callback
-        )
-
-        # 停止计时
-        self.timer_running[title] = False
-
-        # 更新完成状态
-        if result['success']:
-            self.append_status(
-                f"✅ {title}  完成  "
-                f"{int(result['duration'])}秒  ${result['cost']:.2f}\n"
-            )
-        else:
-            self.append_status(
-                f"❌ {title}  失败: {result.get('error', '未知错误')}\n"
-            )
-
-        # 更新完成计数
-        self.total_completed += 1
-
-        # 检查是否全部完成
-        if self.total_completed >= len(self.files):
-            self.on_all_completed()
-
-    def start_timer(self, title):
-        """启动计时器（每秒更新）"""
-        if not self.timer_running.get(title, False):
-            return
-
-        start_time = self.start_times.get(title)
-        if start_time:
-            elapsed = time.time() - start_time
-            self.update_status_safe(title, "翻译中", elapsed, None)
-
-        # 1秒后再次调用
-        self.window.after(1000, lambda: self.start_timer(title))
-
-    def update_status_safe(self, title, status, elapsed_time, cost):
-        """线程安全地更新状态"""
-        def _update():
-            # 构建状态文本
-            if cost is not None:
-                status_text = f"  {status}  {int(elapsed_time)}秒  ${cost:.2f}"
-            else:
-                status_text = f"  {status}  {int(elapsed_time)}秒"
-
-            # 在状态文本框中更新或添加
-            self.status_text.config(state=tk.NORMAL)
-
-            # 查找是否已存在这个标题
-            content = self.status_text.get(1.0, tk.END)
-            lines = content.split('\n')
-            found = False
-
-            for i, line in enumerate(lines):
-                if line.startswith(title) or (status.startswith("🔄") and title in line):
-                    # 更新现有行
-                    line_start = f"{i+1}.0"
-                    line_end = f"{i+1}.end"
-                    prefix = "🔄 " if status == "翻译中" else "✅ "
-                    self.status_text.delete(line_start, line_end)
-                    self.status_text.insert(line_start, f"{prefix}{title}{status_text}")
-                    found = True
-                    break
-
-            if not found:
-                # 添加新行
-                prefix = "🔄 " if status == "翻译中" else "⏸ "
-                self.status_text.insert(tk.END, f"{prefix}{title}{status_text}\n")
-
-            self.status_text.config(state=tk.DISABLED)
-            self.status_text.see(tk.END)
-
-        self.window.after(0, _update)
+                # 更新tree view
+                items = self.file_tree.get_children()
+                if i < len(items):
+                    item_id = items[i]
+                    values = self.file_tree.item(item_id, "values")
+                    self.file_tree.item(item_id, values=(values[0], values[1], current_start_time, status))
+                break
 
     def append_status(self, text):
         """添加状态信息"""
@@ -463,41 +515,89 @@ class TranslatorApp:
 
         self.window.after(0, _append)
 
-    def update_total_progress(self):
-        """更新总体进度"""
-        if not self.is_translating:
+    def start_translation(self):
+        """开始翻译"""
+        if not self.files:
+            messagebox.showwarning("警告", "请先添加文件")
             return
 
-        if self.total_start_time:
-            total_elapsed = time.time() - self.total_start_time
-            minutes = int(total_elapsed // 60)
-            seconds = int(total_elapsed % 60)
-            progress_text = (
-                f"总耗时: {minutes}分{seconds}秒 | "
-                f"完成: {self.total_completed}/{len(self.files)}本"
+        if not self.api_key_var.get():
+            messagebox.showwarning("警告", "请先设置API Key")
+            return
+
+        # 确认开始
+        if not messagebox.askyesno("确认", f"确定要翻译 {len(self.files)} 本小说吗？\n\n翻译将并行进行，互不阻塞。"):
+            return
+
+        # 清空状态
+        self.status_text.config(state=tk.NORMAL)
+        self.status_text.delete(1.0, tk.END)
+        self.status_text.config(state=tk.DISABLED)
+
+        self.append_status(f"{'='*60}")
+        self.append_status(f"开始翻译 {len(self.files)} 本小说...")
+        self.append_status(f"{'='*60}\n")
+
+        # 为每个文件启动独立线程
+        import datetime
+        for file_info in self.files:
+            file_path = file_info[0]
+            genre = file_info[1]
+
+            # 记录开始时间
+            start_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.update_file_status(file_path, "翻译中...", start_time)
+
+            thread = threading.Thread(
+                target=self.translate_one,
+                args=(file_path, genre),
+                daemon=True
             )
-            self.progress_label.config(text=progress_text)
+            thread.start()
+            self.translation_threads[file_path] = thread
 
-        # 1秒后再次更新
-        self.window.after(1000, self.update_total_progress)
+    def translate_one(self, file_path, genre):
+        """翻译单个文件（在独立线程中运行）"""
+        filename = os.path.basename(file_path)
 
-    def on_all_completed(self):
-        """所有翻译完成"""
-        self.is_translating = False
-        self.start_button.config(state=tk.NORMAL, text="🚀 开始翻译")
+        # 创建translator实例
+        translator = self.get_translator()
 
-        if self.executor:
-            self.executor.shutdown(wait=False)
-            self.executor = None
+        # 进度回调
+        def progress_callback(status_msg):
+            self.append_status(f"[{filename}] {status_msg}")
+            self.window.after(0, lambda: self.update_file_status(file_path, status_msg))
 
-        total_elapsed = time.time() - self.total_start_time
-        minutes = int(total_elapsed // 60)
-        seconds = int(total_elapsed % 60)
-
-        messagebox.showinfo(
-            "完成",
-            f"所有翻译已完成！\n总耗时: {minutes}分{seconds}秒\n完成: {self.total_completed}/{len(self.files)}本"
+        # 执行翻译
+        result = translator.translate_novel(
+            file_path,
+            genre,
+            self.names_db_var.get(),
+            progress_callback
         )
+
+        # 更新最终状态
+        if result['success']:
+            final_status = f"✅ 完成 ({result['duration']:.1f}秒)"
+            self.append_status(f"\n[{filename}] {final_status}")
+            self.append_status(f"[{filename}] 输出: {result['output_folder']}")
+            self.append_status(f"[{filename}] Tokens: {result['tokens']}\n")
+        else:
+            # 检查是否是content_filter错误
+            if result.get('content_filtered', False):
+                final_status = f"❌ 被内容过滤器拦截"
+                self.append_status(f"\n[{filename}] {final_status}")
+                input_len = result.get('input_length', 0)
+                output_len = result.get('output_length', 0)
+                completion_pct = (output_len / input_len * 100) if input_len > 0 else 0
+                self.append_status(f"[{filename}] 只完成 {completion_pct:.1f}% ({output_len}/{input_len} 字符)")
+                self.append_status(f"[{filename}] ⚠️ API提供商拦截了Horror/敏感内容")
+                self.append_status(f"[{filename}] 💡 建议: 更换支持Horror翻译的API提供商\n")
+            else:
+                final_status = f"❌ 失败: {result.get('error', '未知错误')}"
+                self.append_status(f"\n[{filename}] {final_status}\n")
+
+        self.window.after(0, lambda: self.update_file_status(file_path, final_status))
 
     def run(self):
         """运行应用"""

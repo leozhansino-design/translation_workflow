@@ -1,234 +1,484 @@
 """
-翻译逻辑模块
+简化版翻译模块 - 快速流式翻译
 """
 import os
 import time
+import json
+import random
+import threading
 from openai import OpenAI
-from config import config
-from resource_mgr import ResourceManager
 
 
 class Translator:
-    """翻译器"""
+    """翻译器 - 简化版本"""
 
-    def __init__(self):
-        self.config = config
-        self.resource_mgr = ResourceManager()
+    # 类级别的锁,用于保护names数据库的读写
+    _names_lock = threading.Lock()
+
+    def __init__(self, api_key, base_url, model, max_tokens=100000, use_streaming=False):
+        """
+        初始化翻译器
+
+        Args:
+            api_key: API密钥
+            base_url: API基础URL
+            model: 模型名称
+            max_tokens: 最大token数量
+            use_streaming: 是否使用流式API
+        """
+        self.api_key = api_key
+        self.base_url = base_url
+        self.model = model
+        self.max_tokens = max_tokens
+        self.use_streaming = use_streaming
         self.client = None
+
+        # 获取脚本所在目录的绝对路径
+        self.script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.data_dir = os.path.join(self.script_dir, "data")
 
     def initialize_client(self):
         """初始化OpenAI客户端"""
-        api_key = self.config.get_api_key()
-        if not api_key:
-            raise ValueError("API Key 未设置")
-        self.client = OpenAI(api_key=api_key)
+        if not self.client:
+            # 设置更长的超时时间(3600秒=1小时)
+            self.client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                timeout=3600.0
+            )
 
     def test_connection(self):
         """测试API连接"""
         try:
             self.initialize_client()
-            # 发送一个简单的测试请求
             response = self.client.chat.completions.create(
-                model=self.config.get_model(),
-                messages=[
-                    {"role": "user", "content": "Hello"}
-                ],
-                max_tokens=10
+                model=self.model,
+                messages=[{"role": "user", "content": "Hello!"}],
+                max_tokens=50
             )
             return True, "连接成功"
         except Exception as e:
             return False, f"连接失败: {str(e)}"
 
-    def build_prompt(self, style, names, genre):
-        """构建翻译提示词
+    def load_prompt_template(self):
+        """加载prompt模板"""
+        template_path = os.path.join(self.data_dir, "default_prompt.txt")
+        if os.path.exists(template_path):
+            with open(template_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        else:
+            return "You are a professional translator. Translate the following text to English."
+
+    def save_prompt_template(self, content):
+        """保存prompt模板"""
+        template_path = os.path.join(self.data_dir, "default_prompt.txt")
+        with open(template_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+    def load_styles(self):
+        """加载作家风格库"""
+        styles_path = os.path.join(self.data_dir, "styles.json")
+        if os.path.exists(styles_path):
+            with open(styles_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+
+    def get_random_author_style(self, genre):
+        """
+        随机选择作家风格
 
         Args:
-            style: 写作风格描述
-            names: 可用人名列表
             genre: 小说类型
 
         Returns:
-            完整的提示词
+            选中的风格描述文本
         """
-        base = """你是一个英语母语网文创作者，将附件中的故事翻译成一篇爆款本土化英文小说。符合英语母语读者的阅读习惯，不用按照原来的章节，保持每个章节大于1000词，可以更改原来的章节结构。
+        styles_data = self.load_styles()
 
-起一个wattpad网文标题，起各个章节的标题，写它的blurb(小于3000characters)，选择它的类型（Fantasy,Romance,Urban,Sci-Fi,Mystery, Horror,Adventure,Historical,Crime,LGBTQ+,Paranormal,System,Reborn,Revenge,Fanfiction）角色名字要有新意本土化
+        # 如果没有对应genre的风格，返回空字符串
+        if genre not in styles_data:
+            return ""
 
-【翻译本土化要求】
-1. **地理/文化背景**：改为非亚洲国家背景，地名、场景、文化习俗要符合当地
-2. **人名**：改为常见英文名也可以是欧洲/拉丁裔/南美洲名字，避免中文和拼音，检索project不要和其他小说里的人名重复，保持角色关系、性格特征和昵称逻辑
-3. **日常细节**：食物/饮品（根据场景本土化：外卖→披萨/中餐外卖，饮料→咖啡/啤酒等）- 社交习惯（聚会方式、称呼、节日庆祝等）- 教育体系（小学/初中/高中/大学对应当地学制）- 职业设定（保持原有职业类型，但用本地化描述和行业术语）
-4. **语言风格**：使用地道的英语口语、俚语和习惯表达 - 避免直译式的中式英语表达 - 保持原作的叙事风格、氛围和情感张力 - 对话要符合角色背景和说话习惯
-5. **文化元素适配**（根据题材调整）：神话/超自然：道教/佛教元素→基督教/北欧神话/凯尔特民间传说等 - 节日：春节→圣诞节/感恩节，中秋节→万圣节等 - 货币单位：人民币→美元/英镑 - 计量单位：公里→英里，公斤→磅等 - 网络平台：微博→Twitter/X，微信→WhatsApp/iMessage等 - 流行文化梗：改为欧美观众熟悉的电影/音乐/网络梗
+        genre_data = styles_data[genre]
+        styles = genre_data.get("styles", [])
 
-【目标】翻译后的作品应该让英语母语读者感觉这是由英语国家作者创作的原创作品，而不是翻译文学。
+        if not styles:
+            return ""
 
-【格式要求】保留重要的叙事节奏和情节转折; 输出的正文要每一段文字空一行的那种网文格式; 符合英文的标点符号；章节标题不要用the XXX 的宾语短语、介词短语格式；整体剧情节奏快、有反转、让读者感觉爽"""
+        # 随机选择一个风格
+        return random.choice(styles)
 
-        style_part = f"\n\n【写作风格】\n{style}"
+    def load_names_database(self, db_number):
+        """
+        加载人名库
 
-        names_list = ", ".join([n['name'] for n in names])
-        names_part = f"\n\n【可用角色名】\n{names_list}\n优先使用这些名字，确保不与其他小说重复。"
+        Args:
+            db_number: 1, 2, 或 3
 
-        genre_part = f"\n\n【小说类型】\n{genre}"
+        Returns:
+            包含male和female列表的字典
+        """
+        db_path = os.path.join(self.data_dir, f"names_{db_number}.json")
+        if os.path.exists(db_path):
+            with open(db_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {"male": [], "female": []}
 
-        return base + style_part + names_part + genre_part
+    def save_names_database(self, db_number, names_db):
+        """
+        保存人名库
 
-    def read_file(self, file_path):
-        """读取文件内容"""
+        Args:
+            db_number: 1, 2, 或 3
+            names_db: 人名库字典
+        """
+        db_path = os.path.join(self.data_dir, f"names_{db_number}.json")
+        with open(db_path, 'w', encoding='utf-8') as f:
+            json.dump(names_db, f, ensure_ascii=False, indent=2)
+
+    def allocate_names(self, names_db, db_number, count=20):
+        """
+        从人名库中分配人名(选择使用次数最少的名字)
+
+        Args:
+            names_db: 人名库字典
+            db_number: 数据库编号(用于保存更新)
+            count: 要分配的名字数量
+
+        Returns:
+            分配的名字列表（字符串列表）
+        """
+        # 使用类级别的锁来确保线程安全
+        with Translator._names_lock:
+            male_names = names_db.get("male", [])
+            female_names = names_db.get("female", [])
+
+            # 简单分配：男女各一半
+            male_count = count // 2
+            female_count = count - male_count
+
+            allocated = []
+
+            # 为男性名字按used字段排序,选择使用最少的
+            if len(male_names) >= male_count:
+                # 排序:按used字段升序
+                sorted_male = sorted(male_names, key=lambda x: x.get("used", 0) if isinstance(x, dict) else 0)
+
+                for i in range(male_count):
+                    name_obj = sorted_male[i]
+                    if isinstance(name_obj, dict):
+                        allocated.append(name_obj.get("fullname", ""))
+                        # 更新used计数
+                        name_obj["used"] = name_obj.get("used", 0) + 1
+                    else:
+                        allocated.append(str(name_obj))
+
+            # 为女性名字按used字段排序,选择使用最少的
+            if len(female_names) >= female_count:
+                # 排序:按used字段升序
+                sorted_female = sorted(female_names, key=lambda x: x.get("used", 0) if isinstance(x, dict) else 0)
+
+                for i in range(female_count):
+                    name_obj = sorted_female[i]
+                    if isinstance(name_obj, dict):
+                        allocated.append(name_obj.get("fullname", ""))
+                        # 更新used计数
+                        name_obj["used"] = name_obj.get("used", 0) + 1
+                    else:
+                        allocated.append(str(name_obj))
+
+            # 保存更新后的names数据库
+            self.save_names_database(db_number, names_db)
+
+            return allocated
+
+    def build_translation_prompt(self, prompt_template, genre, names=None, author_style=None):
+        """
+        构建翻译提示词
+
+        Args:
+            prompt_template: prompt模板
+            genre: 小说类型
+            names: 分配的人名列表（可选）
+            author_style: 作家风格描述（可选）
+
+        Returns:
+            完整的prompt
+        """
+        # 基础prompt
+        full_prompt = prompt_template
+
+        # 为敏感类型添加文学翻译免责声明，避免content_filter
+        sensitive_genres = ["Horror", "Crime", "Mystery", "Paranormal"]
+        if genre in sensitive_genres:
+            full_prompt += "\n\n【IMPORTANT DISCLAIMER】\n"
+            full_prompt += "This is a professional literary translation task for published fiction. "
+            full_prompt += "The content is fictional and for entertainment purposes only. "
+            full_prompt += "Please translate the text faithfully while maintaining literary quality."
+
+        # 添加作家风格（在人名之前）
+        if author_style:
+            full_prompt += f"\n\n【AUTHOR STYLE】\n{author_style}"
+
+        # 如果有人名，添加人名列表
+        if names and len(names) > 0:
+            names_text = ", ".join(names)
+            full_prompt += f"\n\n【AVAILABLE CHARACTER NAMES】\nUse these names for characters: {names_text}\nThese names are pre-allocated and ensure no repetition across novels."
+
+        # 添加genre信息
+        full_prompt += f"\n\n【TARGET GENRE】\n{genre}"
+
+        return full_prompt
+
+    def read_novel_file(self, file_path):
+        """读取小说文件"""
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
 
-    def calculate_cost(self, usage):
-        """计算API调用费用
-
-        Args:
-            usage: API返回的usage对象
-
-        Returns:
-            费用（美元）
+    def translate_novel(self, file_path, genre, names_db_num, progress_callback=None):
         """
-        # GPT-4 Turbo 定价（示例，实际请根据OpenAI定价调整）
-        # Input: $0.01 per 1K tokens
-        # Output: $0.03 per 1K tokens
-        input_cost = (usage.prompt_tokens / 1000) * 0.01
-        output_cost = (usage.completion_tokens / 1000) * 0.03
-        return input_cost + output_cost
-
-    def estimate_word_count(self, file_path):
-        """估算文件字数"""
-        try:
-            content = self.read_file(file_path)
-            # 简单估算：统计字符数
-            return len(content)
-        except Exception:
-            return 0
-
-    def estimate_cost(self, file_path):
-        """估算翻译费用
+        翻译小说
 
         Args:
             file_path: 文件路径
-
-        Returns:
-            估算费用（美元）
-        """
-        word_count = self.estimate_word_count(file_path)
-        # 粗略估算：每1000字符约$0.02
-        return (word_count / 1000) * 0.02
-
-    def save_result(self, title, translated_content, genre):
-        """保存翻译结果
-
-        Args:
-            title: 原始书名
-            translated_content: 翻译后的内容
             genre: 小说类型
-        """
-        os.makedirs('output', exist_ok=True)
-
-        # 生成输出文件名
-        safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_'))
-        output_file = f'output/{safe_title}_{genre}_translated.txt'
-
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(translated_content)
-
-        return output_file
-
-    def translate_novel(self, file_path, resource, progress_callback=None):
-        """翻译单本小说
-
-        Args:
-            file_path: 文件路径
-            resource: 分配的资源（style, names, author, genre）
-            progress_callback: 进度回调函数 (title, status, elapsed_time, cost)
+            names_db_num: 人名库编号（1/2/3）
+            progress_callback: 进度回调函数(status_message)
 
         Returns:
-            包含结果信息的字典
+            结果字典 {success, output_folder, duration, error}
         """
-        title = self.resource_mgr.extract_title(file_path)
-        genre = resource['genre']
+        start_time = time.time()
+        filename = os.path.basename(file_path)
+        filename_no_ext = os.path.splitext(filename)[0]
 
-        # 初始化客户端
-        if not self.client:
+        try:
+            # 初始化客户端
             self.initialize_client()
 
-        # 开始计时
-        start_time = time.time()
-
-        try:
-            # 读取文件内容
-            content = self.read_file(file_path)
-
-            # 构建提示词
-            prompt = self.build_prompt(
-                resource['style'],
-                resource['names'],
-                genre
-            )
-
-            # 调用API（阻塞等待）
             if progress_callback:
-                progress_callback(title, "翻译中", time.time() - start_time, None)
+                progress_callback(f"📖 正在读取文件: {filename}")
 
-            response = self.client.chat.completions.create(
-                model=self.config.get_model(),
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": content}
-                ],
-                temperature=self.config.get_temperature(),
-                max_tokens=self.config.get_max_tokens()
+            # 读取小说内容
+            novel_content = self.read_novel_file(file_path)
+
+            if progress_callback:
+                input_length = len(novel_content)
+                progress_callback(f"📖 输入文件: {input_length} 字符")
+                progress_callback(f"📝 生成Unique prompt中...")
+
+            # 加载人名库并分配人名(选择使用次数最少的)
+            names_db = self.load_names_database(names_db_num)
+            allocated_names = self.allocate_names(names_db, names_db_num, count=20)
+
+            if progress_callback:
+                progress_callback(f"✍️ 正在构建提示词...")
+
+            # 加载prompt模板
+            prompt_template = self.load_prompt_template()
+
+            # 随机选择作家风格
+            author_style = self.get_random_author_style(genre)
+
+            # 构建完整prompt
+            full_prompt = self.build_translation_prompt(
+                prompt_template,
+                genre,
+                allocated_names,
+                author_style
             )
 
-            # 计算耗时和费用
+            if progress_callback:
+                mode_text = "流式" if self.use_streaming else "非流式"
+                progress_callback(f"🚀 正在发送翻译请求 ({mode_text})...")
+
+            # 根据配置选择流式或非流式API
+            if self.use_streaming:
+                # 流式API
+                stream = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": full_prompt},
+                        {"role": "user", "content": novel_content}
+                    ],
+                    temperature=0.7,
+                    max_tokens=self.max_tokens,
+                    stream=True
+                )
+
+                if progress_callback:
+                    progress_callback(f"📥 正在接收翻译结果...")
+
+                # 获取流式翻译结果
+                translated_content = ""
+                total_tokens = 0
+                finish_reason = None
+                chunk_count = 0
+
+                for chunk in stream:
+                    chunk_count += 1
+
+                    if chunk.choices and len(chunk.choices) > 0:
+                        choice = chunk.choices[0]
+                        delta = choice.delta
+
+                        # 接收内容
+                        if hasattr(delta, 'content') and delta.content:
+                            translated_content += delta.content
+
+                            # 每接收100个chunk更新一次进度
+                            if chunk_count % 100 == 0:
+                                current_length = len(translated_content)
+                                if progress_callback:
+                                    progress_callback(f"📥 已接收 {current_length} 字符...")
+
+                        # 检查是否结束
+                        if hasattr(choice, 'finish_reason') and choice.finish_reason:
+                            finish_reason = choice.finish_reason
+
+                    # 更新token统计(如果有)
+                    if hasattr(chunk, 'usage') and chunk.usage:
+                        total_tokens = chunk.usage.total_tokens
+
+                # 检查finish_reason
+                if progress_callback:
+                    if finish_reason == "length":
+                        progress_callback(f"⚠️ 警告: 翻译因达到max_tokens限制而停止，可能不完整！")
+                    elif finish_reason == "stop":
+                        progress_callback(f"✓ 翻译正常完成")
+                    elif finish_reason == "content_filter":
+                        progress_callback(f"⚠️ 错误: API内容过滤器触发! 恐怖/敏感内容被拦截")
+                        progress_callback(f"💡 建议: 关闭流式API选项后重试")
+                    else:
+                        progress_callback(f"⚠️ 翻译结束原因: {finish_reason}")
+            else:
+                # 非流式API (原来的方式)
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": full_prompt},
+                        {"role": "user", "content": novel_content}
+                    ],
+                    temperature=0.7,
+                    max_tokens=self.max_tokens,
+                    stream=False
+                )
+
+                if progress_callback:
+                    progress_callback(f"📥 正在接收翻译结果...")
+
+                # 获取翻译结果
+                translated_content = response.choices[0].message.content
+                total_tokens = response.usage.total_tokens
+                finish_reason = response.choices[0].finish_reason
+
+                # 检查finish_reason
+                if progress_callback:
+                    if finish_reason == "length":
+                        progress_callback(f"⚠️ 警告: 翻译因达到max_tokens限制而停止，可能不完整！")
+                    elif finish_reason == "stop":
+                        progress_callback(f"✓ 翻译正常完成")
+                    elif finish_reason == "content_filter":
+                        progress_callback(f"⚠️ 错误: API内容过滤器触发!")
+                    else:
+                        progress_callback(f"⚠️ 翻译结束原因: {finish_reason}")
+
+            if progress_callback:
+                progress_callback(f"💾 正在保存结果...")
+
+            # 显示接收到的内容统计
+            content_length = len(translated_content)
+            if progress_callback:
+                if self.use_streaming:
+                    progress_callback(f"📊 接收到 {content_length} 字符, {chunk_count} 个chunks")
+                else:
+                    progress_callback(f"📊 接收到 {content_length} 字符")
+
+            # 创建输出文件夹（使用绝对路径）
+            output_base = os.path.join(self.script_dir, "output")
+            output_folder = os.path.join(output_base, filename_no_ext)
+            os.makedirs(output_folder, exist_ok=True)
+
+            # 保存到content.txt
+            output_file = os.path.join(output_folder, "content.txt")
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(translated_content)
+
             duration = time.time() - start_time
-            translated = response.choices[0].message.content
-            cost = self.calculate_cost(response.usage)
 
-            # 保存结果
-            output_file = self.save_result(title, translated, genre)
-
-            # 更新人名使用次数
-            self.resource_mgr.update_name_usage(resource['names'], translated)
-
-            # 提取使用的人名
-            used_names = [n['name'] for n in resource['names'] if n['name'] in translated]
-
-            # 记录到summary
-            self.resource_mgr.add_to_summary({
-                'original': title,
-                'translated': output_file,
-                'genre': genre,
-                'author_style': resource['author'],
-                'names': used_names,
-                'time': int(duration),
-                'cost': round(cost, 2)
-            })
-
-            # 最终状态更新
             if progress_callback:
-                progress_callback(title, "完成", duration, cost)
+                progress_callback(f"✅ 翻译完成！用时 {duration:.1f}秒")
+
+            # 如果没有获取到token统计,使用估算值
+            if total_tokens == 0:
+                total_tokens = len(novel_content) + len(translated_content)
+
+            # 检查是否被content_filter拦截
+            is_content_filtered = finish_reason == "content_filter"
+            success = not is_content_filtered  # 如果被过滤则标记为失败
 
             return {
-                'success': True,
-                'title': title,
-                'output_file': output_file,
+                'success': success,
+                'output_folder': output_folder,
                 'duration': duration,
-                'cost': cost,
-                'genre': genre
+                'tokens': total_tokens,
+                'filename': filename,
+                'finish_reason': finish_reason,
+                'content_filtered': is_content_filtered,
+                'output_length': len(translated_content),
+                'input_length': len(novel_content)
             }
 
         except Exception as e:
             duration = time.time() - start_time
+            error_msg = str(e)
+
             if progress_callback:
-                progress_callback(title, f"失败: {str(e)}", duration, None)
+                progress_callback(f"❌ 翻译失败: {error_msg}")
 
             return {
                 'success': False,
-                'title': title,
-                'error': str(e),
+                'error': error_msg,
                 'duration': duration,
-                'genre': genre
+                'filename': filename
             }
+
+    def extract_genre_from_filename(self, filename):
+        """
+        从文件名提取genre
+
+        Args:
+            filename: 文件名，例如 "76死亡运动会_Horror.txt"
+
+        Returns:
+            genre字符串，如果未找到则返回"Fantasy"
+        """
+        valid_genres = [
+            "Fantasy", "Urban", "Romance", "Sci-Fi", "Mystery",
+            "Action", "Adventure", "Horror", "Crime", "LGBTQ+",
+            "Paranormal", "System", "Reborn", "Revenge", "Fanfiction"
+        ]
+
+        # 查找文件名中的genre
+        for genre in valid_genres:
+            if f"_{genre}" in filename:
+                return genre
+
+        # 默认返回Fantasy
+        return "Fantasy"
+
+    def estimate_cost(self, file_path):
+        """
+        估算翻译费用
+
+        Args:
+            file_path: 文件路径
+
+        Returns:
+            估算字符数
+        """
+        try:
+            content = self.read_novel_file(file_path)
+            return len(content)
+        except:
+            return 0
