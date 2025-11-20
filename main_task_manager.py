@@ -323,7 +323,7 @@ class NewTaskWindow:
 
         # API Key
         tk.Label(config_frame, text="API Key:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.api_key_var = tk.StringVar()
+        self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
         tk.Entry(
             config_frame,
             textvariable=self.api_key_var,
@@ -388,11 +388,11 @@ class NewTaskWindow:
 
         # Max Tokens
         tk.Label(config_frame, text="Max Tokens:").grid(row=6, column=0, sticky=tk.W, pady=5)
-        self.max_tokens_var = tk.IntVar(value=8000)
+        self.max_tokens_var = tk.IntVar(value=100000)
         tk.Spinbox(
             config_frame,
             from_=1000,
-            to=50000,
+            to=200000,
             increment=1000,
             textvariable=self.max_tokens_var,
             width=15

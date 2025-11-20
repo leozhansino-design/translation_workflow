@@ -136,6 +136,46 @@ class WriterWorker:
         # 取最后1000字符
         return content[-1000:] if len(content) > 1000 else content
 
+    def save_prompt_log(self, batch_start, batch_end, system_prompt, prompt_vars):
+        """保存每个批次的Prompt日志"""
+        # 创建prompts目录
+        prompts_dir = f'tasks/{self.task_id}/prompts'
+        os.makedirs(prompts_dir, exist_ok=True)
+
+        # 生成文件名
+        prompt_file = os.path.join(prompts_dir, f'batch_{batch_start}-{batch_end}.txt')
+
+        # 保存完整的prompt信息
+        with open(prompt_file, 'w', encoding='utf-8') as f:
+            f.write("=" * 80 + "\n")
+            f.write(f"批次 {batch_start}-{batch_end} 的 Prompt\n")
+            f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("=" * 80 + "\n\n")
+
+            f.write("【系统消息 (System Message)】\n")
+            f.write("-" * 80 + "\n")
+            f.write(system_prompt)
+            f.write("\n\n")
+
+            f.write("【用户消息 (User Message)】\n")
+            f.write("-" * 80 + "\n")
+            f.write(f"请写作 Chapter {batch_start} - {batch_end}")
+            f.write("\n\n")
+
+            f.write("【Prompt 变量 (Variables)】\n")
+            f.write("-" * 80 + "\n")
+            f.write(f"Genre: {prompt_vars.get('genre', 'N/A')}\n")
+            f.write(f"Style: {prompt_vars.get('style', 'N/A')}\n")
+            f.write(f"Chapters: {batch_start}-{batch_end}\n")
+            f.write(f"\nWorld Setting:\n{prompt_vars.get('world_setting', 'N/A')}\n")
+            f.write(f"\nCharacters:\n{prompt_vars.get('characters', 'N/A')}\n")
+            f.write(f"\nChapter Outlines:\n{prompt_vars.get('chapter_outlines', 'N/A')}\n")
+
+            if prompt_vars.get('previous_context'):
+                f.write(f"\nPrevious Context:\n{prompt_vars['previous_context']}\n")
+
+        print(f"  💾 Prompt已保存: {prompt_file}")
+
     def parse_chapters_from_response(self, response_text, start_chapter, end_chapter):
         """从AI响应中解析章节内容"""
         chapters = {}
@@ -204,6 +244,9 @@ class WriterWorker:
 
         # 渲染Prompt
         system_prompt = self.prompt_mgr.render_writer_prompt(prompt_vars)
+
+        # 保存Prompt日志（用于调试）
+        self.save_prompt_log(batch_start, batch_end, system_prompt, prompt_vars)
 
         # 调用API
         response = self.client.chat.completions.create(
