@@ -649,7 +649,51 @@ Max Tokens: {task.config['max_tokens']}
         with open(os.path.join(output_folder, '_full_outline.txt'), 'w', encoding='utf-8') as f:
             f.write(result_text)
 
+        # 7. 保存写作用的精简Prompt（_writing_prompt.txt）
+        self._save_writing_prompt(output_folder, result_text, parsed_data)
+
         return output_folder
+
+    def _save_writing_prompt(self, output_folder, result_text, parsed_data):
+        """保存写作工具需要的精简Prompt"""
+        writing_prompt = ""
+
+        # 1. 提取 WORLD_SETTING
+        world_match = re.search(r'={5,}\s*WORLD_SETTING\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', result_text, re.DOTALL)
+        if world_match:
+            world_setting = world_match.group(1).strip()
+            writing_prompt += "===== WORLD_SETTING =====\n"
+            writing_prompt += world_setting + "\n\n"
+
+        # 2. 提取 MAIN_CHARACTERS
+        chars_match = re.search(r'={5,}\s*MAIN_CHARACTERS\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', result_text, re.DOTALL)
+        if chars_match:
+            main_characters = chars_match.group(1).strip()
+            writing_prompt += "===== MAIN_CHARACTERS =====\n"
+            writing_prompt += main_characters + "\n\n"
+
+        # 3. 添加 CHAPTER_OUTLINES（使用parsed_data）
+        writing_prompt += "===== CHAPTER_OUTLINES =====\n"
+        chapters = parsed_data.get('chapters', [])
+        for chapter in chapters:
+            ch_num = chapter.get('number', 0)
+            ch_title = chapter.get('title', f'Chapter {ch_num}')
+            ch_summary = chapter.get('summary', '')
+
+            writing_prompt += f"Chapter {ch_num}: {ch_title}\n"
+            writing_prompt += f"Summary: {ch_summary}\n"
+
+            if 'key_events' in chapter:
+                writing_prompt += f"Key Events: {chapter['key_events']}\n"
+            if 'characters' in chapter:
+                writing_prompt += f"Characters: {chapter['characters']}\n"
+            writing_prompt += "\n"
+
+        writing_prompt += "===== END =====\n"
+
+        # 保存文件
+        with open(os.path.join(output_folder, '_writing_prompt.txt'), 'w', encoding='utf-8') as f:
+            f.write(writing_prompt)
 
     def _parse_outline_response(self, text):
         """解析AI返回的纯文本大纲"""

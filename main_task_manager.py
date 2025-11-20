@@ -284,19 +284,19 @@ class NewTaskWindow:
     def setup_ui(self):
         """设置界面"""
         # 大纲选择
-        tk.Label(self.window, text="选择大纲文件:", font=("Arial", 11, "bold")).pack(
+        tk.Label(self.window, text="选择大纲文件夹:", font=("Arial", 11, "bold")).pack(
             anchor=tk.W, padx=10, pady=(10, 5)
         )
 
         file_frame = tk.Frame(self.window)
         file_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        self.file_label = tk.Label(file_frame, text="未选择文件", fg="gray")
+        self.file_label = tk.Label(file_frame, text="未选择文件夹（需包含 _writing_prompt.txt）", fg="gray")
         self.file_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         tk.Button(
             file_frame,
-            text="选择大纲",
+            text="选择文件夹",
             command=self.select_outline
         ).pack(side=tk.RIGHT)
 
@@ -342,29 +342,43 @@ class NewTaskWindow:
 
         # 模型
         tk.Label(config_frame, text="模型:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.model_var = tk.StringVar(value="gpt-4-turbo-preview")
-        ttk.Combobox(
+        self.model_var = tk.StringVar(value="gpt-5.1")
+        model_combo = ttk.Combobox(
             config_frame,
             textvariable=self.model_var,
-            values=["gemini-2.5-pro", "gpt-5.1", "gpt-5", "gemini-3-pro-preview", "gpt-4-turbo-preview"],
-            width=37,
-            state="readonly"
-        ).grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
+            values=["gpt-5.1", "gemini-2.5-pro", "gpt-5", "gemini-3-pro-preview", "gpt-4-turbo-preview"],
+            width=37
+        )
+        model_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
 
-        # 目标章节数
-        tk.Label(config_frame, text="目标章节数:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.target_chapters_var = tk.IntVar(value=100)
+        # 章节范围
+        tk.Label(config_frame, text="章节范围:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        chapter_range_frame = tk.Frame(config_frame)
+        chapter_range_frame.grid(row=3, column=1, sticky=tk.W, pady=5, padx=5)
+
+        self.start_chapter_var = tk.IntVar(value=1)
+        tk.Label(chapter_range_frame, text="从").pack(side=tk.LEFT)
         tk.Spinbox(
-            config_frame,
+            chapter_range_frame,
             from_=1,
             to=500,
-            textvariable=self.target_chapters_var,
-            width=15
-        ).grid(row=3, column=1, sticky=tk.W, pady=5, padx=5)
+            textvariable=self.start_chapter_var,
+            width=8
+        ).pack(side=tk.LEFT, padx=5)
+
+        self.end_chapter_var = tk.IntVar(value=50)
+        tk.Label(chapter_range_frame, text="到").pack(side=tk.LEFT, padx=5)
+        tk.Spinbox(
+            chapter_range_frame,
+            from_=1,
+            to=500,
+            textvariable=self.end_chapter_var,
+            width=8
+        ).pack(side=tk.LEFT, padx=5)
 
         # 批次大小
-        tk.Label(config_frame, text="批次大小:").grid(row=4, column=0, sticky=tk.W, pady=5)
-        self.batch_size_var = tk.IntVar(value=3)
+        tk.Label(config_frame, text="每批章节数:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        self.batch_size_var = tk.IntVar(value=5)
         tk.Spinbox(
             config_frame,
             from_=1,
@@ -388,10 +402,10 @@ class NewTaskWindow:
 
         # Max Tokens
         tk.Label(config_frame, text="Max Tokens:").grid(row=6, column=0, sticky=tk.W, pady=5)
-        self.max_tokens_var = tk.IntVar(value=100000)
+        self.max_tokens_var = tk.IntVar(value=20000)
         tk.Spinbox(
             config_frame,
-            from_=1000,
+            from_=5000,
             to=200000,
             increment=1000,
             textvariable=self.max_tokens_var,
@@ -419,16 +433,21 @@ class NewTaskWindow:
         ).pack(side=tk.RIGHT, padx=5)
 
     def select_outline(self):
-        """选择大纲文件"""
-        file_path = filedialog.askopenfilename(
-            title="选择大纲JSON文件",
-            filetypes=[("JSON文件", "*.json"), ("所有文件", "*.*")],
+        """选择大纲文件夹"""
+        folder_path = filedialog.askdirectory(
+            title="选择大纲文件夹（需包含 _writing_prompt.txt）",
             initialdir="outlines"
         )
 
-        if file_path:
-            self.outline_file = file_path
-            self.file_label.config(text=os.path.basename(file_path), fg="black")
+        if folder_path:
+            # 检查是否包含 _writing_prompt.txt
+            prompt_file = os.path.join(folder_path, '_writing_prompt.txt')
+            if not os.path.exists(prompt_file):
+                messagebox.showwarning("警告", "所选文件夹不包含 _writing_prompt.txt 文件")
+                return
+
+            self.outline_file = folder_path
+            self.file_label.config(text=os.path.basename(folder_path), fg="black")
 
     def select_project_folder(self):
         """选择项目文件夹（续写用）"""
@@ -451,11 +470,18 @@ class NewTaskWindow:
     def create_and_start(self):
         """创建并启动任务"""
         if not self.outline_file:
-            messagebox.showwarning("警告", "请先选择大纲文件")
+            messagebox.showwarning("警告", "请先选择大纲文件夹")
             return
 
         if not self.api_key_var.get():
             messagebox.showwarning("警告", "请输入API Key")
+            return
+
+        # 验证章节范围
+        start_ch = self.start_chapter_var.get()
+        end_ch = self.end_chapter_var.get()
+        if start_ch > end_ch:
+            messagebox.showwarning("警告", "起始章节不能大于结束章节")
             return
 
         # 构建配置
@@ -463,7 +489,9 @@ class NewTaskWindow:
             'api_key': self.api_key_var.get(),
             'base_url': self.base_url_var.get(),
             'model': self.model_var.get(),
-            'target_chapters': self.target_chapters_var.get(),
+            'start_chapter': start_ch,
+            'end_chapter': end_ch,
+            'target_chapters': end_ch,  # 保持兼容性
             'batch_size': self.batch_size_var.get(),
             'temperature': self.temperature_var.get(),
             'max_tokens': self.max_tokens_var.get()

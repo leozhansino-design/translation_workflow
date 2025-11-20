@@ -69,10 +69,83 @@ class WriterWorker:
             json.dump(progress, f, indent=2, ensure_ascii=False)
 
     def load_outline(self):
-        """加载大纲JSON"""
-        outline_file = self.config['outline_file']
-        with open(outline_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        """加载大纲（从_writing_prompt.txt）"""
+        outline_folder = self.config['outline_file']
+
+        # 读取 _writing_prompt.txt
+        prompt_file = os.path.join(outline_folder, '_writing_prompt.txt')
+        if not os.path.exists(prompt_file):
+            raise FileNotFoundError(f"找不到 _writing_prompt.txt 文件: {prompt_file}")
+
+        with open(prompt_file, 'r', encoding='utf-8') as f:
+            prompt_content = f.read()
+
+        # 解析精简的prompt
+        parsed_data = self._parse_writing_prompt(prompt_content)
+
+        # 读取 title 和 genre（用于创建项目文件夹）
+        title_file = os.path.join(outline_folder, 'title.txt')
+        category_file = os.path.join(outline_folder, 'category.txt')
+
+        title = "Untitled"
+        genre = "Romance"
+
+        if os.path.exists(title_file):
+            with open(title_file, 'r', encoding='utf-8') as f:
+                title = f.read().strip()
+
+        if os.path.exists(category_file):
+            with open(category_file, 'r', encoding='utf-8') as f:
+                genre = f.read().strip()
+
+        # 返回兼容格式
+        return {
+            'outline': {
+                'title': title,
+                'genre': genre,
+                'world_setting': parsed_data.get('world_setting', ''),
+                'main_characters': parsed_data.get('main_characters', ''),
+                'chapter_outlines': parsed_data.get('chapter_outlines', [])
+            }
+        }
+
+    def _parse_writing_prompt(self, text):
+        """解析 _writing_prompt.txt 的内容"""
+        data = {
+            'world_setting': '',
+            'main_characters': '',
+            'chapter_outlines': []
+        }
+
+        # 提取 WORLD_SETTING
+        world_match = re.search(r'={5,}\s*WORLD_SETTING\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', text, re.DOTALL)
+        if world_match:
+            data['world_setting'] = world_match.group(1).strip()
+
+        # 提取 MAIN_CHARACTERS
+        chars_match = re.search(r'={5,}\s*MAIN_CHARACTERS\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', text, re.DOTALL)
+        if chars_match:
+            data['main_characters'] = chars_match.group(1).strip()
+
+        # 提取 CHAPTER_OUTLINES
+        chapter_section = re.search(r'={5,}\s*CHAPTER_OUTLINES\s*={5,}\s*\n(.+?)(?=\n={5,}\s*END|$)', text, re.DOTALL)
+        if chapter_section:
+            chapter_text = chapter_section.group(1)
+
+            # 匹配每个章节
+            chapter_pattern = r'Chapter\s+(\d+):\s*(.+?)\nSummary:\s*(.+?)(?=\n(?:Key Events:|Characters:|Chapter\s+\d+:|$))'
+            for match in re.finditer(chapter_pattern, chapter_text, re.DOTALL):
+                ch_num = int(match.group(1))
+                ch_title = match.group(2).strip()
+                ch_summary = match.group(3).strip()
+
+                data['chapter_outlines'].append({
+                    'chapter': ch_num,
+                    'title': ch_title,
+                    'summary': ch_summary
+                })
+
+        return data
 
     def initialize_project(self, outline_data):
         """初始化项目文件夹"""
@@ -99,12 +172,13 @@ class WriterWorker:
         scan_result = scan_chapter_files(self.project_folder)
         max_chapter = scan_result['max_chapter']
 
-        # 目标章节数
-        target = self.config.get('target_chapters', 100)
+        # 使用配置中的章节范围，如果没有则使用默认值
+        config_start = self.config.get('start_chapter', 1)
+        config_end = self.config.get('end_chapter', self.config.get('target_chapters', 100))
 
-        # 从下一章开始
-        start_chapter = max_chapter + 1
-        end_chapter = target
+        # 从下一章开始（跳过已完成的）
+        start_chapter = max(max_chapter + 1, config_start)
+        end_chapter = config_end
 
         return start_chapter, end_chapter
 
@@ -126,15 +200,15 @@ class WriterWorker:
         if current_chapter <= 1:
             return ""
 
-        # 读取上一章的最后1000字符
+        # 读取上一章的最后500字符
         prev_chapter_file = os.path.join(self.project_folder, f'ch{current_chapter - 1}.txt')
 
         if not os.path.exists(prev_chapter_file):
             return ""
 
         content = load_chapter_content(prev_chapter_file)
-        # 取最后1000字符
-        return content[-1000:] if len(content) > 1000 else content
+        # 取最后500字符
+        return content[-500:] if len(content) > 500 else content
 
     def save_prompt_log(self, batch_start, batch_end, system_prompt, prompt_vars):
         """保存每个批次的Prompt日志"""
