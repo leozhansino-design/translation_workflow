@@ -563,6 +563,10 @@ Max Tokens: {task.config['max_tokens']}
 
             result_text = response.choices[0].message.content
 
+            # 检查返回内容是否为空
+            if not result_text:
+                raise ValueError("API返回内容为空，请检查API配置或稍后重试")
+
             # 保存结果（纯文本格式）
             output_folder = self._save_outline_text(task, result_text)
             task.output_folder = output_folder
@@ -589,9 +593,9 @@ Max Tokens: {task.config['max_tokens']}
         # 创建输出文件夹
         os.makedirs('outlines', exist_ok=True)
 
-        title = parsed_data.get('title', 'Untitled')
+        title = parsed_data.get('title', 'Untitled') or 'Untitled'
         safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_'))
-        safe_title = safe_title.replace(' ', '_')
+        safe_title = safe_title.replace(' ', '_') if safe_title else 'Untitled'
 
         # 文件夹名：书名_类型
         folder_name = f"{safe_title}_{task.genre}"
@@ -607,15 +611,15 @@ Max Tokens: {task.config['max_tokens']}
 
         # 1. 保存 title.txt
         with open(os.path.join(output_folder, 'title.txt'), 'w', encoding='utf-8') as f:
-            f.write(parsed_data.get('title', ''))
+            f.write(parsed_data.get('title', '') or '')
 
         # 2. 保存 blurb.txt
         with open(os.path.join(output_folder, 'blurb.txt'), 'w', encoding='utf-8') as f:
-            f.write(parsed_data.get('blurb', ''))
+            f.write(parsed_data.get('blurb', '') or '')
 
         # 3. 保存 tags.txt
         with open(os.path.join(output_folder, 'tags.txt'), 'w', encoding='utf-8') as f:
-            f.write(parsed_data.get('tags', ''))
+            f.write(parsed_data.get('tags', '') or '')
 
         # 4. 保存 category.txt
         with open(os.path.join(output_folder, 'category.txt'), 'w', encoding='utf-8') as f:
@@ -625,11 +629,12 @@ Max Tokens: {task.config['max_tokens']}
         chapters = parsed_data.get('chapters', [])
         for chapter in chapters:
             ch_num = chapter.get('number', 0)
-            ch_title = chapter.get('title', f'Chapter {ch_num}')
-            ch_summary = chapter.get('summary', '')
+            ch_title = chapter.get('title', f'Chapter {ch_num}') or f'Chapter {ch_num}'
+            ch_summary = chapter.get('summary', '') or ''
 
             # 文件名：chapter 1 Title.txt
             safe_ch_title = "".join(c for c in ch_title if c.isalnum() or c in (' ', '-', '_'))
+            safe_ch_title = safe_ch_title if safe_ch_title else f'Chapter_{ch_num}'
             filename = f"chapter {ch_num} {safe_ch_title}.txt"
 
             with open(os.path.join(output_folder, filename), 'w', encoding='utf-8') as f:
@@ -777,14 +782,18 @@ Max Tokens: {task.config['max_tokens']}
                     max_tokens=10
                 )
 
-                # 成功
-                self.window.after(0, lambda: self.api_status_label.config(
-                    text="✅ 连接成功", fg="green"
-                ))
+                # 检查响应
+                if response and response.choices and len(response.choices) > 0:
+                    # 成功
+                    self.window.after(0, lambda: self.api_status_label.config(
+                        text="✅ 连接成功", fg="green"
+                    ))
+                else:
+                    raise ValueError("API响应格式异常")
 
             except Exception as e:
-                error_msg = str(e)
-                if len(error_msg) > 50:
+                error_msg = str(e) if e else "未知错误"
+                if error_msg and len(error_msg) > 50:
                     error_msg = error_msg[:50] + "..."
 
                 self.window.after(0, lambda: self.api_status_label.config(
