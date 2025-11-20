@@ -40,13 +40,17 @@ PROMPTS_FILE = get_resource_path('data/prompts.json')
 
 
 # 默认Prompt模板
-DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件中的故事翻译成一篇爆款本土化英文小说。符合英语母语读者的阅读习惯。
+DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件中的故事改编成一篇爆款本土化英文小说大纲。符合英语母语读者的阅读习惯。
 
-起一个 Wattpad 网文标题，写 blurb（小于 3000 characters），选择类型和 tags（最多 20 个），构建完整的世界观、角色表和每章大纲。
+【核心任务】
+起一个 Wattpad 网文标题，写 blurb（简介，少于 3000 characters），选择类型和 tags（最多 20 个），构建完整的世界观、角色表和详细的章节大纲。
 
 【翻译本土化要求】
 1. **地理/文化背景**：改为非亚洲国家背景，地名、场景、文化习俗要符合当地
-2. **人名**：使用提供的英文名，避免中文和拼音，检查人名一致性
+2. **人名**：
+   - 优先使用提供的英文名作为主要角色
+   - **如果需要更多角色，可以自由创造新的英文名字**
+   - 避免中文和拼音，确保人名一致性
 3. **日常细节**：
    - 食物/饮品：根据场景本土化（外卖→披萨/中餐外卖，饮料→咖啡/啤酒等）
    - 社交习惯：聚会方式、称呼、节日庆祝等
@@ -67,6 +71,13 @@ DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件�
    - 节日：春节→圣诞节/感恩节，中秋节→万圣节等
    - 流行文化梗：改为欧美观众熟悉的电影/音乐/网络梗
 
+【剧情扩展要求】⭐
+- **原文内容可能很短（例如只有2章）**
+- 你需要根据要求的章节数（例如15章、30章、100章）**自由扩展剧情**
+- **保证剧情合理、连贯、有吸引力**
+- 增加必要的情节转折、人物关系、次要情节线
+- 保持整体节奏：快节奏、有反转、让读者感觉爽
+
 【输出格式要求】
 - 保留重要的叙事节奏和情节转折
 - 符合英文的标点符号
@@ -76,45 +87,72 @@ DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件�
 【类型】
 {genre}
 
-【人名列表】
-男性名字: {male_names}
-女性名字: {female_names}
+【建议人名列表】（可以使用，也可以自己创造新名字）
+男性名字参考: {male_names}
+女性名字参考: {female_names}
 
 【作者风格】
 {style}
 
-【章节范围】
-第 {start_chapter} 章 到 第 {end_chapter} 章（共 {total_chapters} 章）
+【要求章节范围】
+第 1 章 到 第 {end_chapter} 章（共 {end_chapter} 章）
+**注意：如果原文很短，你需要合理扩展剧情来满足章节数要求**
 
-【输出格式】（严格使用JSON格式）
-{{
-    "title": "英文标题",
-    "blurb": "简介内容（少于3000字符）",
-    "genre": "{genre}",
-    "tags": ["#Tag1", "#Tag2", ...],
-    "age_category": "Young Adult/New Adult/Adult",
-    "world_setting": "世界观描述...",
-    "main_characters": [
-        {{
-            "name": "角色全名",
-            "gender": "male/female",
-            "role": "protagonist/antagonist/supporting",
-            "personality": "性格描述",
-            "background": "背景故事"
-        }}
-    ],
-    "chapter_outlines": [
-        {{
-            "chapter_number": 1,
-            "title": "章节标题",
-            "summary": "本章剧情概要（200-300词）",
-            "key_events": ["关键事件1", "关键事件2"],
-            "characters_involved": ["涉及的角色名"]
-        }}
-    ]
-}}
+【输出格式】
+请按以下格式输出（纯文本，不要JSON）：
 
-【重要】输出必须是有效的JSON格式，不要包含任何其他文字。"""
+===== TITLE =====
+[英文标题]
+
+===== BLURB =====
+[简介内容，少于3000字符]
+
+===== CATEGORY =====
+{genre}
+
+===== TAGS =====
+[用逗号分隔，例如: #SlowBurn, #ForcedProximity, #AlphaMale]
+
+===== AGE_CATEGORY =====
+[Young Adult / New Adult / Adult]
+
+===== WORLD_SETTING =====
+[世界观描述，200-500词]
+
+===== MAIN_CHARACTERS =====
+[每个角色一段，格式：]
+Character 1: [姓名] - [性别] - [角色定位：protagonist/antagonist/supporting]
+Personality: [性格描述]
+Background: [背景故事]
+
+Character 2: [姓名] - [性别] - [角色定位]
+Personality: [性格描述]
+Background: [背景故事]
+
+[继续列出所有主要角色...]
+
+===== CHAPTER_OUTLINES =====
+[每章一段，格式：]
+
+Chapter 1: [章节标题]
+Summary: [本章剧情概要，200-300词，详细描述关键情节]
+Key Events: [关键事件1], [关键事件2], [关键事件3]
+Characters: [涉及的角色名，用逗号分隔]
+
+Chapter 2: [章节标题]
+Summary: [本章剧情概要，200-300词]
+Key Events: [关键事件列表]
+Characters: [涉及的角色名]
+
+[继续到第 {end_chapter} 章...]
+
+===== END =====
+
+【重要提醒】
+1. 输出必须是纯文本格式，严格按照上述格式
+2. 不要输出JSON或其他格式
+3. 每个章节的Summary要详细，确保后续写作有足够信息
+4. 如果原文内容不足以支撑要求的章节数，请合理扩展剧情"""
 
 
 DEFAULT_WRITER_PROMPT = """你是一个专业的英语网文作家。根据以下信息写作章节内容。

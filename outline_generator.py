@@ -7,6 +7,7 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import json
 import os
+import re
 import subprocess
 import sys
 import uuid
@@ -177,7 +178,18 @@ class OutlineGeneratorWithQueue:
             width=8
         ).pack(side=tk.LEFT, padx=5)
 
-        tk.Label(task_frame, text="Max Tokens:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(20, 5))
+        tk.Label(task_frame, text="要求章节数:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(20, 5))
+        self.chapter_count_var = tk.IntVar(value=15)
+        tk.Spinbox(
+            task_frame,
+            from_=5,
+            to=200,
+            increment=5,
+            textvariable=self.chapter_count_var,
+            width=8
+        ).grid(row=1, column=3, sticky=tk.W, pady=5, padx=5)
+
+        tk.Label(task_frame, text="Max Tokens:").grid(row=2, column=0, sticky=tk.W, pady=5)
         self.max_tokens_var = tk.IntVar(value=100000)
         tk.Spinbox(
             task_frame,
@@ -186,11 +198,11 @@ class OutlineGeneratorWithQueue:
             increment=10000,
             textvariable=self.max_tokens_var,
             width=12
-        ).grid(row=1, column=3, sticky=tk.W, pady=5, padx=5)
+        ).grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
 
         # 第三行：添加到队列按钮
         button_frame = tk.Frame(task_frame)
-        button_frame.grid(row=2, column=0, columnspan=4, pady=10)
+        button_frame.grid(row=3, column=0, columnspan=4, pady=10)
 
         tk.Button(
             button_frame,
@@ -297,6 +309,7 @@ class OutlineGeneratorWithQueue:
             'model': self.model_var.get(),
             'male_count': self.male_count_var.get(),
             'female_count': self.female_count_var.get(),
+            'chapter_count': self.chapter_count_var.get(),
             'max_tokens': self.max_tokens_var.get(),
         }
 
@@ -426,6 +439,7 @@ class OutlineGeneratorWithQueue:
                 'style': selected_style['style'],
                 'male_names': names_formatted['male_names'],
                 'female_names': names_formatted['female_names'],
+                'end_chapter': task.config.get('chapter_count', 15),
             }
 
             # 渲染Prompt
@@ -446,6 +460,7 @@ class OutlineGeneratorWithQueue:
 文件: {os.path.basename(task.source_file)}
 类型: {task.genre}
 模型: {task.config['model']}
+要求章节数: {task.config.get('chapter_count', 15)}
 Max Tokens: {task.config['max_tokens']}
 
 选择的人名:
@@ -510,6 +525,7 @@ Max Tokens: {task.config['max_tokens']}
                 'style': selected_style['style'],
                 'male_names': names_formatted['male_names'],
                 'female_names': names_formatted['female_names'],
+                'end_chapter': task.config.get('chapter_count', 15),
             }
 
             system_prompt = self.prompt_mgr.render_outline_prompt(prompt_vars)
@@ -532,11 +548,8 @@ Max Tokens: {task.config['max_tokens']}
 
             result_text = response.choices[0].message.content
 
-            # 解析JSON
-            outline_json = parse_json_from_llm_response(result_text)
-
-            # 保存结果
-            output_folder = self._save_outline(task, outline_json, selected_names, selected_style)
+            # 保存结果（纯文本格式）
+            output_folder = self._save_outline_text(task, result_text)
             task.output_folder = output_folder
 
             # 标记完成
@@ -553,54 +566,132 @@ Max Tokens: {task.config['max_tokens']}
             # 更新UI
             self.window.after(0, lambda: self._on_task_failed(task, error_msg))
 
-    def _save_outline(self, task, outline_json, selected_names, selected_style):
-        """保存大纲到文件"""
+    def _save_outline_text(self, task, result_text):
+        """保存大纲到文件（纯文本格式）"""
+        # 解析返回的文本
+        parsed_data = self._parse_outline_response(result_text)
+
         # 创建输出文件夹
         os.makedirs('outlines', exist_ok=True)
 
-        title = outline_json.get('outline', {}).get('title', 'Untitled')
+        title = parsed_data.get('title', 'Untitled')
         safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_'))
         safe_title = safe_title.replace(' ', '_')
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        folder_name = f"{safe_title}_{task.genre}_{timestamp}"
+        # 文件夹名：书名_类型
+        folder_name = f"{safe_title}_{task.genre}"
         output_folder = os.path.join('outlines', folder_name)
+
+        # 如果文件夹已存在，添加时间戳
+        if os.path.exists(output_folder):
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            folder_name = f"{safe_title}_{task.genre}_{timestamp}"
+            output_folder = os.path.join('outlines', folder_name)
+
         os.makedirs(output_folder, exist_ok=True)
 
-        # 保存JSON
-        json_file = os.path.join(output_folder, 'outline.json')
-        full_data = {
-            'outline': outline_json.get('outline', {}),
-            'selected_names': selected_names,
-            'style': selected_style,
-            'task_id': task.task_id,
-            'created_at': task.created_at.isoformat()
-        }
+        # 1. 保存 title.txt
+        with open(os.path.join(output_folder, 'title.txt'), 'w', encoding='utf-8') as f:
+            f.write(parsed_data.get('title', ''))
 
-        with open(json_file, 'w', encoding='utf-8') as f:
-            json.dump(full_data, f, indent=2, ensure_ascii=False)
+        # 2. 保存 blurb.txt
+        with open(os.path.join(output_folder, 'blurb.txt'), 'w', encoding='utf-8') as f:
+            f.write(parsed_data.get('blurb', ''))
 
-        # 保存TXT（可读格式）
-        txt_file = os.path.join(output_folder, 'outline.txt')
-        with open(txt_file, 'w', encoding='utf-8') as f:
-            outline = outline_json.get('outline', {})
-            f.write(f"Title: {outline.get('title', 'N/A')}\n")
-            f.write(f"Genre: {outline.get('genre', 'N/A')}\n")
-            f.write(f"\nBlurb:\n{outline.get('blurb', 'N/A')}\n")
-            f.write(f"\nTags: {', '.join(outline.get('tags', []))}\n")
-            f.write(f"\nWorld Setting:\n{outline.get('world_setting', 'N/A')}\n")
+        # 3. 保存 tags.txt
+        with open(os.path.join(output_folder, 'tags.txt'), 'w', encoding='utf-8') as f:
+            f.write(parsed_data.get('tags', ''))
 
-            f.write(f"\n{'='*70}\nMain Characters:\n{'='*70}\n")
-            for char in outline.get('main_characters', []):
-                f.write(f"\n{char.get('name', 'N/A')} ({char.get('role', 'N/A')})\n")
-                f.write(f"Personality: {char.get('personality', 'N/A')}\n")
+        # 4. 保存 category.txt
+        with open(os.path.join(output_folder, 'category.txt'), 'w', encoding='utf-8') as f:
+            f.write(task.genre)
 
-            f.write(f"\n{'='*70}\nChapter Outlines:\n{'='*70}\n")
-            for ch in outline.get('chapter_outlines', []):
-                f.write(f"\nChapter {ch.get('chapter_number', '?')}: {ch.get('title', 'N/A')}\n")
-                f.write(f"Summary: {ch.get('summary', 'N/A')}\n")
+        # 5. 保存章节大纲（每章一个文件）
+        chapters = parsed_data.get('chapters', [])
+        for chapter in chapters:
+            ch_num = chapter.get('number', 0)
+            ch_title = chapter.get('title', f'Chapter {ch_num}')
+            ch_summary = chapter.get('summary', '')
+
+            # 文件名：chapter 1 Title.txt
+            safe_ch_title = "".join(c for c in ch_title if c.isalnum() or c in (' ', '-', '_'))
+            filename = f"chapter {ch_num} {safe_ch_title}.txt"
+
+            with open(os.path.join(output_folder, filename), 'w', encoding='utf-8') as f:
+                f.write(f"Chapter {ch_num}: {ch_title}\n\n")
+                f.write(f"Summary:\n{ch_summary}\n\n")
+                if 'key_events' in chapter:
+                    f.write(f"Key Events:\n{chapter['key_events']}\n\n")
+                if 'characters' in chapter:
+                    f.write(f"Characters: {chapter['characters']}\n")
+
+        # 6. 保存完整大纲备份
+        with open(os.path.join(output_folder, '_full_outline.txt'), 'w', encoding='utf-8') as f:
+            f.write(result_text)
 
         return output_folder
+
+    def _parse_outline_response(self, text):
+        """解析AI返回的纯文本大纲"""
+        data = {
+            'title': '',
+            'blurb': '',
+            'tags': '',
+            'category': '',
+            'chapters': []
+        }
+
+        # 提取title
+        title_match = re.search(r'={5,}\s*TITLE\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', text, re.DOTALL)
+        if title_match:
+            data['title'] = title_match.group(1).strip()
+
+        # 提取blurb
+        blurb_match = re.search(r'={5,}\s*BLURB\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', text, re.DOTALL)
+        if blurb_match:
+            data['blurb'] = blurb_match.group(1).strip()
+
+        # 提取tags
+        tags_match = re.search(r'={5,}\s*TAGS\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', text, re.DOTALL)
+        if tags_match:
+            data['tags'] = tags_match.group(1).strip()
+
+        # 提取category
+        category_match = re.search(r'={5,}\s*CATEGORY\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', text, re.DOTALL)
+        if category_match:
+            data['category'] = category_match.group(1).strip()
+
+        # 提取章节
+        chapter_section = re.search(r'={5,}\s*CHAPTER_OUTLINES\s*={5,}\s*\n(.+?)(?=\n={5,}\s*END|$)', text, re.DOTALL)
+        if chapter_section:
+            chapter_text = chapter_section.group(1)
+
+            # 匹配每个章节
+            chapter_pattern = r'Chapter\s+(\d+):\s*(.+?)\n\s*Summary:\s*(.+?)(?=\n\s*(?:Key Events:|Characters:|Chapter\s+\d+:|$))'
+            for match in re.finditer(chapter_pattern, chapter_text, re.DOTALL):
+                ch_num = int(match.group(1))
+                ch_title = match.group(2).strip()
+                ch_summary = match.group(3).strip()
+
+                chapter_data = {
+                    'number': ch_num,
+                    'title': ch_title,
+                    'summary': ch_summary
+                }
+
+                # 尝试提取Key Events
+                events_match = re.search(rf'Chapter\s+{ch_num}:.*?Key Events:\s*(.+?)(?=\n\s*Characters:|Chapter\s+\d+:|$)', chapter_text, re.DOTALL)
+                if events_match:
+                    chapter_data['key_events'] = events_match.group(1).strip()
+
+                # 尝试提取Characters
+                chars_match = re.search(rf'Chapter\s+{ch_num}:.*?Characters:\s*(.+?)(?=\n\s*Chapter\s+\d+:|$)', chapter_text, re.DOTALL)
+                if chars_match:
+                    chapter_data['characters'] = chars_match.group(1).strip()
+
+                data['chapters'].append(chapter_data)
+
+        return data
 
     def _on_task_completed(self, task):
         """任务完成回调"""
