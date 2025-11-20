@@ -373,3 +373,20 @@ class PromptManager:
     def get_all_character_prompts(self):
         """获取所有角色Prompt"""
         return self.prompts['character_prompts']
+
+    def get_default_outline_prompt(self):
+        """获取当前活跃的大纲Prompt（简化方法）"""
+        return self.get_outline_prompt()
+
+    def save_custom_prompt(self, content):
+        """保存自定义Prompt（简化方法）
+
+        保存为"Custom"版本并设置为活跃版本
+        """
+        version_name = "Custom"
+        self.save_custom_outline_prompt(version_name, content)
+        self.set_active_outline_version(version_name)
+
+    def reset_to_default(self):
+        """重置为默认Prompt（简化方法）"""
+        self.restore_default_outline()

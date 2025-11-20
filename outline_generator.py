@@ -101,7 +101,7 @@ class OutlineGeneratorWithQueue:
         api_frame = tk.LabelFrame(top_container, text="API 配置", padx=15, pady=10)
         api_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # API Key
+        # 第一行：API Key
         tk.Label(api_frame, text="API Key:").grid(row=0, column=0, sticky=tk.W, pady=5)
         self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
         tk.Entry(
@@ -111,17 +111,34 @@ class OutlineGeneratorWithQueue:
             width=50
         ).grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
 
-        # 模型选择
-        tk.Label(api_frame, text="模型:").grid(row=0, column=2, sticky=tk.W, pady=5, padx=(20, 5))
+        tk.Button(
+            api_frame,
+            text="测试API",
+            command=self.test_api_connection,
+            width=10
+        ).grid(row=0, column=2, pady=5, padx=5)
+
+        self.api_status_label = tk.Label(api_frame, text="", fg="gray")
+        self.api_status_label.grid(row=0, column=3, pady=5, padx=5)
+
+        # 第二行：模型和Prompt管理
+        tk.Label(api_frame, text="模型:").grid(row=1, column=0, sticky=tk.W, pady=5)
         self.model_var = tk.StringVar(value="gpt-5.1")
         models = ["gpt-5.1", "gemini-2.5-pro", "gpt-5", "gemini-3-pro-preview", "gpt-4-turbo-preview"]
-        ttk.Combobox(
+        model_combo = ttk.Combobox(
             api_frame,
             textvariable=self.model_var,
             values=models,
-            width=20,
-            state="readonly"
-        ).grid(row=0, column=3, sticky=tk.W, pady=5, padx=5)
+            width=20
+        )
+        model_combo.grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
+
+        tk.Button(
+            api_frame,
+            text="📝 Prompt管理",
+            command=self.manage_prompts,
+            width=12
+        ).grid(row=1, column=2, pady=5, padx=5)
 
         # 任务配置区域
         task_frame = tk.LabelFrame(top_container, text="新建任务", padx=15, pady=10)
@@ -731,6 +748,174 @@ Max Tokens: {task.config['max_tokens']}
                 subprocess.Popen(['xdg-open', task.output_folder])
         except Exception as e:
             messagebox.showerror("错误", f"打开文件夹失败: {str(e)}")
+
+    def test_api_connection(self):
+        """测试API连接"""
+        api_key = self.api_key_var.get()
+        model = self.model_var.get()
+
+        if not api_key:
+            self.api_status_label.config(text="❌ 请输入API Key", fg="red")
+            return
+
+        # 更新状态
+        self.api_status_label.config(text="🔄 测试中...", fg="blue")
+        self.window.update()
+
+        # 在新线程中测试，避免阻塞UI
+        def _test():
+            try:
+                client = OpenAI(
+                    api_key=api_key,
+                    base_url='https://yunwuapi.com/v1/'
+                )
+
+                # 发送一个简单的测试请求
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "user", "content": "Hello"}
+                    ],
+                    max_tokens=10
+                )
+
+                # 成功
+                self.window.after(0, lambda: self.api_status_label.config(
+                    text="✅ 连接成功", fg="green"
+                ))
+
+            except Exception as e:
+                error_msg = str(e)
+                if len(error_msg) > 50:
+                    error_msg = error_msg[:50] + "..."
+
+                self.window.after(0, lambda: self.api_status_label.config(
+                    text=f"❌ {error_msg}", fg="red"
+                ))
+
+        thread = threading.Thread(target=_test, daemon=True)
+        thread.start()
+
+    def manage_prompts(self):
+        """Prompt管理和版本控制"""
+        # 创建Prompt管理窗口
+        prompt_window = tk.Toplevel(self.window)
+        prompt_window.title("Prompt管理")
+        prompt_window.geometry("900x700")
+
+        # 标题
+        title_label = tk.Label(
+            prompt_window,
+            text="📝 Prompt模板管理",
+            font=("Arial", 16, "bold"),
+            bg="#2196F3",
+            fg="white",
+            pady=15
+        )
+        title_label.pack(fill=tk.X)
+
+        # 主容器
+        main_frame = tk.Frame(prompt_window, padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # 说明文本
+        info_frame = tk.Frame(main_frame)
+        info_frame.pack(fill=tk.X, pady=(0, 10))
+
+        tk.Label(
+            info_frame,
+            text="当前使用的Prompt模板（可在 prompt_manager.py 中修改）:",
+            font=("Arial", 10),
+            fg="gray"
+        ).pack(anchor=tk.W)
+
+        # Prompt显示区域
+        prompt_text = scrolledtext.ScrolledText(
+            main_frame,
+            wrap=tk.WORD,
+            font=("Courier", 9),
+            height=25
+        )
+        prompt_text.pack(fill=tk.BOTH, expand=True)
+
+        # 加载当前Prompt
+        try:
+            current_prompt = self.prompt_mgr.get_default_outline_prompt()
+            prompt_text.insert(tk.END, current_prompt)
+            prompt_text.config(state=tk.DISABLED)  # 只读
+        except Exception as e:
+            prompt_text.insert(tk.END, f"加载失败: {str(e)}")
+
+        # 按钮区域
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        # 编辑按钮
+        def edit_prompt():
+            prompt_text.config(state=tk.NORMAL)
+            edit_btn.config(state=tk.DISABLED)
+            save_btn.config(state=tk.NORMAL)
+
+        # 保存按钮
+        def save_prompt():
+            new_prompt = prompt_text.get("1.0", tk.END).strip()
+            try:
+                # 保存到prompt_manager.py
+                self.prompt_mgr.save_custom_prompt(new_prompt)
+                messagebox.showinfo("成功", "Prompt已保存！\n将在下次生成任务时使用新的Prompt。")
+                prompt_text.config(state=tk.DISABLED)
+                edit_btn.config(state=tk.NORMAL)
+                save_btn.config(state=tk.DISABLED)
+            except Exception as e:
+                messagebox.showerror("保存失败", f"保存Prompt时出错:\n{str(e)}")
+
+        # 重置为默认
+        def reset_to_default():
+            if messagebox.askyesno("确认", "确定要重置为默认Prompt吗？"):
+                try:
+                    self.prompt_mgr.reset_to_default()
+                    prompt_text.config(state=tk.NORMAL)
+                    prompt_text.delete("1.0", tk.END)
+                    prompt_text.insert(tk.END, self.prompt_mgr.get_default_outline_prompt())
+                    prompt_text.config(state=tk.DISABLED)
+                    messagebox.showinfo("成功", "已重置为默认Prompt")
+                except Exception as e:
+                    messagebox.showerror("重置失败", f"重置Prompt时出错:\n{str(e)}")
+
+        edit_btn = tk.Button(
+            button_frame,
+            text="✏️ 编辑",
+            command=edit_prompt,
+            width=15,
+            bg="#FF9800",
+            fg="white"
+        )
+        edit_btn.pack(side=tk.LEFT, padx=5)
+
+        save_btn = tk.Button(
+            button_frame,
+            text="💾 保存",
+            command=save_prompt,
+            width=15,
+            bg="#4CAF50",
+            fg="white",
+            state=tk.DISABLED
+        )
+        save_btn.pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame,
+            text="🔄 重置为默认",
+            command=reset_to_default,
+            width=15
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame,
+            text="关闭",
+            command=prompt_window.destroy,
+            width=15
+        ).pack(side=tk.RIGHT, padx=5)
 
     def run(self):
         """运行应用"""
