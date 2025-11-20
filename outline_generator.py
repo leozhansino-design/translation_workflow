@@ -1,12 +1,15 @@
 """
-Tool 1: 大纲生成器
-从原文小说生成结构化英文大纲
+Tool 1: 大纲生成器（带任务队列）
+从原文小说生成结构化英文大纲，支持多任务队列管理
 """
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext, simpledialog
+from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import json
 import os
+import subprocess
+import sys
+import uuid
 from datetime import datetime
 from openai import OpenAI
 
@@ -22,27 +25,57 @@ from utils import (
 )
 
 
-class OutlineGenerator:
-    """大纲生成器主窗口"""
+class OutlineTask:
+    """大纲生成任务"""
+
+    def __init__(self, task_id, source_file, genre, config_params):
+        self.task_id = task_id
+        self.source_file = source_file
+        self.genre = genre
+        self.config = config_params
+        self.status = 'pending'  # pending, running, completed, failed
+        self.created_at = datetime.now()
+        self.started_at = None
+        self.completed_at = None
+        self.output_folder = None
+        self.prompt_cache = None  # 缓存生成的prompt
+
+    def to_dict(self):
+        return {
+            'task_id': self.task_id,
+            'source_file': self.source_file,
+            'genre': self.genre,
+            'config': self.config,
+            'status': self.status,
+            'created_at': self.created_at.isoformat(),
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'output_folder': self.output_folder
+        }
+
+
+class OutlineGeneratorWithQueue:
+    """大纲生成器（带任务队列）"""
 
     def __init__(self):
         self.window = tk.Tk()
-        self.window.title("Tool 1: 大纲生成器")
-        self.window.geometry("1000x850")
+        self.window.title("大纲生成器 - 多任务队列")
+        self.window.geometry("1200x900")
 
         # 初始化管理器
         self.resource_mgr = ResourceManager()
         self.prompt_mgr = PromptManager()
-        self.client = None
 
-        # 数据
-        self.source_file = None
-        self.detected_genre = None
-        self.outline_data = None
+        # 任务队列
+        self.tasks = []  # 任务列表
+        self.task_frames = {}  # task_id -> frame widget
+
+        # 当前配置
+        self.current_source_file = None
+        self.current_genre = None
 
         # 初始化界面
         self.setup_ui()
-        self.load_config()
 
     def setup_ui(self):
         """设置界面"""
@@ -53,23 +86,19 @@ class OutlineGenerator:
 
         tk.Label(
             title_frame,
-            text="📝 大纲生成器",
+            text="📝 大纲生成器 - 多任务队列",
             font=("Arial", 20, "bold"),
             bg="#2196F3",
             fg="white"
         ).pack(side=tk.LEFT, padx=20, pady=10)
 
-        tk.Label(
-            title_frame,
-            text="第一步：从原文生成结构化大纲",
-            font=("Arial", 11),
-            bg="#2196F3",
-            fg="white"
-        ).pack(side=tk.LEFT, padx=10)
+        # === 上半部分：配置和添加任务 ===
+        top_container = tk.Frame(self.window)
+        top_container.pack(fill=tk.X, padx=10, pady=10)
 
-        # === API配置区域 ===
-        api_frame = tk.LabelFrame(self.window, text="API 配置", padx=15, pady=10)
-        api_frame.pack(fill=tk.X, padx=10, pady=10)
+        # API配置区域（简化版）
+        api_frame = tk.LabelFrame(top_container, text="API 配置", padx=15, pady=10)
+        api_frame.pack(fill=tk.X, pady=(0, 10))
 
         # API Key
         tk.Label(api_frame, text="API Key:").grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -78,251 +107,139 @@ class OutlineGenerator:
             api_frame,
             textvariable=self.api_key_var,
             show="*",
-            width=45
+            width=50
         ).grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
 
-        tk.Button(
-            api_frame,
-            text="测试连接",
-            command=self.test_connection,
-            width=10
-        ).grid(row=0, column=2, pady=5, padx=5)
-
-        self.connection_status = tk.Label(api_frame, text="", fg="gray")
-        self.connection_status.grid(row=0, column=3, pady=5, padx=5)
-
-        # Base URL
-        tk.Label(api_frame, text="Base URL:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.base_url_var = tk.StringVar(value="https://yunwuapi.com/v1/")
-        tk.Entry(
-            api_frame,
-            textvariable=self.base_url_var,
-            width=45
-        ).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
-
         # 模型选择
-        tk.Label(api_frame, text="模型:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.model_var = tk.StringVar(value="gpt-4-turbo-preview")
-        models = ["gemini-2.5-pro", "gpt-5.1", "gpt-5", "gemini-3-pro-preview", "gpt-4-turbo-preview"]
+        tk.Label(api_frame, text="模型:").grid(row=0, column=2, sticky=tk.W, pady=5, padx=(20, 5))
+        self.model_var = tk.StringVar(value="gpt-5.1")
+        models = ["gpt-5.1", "gemini-2.5-pro", "gpt-5", "gemini-3-pro-preview", "gpt-4-turbo-preview"]
         ttk.Combobox(
             api_frame,
             textvariable=self.model_var,
             values=models,
-            width=42,
+            width=20,
             state="readonly"
-        ).grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
+        ).grid(row=0, column=3, sticky=tk.W, pady=5, padx=5)
 
-        # Temperature 和 Max Tokens
-        tk.Label(api_frame, text="Temperature:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.temperature_var = tk.DoubleVar(value=0.8)
-        tk.Scale(
-            api_frame,
-            from_=0,
-            to=1,
-            resolution=0.1,
-            orient=tk.HORIZONTAL,
-            variable=self.temperature_var,
-            length=200
-        ).grid(row=3, column=1, sticky=tk.W, pady=5, padx=5)
+        # 任务配置区域
+        task_frame = tk.LabelFrame(top_container, text="新建任务", padx=15, pady=10)
+        task_frame.pack(fill=tk.X)
 
-        tk.Label(api_frame, text="Max Tokens:").grid(row=4, column=0, sticky=tk.W, pady=5)
-        self.max_tokens_var = tk.IntVar(value=100000)
-        tk.Spinbox(
-            api_frame,
-            from_=1000,
-            to=200000,
-            increment=1000,
-            textvariable=self.max_tokens_var,
-            width=15
-        ).grid(row=4, column=1, sticky=tk.W, pady=5, padx=5)
+        # 第一行：文件选择
+        tk.Label(task_frame, text="原文文件:", font=("Arial", 10, "bold")).grid(
+            row=0, column=0, sticky=tk.W, pady=5
+        )
 
-        # === 文件选择区域 ===
-        file_frame = tk.LabelFrame(self.window, text="原文文件", padx=15, pady=10)
-        file_frame.pack(fill=tk.X, padx=10, pady=10)
+        file_select_frame = tk.Frame(task_frame)
+        file_select_frame.grid(row=0, column=1, sticky=tk.W, pady=5, padx=5, columnspan=3)
 
         self.file_label = tk.Label(
-            file_frame,
+            file_select_frame,
             text="未选择文件（格式：书名_类型.txt）",
             fg="gray",
-            font=("Arial", 10)
+            font=("Arial", 9)
         )
         self.file_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         tk.Button(
-            file_frame,
+            file_select_frame,
             text="选择文件",
-            command=self.select_file,
-            width=12
-        ).pack(side=tk.RIGHT, padx=5)
-
-        # 类型显示
-        self.genre_label = tk.Label(file_frame, text="", fg="blue", font=("Arial", 10, "bold"))
-        self.genre_label.pack(side=tk.RIGHT, padx=10)
-
-        # === 参数配置区域 ===
-        params_frame = tk.LabelFrame(self.window, text="生成参数", padx=15, pady=10)
-        params_frame.pack(fill=tk.X, padx=10, pady=10)
-
-        # 章节范围
-        tk.Label(params_frame, text="章节范围:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        range_frame = tk.Frame(params_frame)
-        range_frame.grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
-
-        tk.Label(range_frame, text="第").pack(side=tk.LEFT)
-        self.start_chapter_var = tk.IntVar(value=1)
-        tk.Spinbox(
-            range_frame,
-            from_=1,
-            to=500,
-            textvariable=self.start_chapter_var,
-            width=8
+            command=self.select_file
         ).pack(side=tk.LEFT, padx=5)
 
-        tk.Label(range_frame, text="章 至 第").pack(side=tk.LEFT)
-        self.end_chapter_var = tk.IntVar(value=100)
-        tk.Spinbox(
-            range_frame,
-            from_=1,
-            to=500,
-            textvariable=self.end_chapter_var,
-            width=8
-        ).pack(side=tk.LEFT, padx=5)
-        tk.Label(range_frame, text="章").pack(side=tk.LEFT)
+        self.genre_label = tk.Label(file_select_frame, text="", fg="blue", font=("Arial", 10, "bold"))
+        self.genre_label.pack(side=tk.LEFT, padx=10)
 
-        # 人名设置
-        tk.Label(params_frame, text="男性人名数:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        # 第二行：参数配置
+        tk.Label(task_frame, text="人名数量:").grid(row=1, column=0, sticky=tk.W, pady=5)
+
+        names_frame = tk.Frame(task_frame)
+        names_frame.grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
+
+        tk.Label(names_frame, text="男:").pack(side=tk.LEFT)
         self.male_count_var = tk.IntVar(value=10)
         tk.Spinbox(
-            params_frame,
+            names_frame,
             from_=5,
             to=30,
             textvariable=self.male_count_var,
-            width=10
-        ).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
+            width=8
+        ).pack(side=tk.LEFT, padx=5)
 
-        tk.Label(params_frame, text="女性人名数:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        tk.Label(names_frame, text="女:").pack(side=tk.LEFT, padx=(10, 0))
         self.female_count_var = tk.IntVar(value=10)
         tk.Spinbox(
-            params_frame,
+            names_frame,
             from_=5,
             to=30,
             textvariable=self.female_count_var,
-            width=10
-        ).grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
+            width=8
+        ).pack(side=tk.LEFT, padx=5)
 
-        # Prompt管理按钮
+        tk.Label(task_frame, text="Max Tokens:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(20, 5))
+        self.max_tokens_var = tk.IntVar(value=100000)
+        tk.Spinbox(
+            task_frame,
+            from_=10000,
+            to=200000,
+            increment=10000,
+            textvariable=self.max_tokens_var,
+            width=12
+        ).grid(row=1, column=3, sticky=tk.W, pady=5, padx=5)
+
+        # 第三行：添加到队列按钮
+        button_frame = tk.Frame(task_frame)
+        button_frame.grid(row=2, column=0, columnspan=4, pady=10)
+
         tk.Button(
-            params_frame,
-            text="📋 Prompt 管理",
-            command=self.open_prompt_manager,
-            bg="#FF9800",
-            fg="white",
-            width=15
-        ).grid(row=3, column=0, columnspan=2, pady=10)
-
-        # === 生成按钮区域 ===
-        button_frame = tk.Frame(self.window)
-        button_frame.pack(fill=tk.X, padx=10, pady=10)
-
-        self.preview_button = tk.Button(
             button_frame,
-            text="👁️ 预览 Prompt",
-            command=self.preview_prompt,
-            font=("Arial", 12),
-            bg="#FF9800",
-            fg="white",
-            height=2
-        )
-        self.preview_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-
-        self.generate_button = tk.Button(
-            button_frame,
-            text="🚀 生成大纲",
-            command=self.generate_outline,
-            font=("Arial", 14, "bold"),
+            text="➕ 添加到任务队列",
+            command=self.add_to_queue,
+            font=("Arial", 12, "bold"),
             bg="#4CAF50",
             fg="white",
-            height=2
+            height=2,
+            width=20
+        ).pack()
+
+        # === 下半部分：任务队列 ===
+        queue_container = tk.LabelFrame(
+            self.window,
+            text="📋 任务队列",
+            font=("Arial", 12, "bold"),
+            padx=10,
+            pady=10
         )
-        self.generate_button.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(5, 0))
+        queue_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # === 结果显示区域 ===
-        result_frame = tk.LabelFrame(self.window, text="生成结果", padx=10, pady=10)
-        result_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # 创建滚动区域
+        canvas = tk.Canvas(queue_container, bg="white")
+        scrollbar = ttk.Scrollbar(queue_container, orient="vertical", command=canvas.yview)
 
-        self.result_text = scrolledtext.ScrolledText(
-            result_frame,
-            height=15,
-            state=tk.DISABLED,
-            wrap=tk.WORD,
-            font=("Courier", 9)
+        self.queue_frame = tk.Frame(canvas, bg="white")
+
+        self.queue_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
-        self.result_text.pack(fill=tk.BOTH, expand=True)
 
-        # === 底部按钮 ===
-        bottom_frame = tk.Frame(self.window)
-        bottom_frame.pack(fill=tk.X, padx=10, pady=10)
+        canvas.create_window((0, 0), window=self.queue_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.save_button = tk.Button(
-            bottom_frame,
-            text="💾 保存大纲",
-            command=self.save_outline,
-            state=tk.DISABLED,
-            width=15
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # 空队列提示
+        self.empty_label = tk.Label(
+            self.queue_frame,
+            text="暂无任务\n点击上方「添加到任务队列」按钮添加任务",
+            font=("Arial", 12),
+            fg="gray",
+            bg="white",
+            pady=50
         )
-        self.save_button.pack(side=tk.LEFT, padx=5)
-
-        self.open_tool2_button = tk.Button(
-            bottom_frame,
-            text="➡️ 进入写作工具",
-            command=self.open_tool2,
-            state=tk.DISABLED,
-            bg="#2196F3",
-            fg="white",
-            width=15
-        )
-        self.open_tool2_button.pack(side=tk.RIGHT, padx=5)
-
-    def load_config(self):
-        """加载配置"""
-        api_key = config.get_api_key()
-        if api_key:
-            self.api_key_var.set(api_key)
-
-    def save_config(self):
-        """保存配置"""
-        config.set_api_key(self.api_key_var.get())
-        config.set('base_url', self.base_url_var.get())
-        config.set('model', self.model_var.get())
-        config.set('temperature', self.temperature_var.get())
-        config.set('max_tokens', self.max_tokens_var.get())
-
-    def test_connection(self):
-        """测试API连接"""
-        self.save_config()
-
-        def test():
-            self.connection_status.config(text="测试中...", fg="orange")
-            try:
-                client = OpenAI(
-                    api_key=self.api_key_var.get(),
-                    base_url=self.base_url_var.get()
-                )
-                response = client.chat.completions.create(
-                    model=self.model_var.get(),
-                    messages=[{"role": "user", "content": "Hello"}],
-                    max_tokens=10
-                )
-                self.window.after(0, lambda: self.connection_status.config(
-                    text="✅ 连接成功", fg="green"
-                ))
-            except Exception as e:
-                error_msg = str(e)[:30]
-                self.window.after(0, lambda: self.connection_status.config(
-                    text=f"❌ {error_msg}", fg="red"
-                ))
-
-        threading.Thread(target=test, daemon=True).start()
+        self.empty_label.pack()
 
     def select_file(self):
         """选择源文件"""
@@ -335,15 +252,14 @@ class OutlineGenerator:
             try:
                 # 提取类型
                 genre = extract_genre_from_filename(file_path)
-                title = extract_title_from_filename(file_path)
 
                 # 验证类型
                 available_genres = self.resource_mgr.get_available_genres()
                 validate_genre(genre, available_genres)
 
                 # 保存数据
-                self.source_file = file_path
-                self.detected_genre = genre
+                self.current_source_file = file_path
+                self.current_genre = genre
 
                 # 计算字数
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -359,521 +275,380 @@ class OutlineGenerator:
 
             except ValueError as e:
                 messagebox.showerror("文件名错误", str(e))
-                self.source_file = None
-                self.detected_genre = None
+                self.current_source_file = None
+                self.current_genre = None
 
-    def open_prompt_manager(self):
-        """打开Prompt管理窗口"""
-        PromptManagerWindow(self.window, self.prompt_mgr, "outline")
-
-    def preview_prompt(self):
-        """预览Prompt（不发送到AI）"""
-        # 验证输入
-        if not self.source_file:
+    def add_to_queue(self):
+        """添加任务到队列"""
+        if not self.current_source_file:
             messagebox.showwarning("警告", "请先选择原文文件")
             return
 
-        start_ch = self.start_chapter_var.get()
-        end_ch = self.end_chapter_var.get()
-
-        if start_ch > end_ch:
-            messagebox.showwarning("警告", "起始章节不能大于结束章节")
+        if not self.api_key_var.get():
+            messagebox.showwarning("警告", "请输入API Key")
             return
 
+        # 创建任务
+        task_id = f"outline_{uuid.uuid4().hex[:8]}"
+
+        config_params = {
+            'api_key': self.api_key_var.get(),
+            'base_url': 'https://yunwuapi.com/v1/',
+            'model': self.model_var.get(),
+            'male_count': self.male_count_var.get(),
+            'female_count': self.female_count_var.get(),
+            'max_tokens': self.max_tokens_var.get(),
+        }
+
+        task = OutlineTask(task_id, self.current_source_file, self.current_genre, config_params)
+        self.tasks.append(task)
+
+        # 添加到UI
+        self.add_task_to_ui(task)
+
+        # 隐藏空队列提示
+        if self.empty_label.winfo_exists():
+            self.empty_label.pack_forget()
+
+        messagebox.showinfo("成功", f"任务已添加到队列\n文件: {os.path.basename(self.current_source_file)}")
+
+    def add_task_to_ui(self, task):
+        """添加任务到UI"""
+        # 创建任务框架
+        task_container = tk.Frame(self.queue_frame, relief=tk.RIDGE, borderwidth=2, bg="#f5f5f5")
+        task_container.pack(fill=tk.X, padx=5, pady=5)
+
+        self.task_frames[task.task_id] = task_container
+
+        # 左侧：任务信息
+        info_frame = tk.Frame(task_container, bg="#f5f5f5")
+        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # 标题行
+        title_frame = tk.Frame(info_frame, bg="#f5f5f5")
+        title_frame.pack(fill=tk.X)
+
+        tk.Label(
+            title_frame,
+            text=f"📄 {os.path.basename(task.source_file)}",
+            font=("Arial", 11, "bold"),
+            bg="#f5f5f5",
+            anchor="w"
+        ).pack(side=tk.LEFT)
+
+        status_label = tk.Label(
+            title_frame,
+            text=f"⏸ {task.status}",
+            font=("Arial", 10),
+            bg="#f5f5f5",
+            fg="orange"
+        )
+        status_label.pack(side=tk.LEFT, padx=10)
+        task_container.status_label = status_label  # 保存引用
+
+        # 详情行
+        details_frame = tk.Frame(info_frame, bg="#f5f5f5")
+        details_frame.pack(fill=tk.X, pady=(5, 0))
+
+        tk.Label(
+            details_frame,
+            text=f"类型: {task.genre}  |  模型: {task.config['model']}  |  创建时间: {task.created_at.strftime('%H:%M:%S')}",
+            font=("Arial", 9),
+            bg="#f5f5f5",
+            fg="gray"
+        ).pack(side=tk.LEFT)
+
+        # 右侧：操作按钮
+        button_frame = tk.Frame(task_container, bg="#f5f5f5")
+        button_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+
+        # 预览Prompt按钮
+        tk.Button(
+            button_frame,
+            text="👁️ 预览Prompt",
+            command=lambda: self.preview_task_prompt(task),
+            width=15,
+            bg="#FF9800",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=3)
+
+        # 开始按钮
+        start_btn = tk.Button(
+            button_frame,
+            text="▶️ 开始生成",
+            command=lambda: self.start_task(task),
+            width=15,
+            bg="#4CAF50",
+            fg="white"
+        )
+        start_btn.pack(side=tk.LEFT, padx=3)
+        task_container.start_btn = start_btn  # 保存引用
+
+        # 打开文件夹按钮
+        folder_btn = tk.Button(
+            button_frame,
+            text="📂 打开文件夹",
+            command=lambda: self.open_output_folder(task),
+            width=15,
+            state=tk.DISABLED
+        )
+        folder_btn.pack(side=tk.LEFT, padx=3)
+        task_container.folder_btn = folder_btn  # 保存引用
+
+    def preview_task_prompt(self, task):
+        """预览任务的Prompt"""
         try:
-            # 读取文件（只读取前10000字符用于预览）
-            with open(self.source_file, 'r', encoding='utf-8') as f:
+            # 如果已经有缓存，直接显示
+            if task.prompt_cache:
+                PromptPreviewWindow(self.window, task.prompt_cache, f"Prompt预览 - {os.path.basename(task.source_file)}")
+                return
+
+            # 生成Prompt
+            with open(task.source_file, 'r', encoding='utf-8') as f:
                 content = f.read()
                 if len(content) > 10000:
-                    content_preview = content[:10000] + "\n\n... (内容过长，仅显示前10000字符) ..."
+                    content_preview = content[:10000] + "\n\n... (内容已截断)"
                 else:
                     content_preview = content
 
-            # 选择人名
-            male_count = self.male_count_var.get()
-            female_count = self.female_count_var.get()
-            selected_names = self.resource_mgr.select_names(male_count, female_count)
+            # 选择名字和风格
+            selected_names = self.resource_mgr.select_names(
+                task.config['male_count'],
+                task.config['female_count']
+            )
             names_formatted = self.resource_mgr.format_names_for_prompt(selected_names)
 
-            # 选择风格
-            genre_data = self.resource_mgr.styles[self.detected_genre]
-            counts = genre_data['used']
-            min_idx = counts.index(min(counts))
-            style = genre_data['styles'][min_idx]
-            author = genre_data['authors'][min_idx]
+            selected_style = self.resource_mgr.select_style(task.genre)
 
             # 构建Prompt变量
-            total_chapters = end_ch - start_ch + 1
             prompt_vars = {
-                'genre': self.detected_genre,
+                'genre': task.genre,
+                'style': selected_style['style'],
                 'male_names': names_formatted['male_names'],
                 'female_names': names_formatted['female_names'],
-                'style': style,
-                'start_chapter': start_ch,
-                'end_chapter': end_ch,
-                'total_chapters': total_chapters
             }
 
             # 渲染Prompt
             system_prompt = self.prompt_mgr.render_outline_prompt(prompt_vars)
 
-            # 构建完整的Prompt预览
-            full_prompt = f"""{'='*70}
+            # 构建完整预览文本
+            full_prompt = f"""
 系统Prompt (System Message)
 {'='*70}
-
 {system_prompt}
 
-{'='*70}
 用户消息 (User Message)
 {'='*70}
-
-原文内容：
-
 {content_preview}
 
-{'='*70}
 元数据 (Metadata)
 {'='*70}
+文件: {os.path.basename(task.source_file)}
+类型: {task.genre}
+模型: {task.config['model']}
+Max Tokens: {task.config['max_tokens']}
 
-文件: {os.path.basename(self.source_file)}
-类型: {self.detected_genre}
-作者风格: {author}
-章节范围: {start_ch}-{end_ch} (共{total_chapters}章)
+选择的人名:
+男性: {names_formatted['male_names']}
+女性: {names_formatted['female_names']}
 
-选择的人名 (已标记为已使用):
-男性 ({male_count}个): {names_formatted['male_names']}
-女性 ({female_count}个): {names_formatted['female_names']}
-
-⚠️ 注意: 预览时已经选择了人名并更新了used计数，以确保多任务并发时不会重复。
+选择的风格:
+{selected_style['author']} - {selected_style['style'][:100]}...
 """
+
+            # 缓存Prompt
+            task.prompt_cache = full_prompt
 
             # 显示预览窗口
-            PromptPreviewWindow(self.window, full_prompt, "大纲生成 - Prompt 预览")
+            PromptPreviewWindow(self.window, full_prompt, f"Prompt预览 - {os.path.basename(task.source_file)}")
 
         except Exception as e:
-            messagebox.showerror("错误", f"预览失败: {str(e)}")
+            messagebox.showerror("错误", f"预览Prompt失败: {str(e)}")
 
-    def generate_outline(self):
-        """生成大纲"""
-        # 验证输入
-        if not self.source_file:
-            messagebox.showwarning("警告", "请先选择原文文件")
+    def start_task(self, task):
+        """开始执行任务"""
+        if task.status == 'running':
+            messagebox.showinfo("提示", "任务正在运行中")
             return
 
-        if not self.api_key_var.get():
-            messagebox.showwarning("警告", "请先设置API Key")
-            return
+        if task.status == 'completed':
+            if not messagebox.askyesno("确认", "任务已完成，是否重新生成？"):
+                return
 
-        start_ch = self.start_chapter_var.get()
-        end_ch = self.end_chapter_var.get()
+        # 更新状态
+        task.status = 'running'
+        task.started_at = datetime.now()
 
-        if start_ch > end_ch:
-            messagebox.showwarning("警告", "起始章节不能大于结束章节")
-            return
+        # 更新UI
+        frame = self.task_frames[task.task_id]
+        frame.status_label.config(text="🔄 运行中", fg="blue")
+        frame.start_btn.config(state=tk.DISABLED)
 
-        # 保存配置
-        self.save_config()
+        # 在新线程中执行
+        thread = threading.Thread(target=self._execute_task, args=(task,), daemon=True)
+        thread.start()
 
-        # 禁用按钮
-        self.generate_button.config(state=tk.DISABLED, text="生成中...")
-        self.result_text.config(state=tk.NORMAL)
-        self.result_text.delete(1.0, tk.END)
-        self.result_text.insert(tk.END, "正在生成大纲，请稍候...\n\n")
-        self.result_text.config(state=tk.DISABLED)
+    def _execute_task(self, task):
+        """执行任务（在后台线程）"""
+        try:
+            # 读取原文
+            with open(task.source_file, 'r', encoding='utf-8') as f:
+                content = f.read()
 
-        # 在后台线程生成
-        def generate():
-            try:
-                # 读取文件
-                with open(self.source_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
+            # 选择资源
+            selected_names = self.resource_mgr.select_names(
+                task.config['male_count'],
+                task.config['female_count']
+            )
+            names_formatted = self.resource_mgr.format_names_for_prompt(selected_names)
 
-                self.append_result("✓ 文件读取完成\n")
+            selected_style = self.resource_mgr.select_style(task.genre)
 
-                # 选择人名
-                male_count = self.male_count_var.get()
-                female_count = self.female_count_var.get()
-                selected_names = self.resource_mgr.select_names(male_count, female_count)
-                names_formatted = self.resource_mgr.format_names_for_prompt(selected_names)
+            # 构建Prompt
+            prompt_vars = {
+                'genre': task.genre,
+                'style': selected_style['style'],
+                'male_names': names_formatted['male_names'],
+                'female_names': names_formatted['female_names'],
+            }
 
-                self.append_result(f"✓ 选择人名: {male_count}个男性, {female_count}个女性\n")
+            system_prompt = self.prompt_mgr.render_outline_prompt(prompt_vars)
 
-                # 选择风格
-                genre_data = self.resource_mgr.styles[self.detected_genre]
-                counts = genre_data['used']
-                min_idx = counts.index(min(counts))
-                style = genre_data['styles'][min_idx]
-                author = genre_data['authors'][min_idx]
+            # 调用API
+            client = OpenAI(
+                api_key=task.config['api_key'],
+                base_url=task.config.get('base_url', 'https://yunwuapi.com/v1/')
+            )
 
-                # 更新使用次数
-                self.resource_mgr.styles[self.detected_genre]['used'][min_idx] += 1
-                self.resource_mgr.save_styles()
+            response = client.chat.completions.create(
+                model=task.config['model'],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": content}
+                ],
+                temperature=0.8,
+                max_tokens=task.config['max_tokens']
+            )
 
-                self.append_result(f"✓ 选择风格: {author}\n")
+            result_text = response.choices[0].message.content
 
-                # 构建Prompt变量
-                total_chapters = end_ch - start_ch + 1
-                prompt_vars = {
-                    'genre': self.detected_genre,
-                    'male_names': names_formatted['male_names'],
-                    'female_names': names_formatted['female_names'],
-                    'style': style,
-                    'start_chapter': start_ch,
-                    'end_chapter': end_ch,
-                    'total_chapters': total_chapters
-                }
+            # 解析JSON
+            outline_json = parse_json_from_llm_response(result_text)
 
-                # 渲染Prompt
-                system_prompt = self.prompt_mgr.render_outline_prompt(prompt_vars)
+            # 保存结果
+            output_folder = self._save_outline(task, outline_json, selected_names, selected_style)
+            task.output_folder = output_folder
 
-                self.append_result("✓ Prompt准备完成\n")
-                self.append_result("正在调用AI...\n")
+            # 标记完成
+            task.status = 'completed'
+            task.completed_at = datetime.now()
 
-                # 初始化客户端
-                client = OpenAI(
-                    api_key=self.api_key_var.get(),
-                    base_url=self.base_url_var.get()
-                )
+            # 更新UI（在主线程）
+            self.window.after(0, lambda: self._on_task_completed(task))
 
-                # 调用API
-                response = client.chat.completions.create(
-                    model=self.model_var.get(),
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"原文内容：\n\n{content}"}
-                    ],
-                    temperature=self.temperature_var.get(),
-                    max_tokens=self.max_tokens_var.get()
-                )
+        except Exception as e:
+            task.status = 'failed'
+            error_msg = str(e)
 
-                result_text = response.choices[0].message.content
+            # 更新UI
+            self.window.after(0, lambda: self._on_task_failed(task, error_msg))
 
-                self.append_result("✓ AI响应完成\n")
-
-                # 解析JSON
-                try:
-                    outline = parse_json_from_llm_response(result_text)
-
-                    # 保存大纲数据
-                    self.outline_data = {
-                        'outline': outline,
-                        'source_file': self.source_file,
-                        'original_title': extract_title_from_filename(self.source_file),
-                        'chapter_range': [start_ch, end_ch],
-                        'genre': self.detected_genre,
-                        'selected_names': selected_names,
-                        'style': style,
-                        'author': author,
-                        'created_at': datetime.now().isoformat()
-                    }
-
-                    # 显示大纲
-                    self.display_outline(outline)
-
-                    self.append_result("\n✅ 大纲生成成功！\n")
-
-                    # 启用保存按钮
-                    self.window.after(0, lambda: self.save_button.config(state=tk.NORMAL))
-                    self.window.after(0, lambda: self.open_tool2_button.config(state=tk.NORMAL))
-
-                except json.JSONDecodeError as e:
-                    self.append_result(f"\n⚠️ JSON解析失败: {str(e)}\n\n原始响应：\n{result_text}\n")
-
-            except Exception as e:
-                self.append_result(f"\n❌ 生成失败: {str(e)}\n")
-
-            finally:
-                self.window.after(0, lambda: self.generate_button.config(
-                    state=tk.NORMAL, text="🚀 生成大纲"
-                ))
-
-        threading.Thread(target=generate, daemon=True).start()
-
-    def append_result(self, text):
-        """添加结果文本"""
-        def _append():
-            self.result_text.config(state=tk.NORMAL)
-            self.result_text.insert(tk.END, text)
-            self.result_text.config(state=tk.DISABLED)
-            self.result_text.see(tk.END)
-
-        self.window.after(0, _append)
-
-    def display_outline(self, outline):
-        """显示大纲"""
-        display = f"""
-{'='*60}
-标题: {outline.get('title', 'N/A')}
-{'='*60}
-类型: {outline.get('genre', 'N/A')}
-年龄分类: {outline.get('age_category', 'N/A')}
-
-标签 ({len(outline.get('tags', []))} 个):
-{' '.join(outline.get('tags', []))}
-
-简介:
-{outline.get('blurb', 'N/A')}
-
-{'='*60}
-世界观:
-{'='*60}
-{outline.get('world_setting', 'N/A')}
-
-{'='*60}
-主要角色 ({len(outline.get('main_characters', []))} 个):
-{'='*60}
-"""
-        for char in outline.get('main_characters', []):
-            display += f"\n• {char.get('name')} ({char.get('role')})\n"
-            display += f"  性别: {char.get('gender')}\n"
-            display += f"  性格: {char.get('personality', '')}\n"
-            display += f"  背景: {char.get('background', '')}\n"
-
-        display += f"\n{'='*60}\n"
-        display += f"章节大纲 ({len(outline.get('chapter_outlines', []))} 章):\n"
-        display += f"{'='*60}\n"
-
-        for ch in outline.get('chapter_outlines', [])[:10]:  # 显示前10章
-            display += f"\nChapter {ch.get('chapter_number')}: {ch.get('title')}\n"
-            display += f"  {ch.get('summary', '')}\n"
-
-        if len(outline.get('chapter_outlines', [])) > 10:
-            display += f"\n... 还有 {len(outline.get('chapter_outlines', [])) - 10} 章\n"
-
-        self.append_result(display)
-
-    def save_outline(self):
-        """保存大纲"""
-        if not self.outline_data:
-            messagebox.showwarning("警告", "没有可保存的大纲")
-            return
-
-        # 创建大纲文件夹
+    def _save_outline(self, task, outline_json, selected_names, selected_style):
+        """保存大纲到文件"""
+        # 创建输出文件夹
         os.makedirs('outlines', exist_ok=True)
 
-        # 生成文件名
-        title = self.outline_data['outline']['title']
+        title = outline_json.get('outline', {}).get('title', 'Untitled')
         safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_'))
         safe_title = safe_title.replace(' ', '_')
 
-        filename = f"outlines/{safe_title}_Outline.txt"
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        folder_name = f"{safe_title}_{task.genre}_{timestamp}"
+        output_folder = os.path.join('outlines', folder_name)
+        os.makedirs(output_folder, exist_ok=True)
 
-        # 生成大纲文本
-        outline_text = self.generate_outline_text(self.outline_data)
+        # 保存JSON
+        json_file = os.path.join(output_folder, 'outline.json')
+        full_data = {
+            'outline': outline_json.get('outline', {}),
+            'selected_names': selected_names,
+            'style': selected_style,
+            'task_id': task.task_id,
+            'created_at': task.created_at.isoformat()
+        }
 
-        # 保存
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(outline_text)
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(full_data, f, indent=2, ensure_ascii=False)
 
-        # 同时保存JSON
-        json_filename = f"outlines/{safe_title}_Outline.json"
-        with open(json_filename, 'w', encoding='utf-8') as f:
-            json.dump(self.outline_data, f, indent=2, ensure_ascii=False)
+        # 保存TXT（可读格式）
+        txt_file = os.path.join(output_folder, 'outline.txt')
+        with open(txt_file, 'w', encoding='utf-8') as f:
+            outline = outline_json.get('outline', {})
+            f.write(f"Title: {outline.get('title', 'N/A')}\n")
+            f.write(f"Genre: {outline.get('genre', 'N/A')}\n")
+            f.write(f"\nBlurb:\n{outline.get('blurb', 'N/A')}\n")
+            f.write(f"\nTags: {', '.join(outline.get('tags', []))}\n")
+            f.write(f"\nWorld Setting:\n{outline.get('world_setting', 'N/A')}\n")
 
-        messagebox.showinfo("成功", f"大纲已保存:\n{filename}\n{json_filename}")
+            f.write(f"\n{'='*70}\nMain Characters:\n{'='*70}\n")
+            for char in outline.get('main_characters', []):
+                f.write(f"\n{char.get('name', 'N/A')} ({char.get('role', 'N/A')})\n")
+                f.write(f"Personality: {char.get('personality', 'N/A')}\n")
 
-    def generate_outline_text(self, data):
-        """生成格式化的大纲文本"""
-        outline = data['outline']
+            f.write(f"\n{'='*70}\nChapter Outlines:\n{'='*70}\n")
+            for ch in outline.get('chapter_outlines', []):
+                f.write(f"\nChapter {ch.get('chapter_number', '?')}: {ch.get('title', 'N/A')}\n")
+                f.write(f"Summary: {ch.get('summary', 'N/A')}\n")
 
-        text = f"""{'='*70}
-BOOK METADATA
-{'='*70}
-Original Title: {data['original_title']}
-English Title: {outline['title']}
-Genre: {outline['genre']}
-Age Category: {outline.get('age_category', 'N/A')}
-Chapter Range: {data['chapter_range'][0]}-{data['chapter_range'][1]}
-Total Chapters: {len(outline.get('chapter_outlines', []))}
+        return output_folder
 
-Blurb:
-{outline.get('blurb', '')}
+    def _on_task_completed(self, task):
+        """任务完成回调"""
+        frame = self.task_frames[task.task_id]
+        frame.status_label.config(text="✅ 完成", fg="green")
+        frame.start_btn.config(text="🔄 重新生成", state=tk.NORMAL)
+        frame.folder_btn.config(state=tk.NORMAL)
 
-Tags:
-{' '.join(outline.get('tags', []))}
+        messagebox.showinfo(
+            "任务完成",
+            f"任务完成！\n文件: {os.path.basename(task.source_file)}\n输出: {task.output_folder}"
+        )
 
-{'='*70}
-WORLD BUILDING
-{'='*70}
-{outline.get('world_setting', '')}
+    def _on_task_failed(self, task, error_msg):
+        """任务失败回调"""
+        frame = self.task_frames[task.task_id]
+        frame.status_label.config(text="❌ 失败", fg="red")
+        frame.start_btn.config(state=tk.NORMAL)
 
-{'='*70}
-CHARACTERS
-{'='*70}
-"""
-        for i, char in enumerate(outline.get('main_characters', []), 1):
-            text += f"\n{i}. {char['name']} ({char['gender']})\n"
-            text += f"   Role: {char['role']}\n"
-            text += f"   Personality: {char.get('personality', '')}\n"
-            text += f"   Background: {char.get('background', '')}\n"
+        messagebox.showerror(
+            "任务失败",
+            f"任务执行失败\n文件: {os.path.basename(task.source_file)}\n错误: {error_msg}"
+        )
 
-        text += f"\n{'='*70}\n"
-        text += "WRITING STYLE\n"
-        text += f"{'='*70}\n"
-        text += f"Style: {data['author']}\n"
-        text += f"Description: {data['style']}\n"
+    def open_output_folder(self, task):
+        """打开输出文件夹"""
+        if not task.output_folder or not os.path.exists(task.output_folder):
+            messagebox.showwarning("警告", "输出文件夹不存在")
+            return
 
-        text += f"\n{'='*70}\n"
-        text += "CHAPTER OUTLINE\n"
-        text += f"{'='*70}\n"
-
-        for ch in outline.get('chapter_outlines', []):
-            text += f"\nChapter {ch['chapter_number']}: {ch['title']}\n"
-            text += f"- Plot: {ch.get('summary', '')}\n"
-            if ch.get('key_events'):
-                text += f"- Key Events: {', '.join(ch['key_events'])}\n"
-            if ch.get('characters_involved'):
-                text += f"- Characters: {', '.join(ch['characters_involved'])}\n"
-
-        return text
-
-    def open_tool2(self):
-        """打开Tool 2（暂未实现）"""
-        messagebox.showinfo("提示", "Tool 2 写作工具正在开发中...")
+        try:
+            if sys.platform == 'win32':
+                os.startfile(task.output_folder)
+            elif sys.platform == 'darwin':
+                subprocess.Popen(['open', task.output_folder])
+            else:
+                subprocess.Popen(['xdg-open', task.output_folder])
+        except Exception as e:
+            messagebox.showerror("错误", f"打开文件夹失败: {str(e)}")
 
     def run(self):
         """运行应用"""
         self.window.mainloop()
 
 
-class PromptManagerWindow:
-    """Prompt管理窗口"""
-
-    def __init__(self, parent, prompt_mgr, prompt_type):
-        self.prompt_mgr = prompt_mgr
-        self.prompt_type = prompt_type  # 'outline' or 'writer'
-
-        # 创建窗口
-        self.window = tk.Toplevel(parent)
-        self.window.title("Prompt 管理")
-        self.window.geometry("800x600")
-
-        self.setup_ui()
-        self.load_prompt()
-
-    def setup_ui(self):
-        """设置界面"""
-        # 版本选择
-        top_frame = tk.Frame(self.window)
-        top_frame.pack(fill=tk.X, padx=10, pady=10)
-
-        tk.Label(top_frame, text="Prompt 版本:").pack(side=tk.LEFT)
-
-        if self.prompt_type == 'outline':
-            versions = self.prompt_mgr.get_outline_versions()
-        else:
-            versions = self.prompt_mgr.get_writer_versions()
-
-        self.version_var = tk.StringVar()
-        self.version_combo = ttk.Combobox(
-            top_frame,
-            textvariable=self.version_var,
-            values=versions,
-            state="readonly",
-            width=30
-        )
-        self.version_combo.pack(side=tk.LEFT, padx=10)
-        self.version_combo.bind('<<ComboboxSelected>>', lambda e: self.load_prompt())
-
-        if versions:
-            self.version_combo.current(0)
-
-        # Prompt编辑区
-        tk.Label(self.window, text="Prompt 内容:", font=("Arial", 10, "bold")).pack(
-            anchor=tk.W, padx=10, pady=(10, 5)
-        )
-
-        self.prompt_text = scrolledtext.ScrolledText(
-            self.window,
-            height=25,
-            wrap=tk.WORD,
-            font=("Courier", 9)
-        )
-        self.prompt_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-
-        # 按钮
-        btn_frame = tk.Frame(self.window)
-        btn_frame.pack(fill=tk.X, padx=10, pady=10)
-
-        tk.Button(
-            btn_frame,
-            text="保存为新版本",
-            command=self.save_new_version,
-            bg="#4CAF50",
-            fg="white",
-            width=15
-        ).pack(side=tk.LEFT, padx=5)
-
-        tk.Button(
-            btn_frame,
-            text="恢复默认",
-            command=self.restore_default,
-            width=15
-        ).pack(side=tk.LEFT, padx=5)
-
-        tk.Button(
-            btn_frame,
-            text="关闭",
-            command=self.window.destroy,
-            width=15
-        ).pack(side=tk.RIGHT, padx=5)
-
-    def load_prompt(self):
-        """加载Prompt内容"""
-        version = self.version_var.get()
-        if not version:
-            return
-
-        if self.prompt_type == 'outline':
-            content = self.prompt_mgr.get_outline_prompt(version)
-        else:
-            content = self.prompt_mgr.get_writer_prompt(version)
-
-        self.prompt_text.delete(1.0, tk.END)
-        self.prompt_text.insert(1.0, content)
-
-    def save_new_version(self):
-        """保存为新版本"""
-        name = tk.simpledialog.askstring("保存", "请输入版本名称:")
-        if not name:
-            return
-
-        content = self.prompt_text.get(1.0, tk.END).strip()
-
-        if self.prompt_type == 'outline':
-            self.prompt_mgr.save_custom_outline_prompt(name, content)
-            versions = self.prompt_mgr.get_outline_versions()
-        else:
-            self.prompt_mgr.save_custom_writer_prompt(name, content)
-            versions = self.prompt_mgr.get_writer_versions()
-
-        # 更新下拉列表
-        self.version_combo['values'] = versions
-        self.version_var.set(name)
-
-        messagebox.showinfo("成功", f"Prompt已保存为版本: {name}")
-
-    def restore_default(self):
-        """恢复默认Prompt"""
-        if messagebox.askyesno("确认", "确定要恢复默认Prompt吗？"):
-            if self.prompt_type == 'outline':
-                self.prompt_mgr.restore_default_outline()
-                content = self.prompt_mgr.get_outline_prompt('Default')
-            else:
-                self.prompt_mgr.restore_default_writer()
-                content = self.prompt_mgr.get_writer_prompt('Default')
-
-            self.prompt_text.delete(1.0, tk.END)
-            self.prompt_text.insert(1.0, content)
-            self.version_var.set('Default')
-
-            messagebox.showinfo("成功", "已恢复默认Prompt")
-
-
 def main():
     """主函数"""
-    app = OutlineGenerator()
+    app = OutlineGeneratorWithQueue()
     app.run()
 
 
