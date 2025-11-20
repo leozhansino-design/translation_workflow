@@ -242,6 +242,19 @@ class OutlineGeneratorWithQueue:
         )
         queue_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
+        # 队列工具栏
+        queue_toolbar = tk.Frame(queue_container)
+        queue_toolbar.pack(fill=tk.X, pady=(0, 10))
+
+        tk.Button(
+            queue_toolbar,
+            text="🗑️ 清空队列",
+            command=self.clear_all_tasks,
+            bg="#f44336",
+            fg="white",
+            width=12
+        ).pack(side=tk.RIGHT, padx=5)
+
         # 创建滚动区域
         canvas = tk.Canvas(queue_container, bg="white")
         scrollbar = ttk.Scrollbar(queue_container, orient="vertical", command=canvas.yview)
@@ -380,13 +393,16 @@ class OutlineGeneratorWithQueue:
         details_frame = tk.Frame(info_frame, bg="#f5f5f5")
         details_frame.pack(fill=tk.X, pady=(5, 0))
 
-        tk.Label(
+        # 动态显示的详情标签
+        details_label = tk.Label(
             details_frame,
-            text=f"类型: {task.genre}  |  模型: {task.config['model']}  |  创建时间: {task.created_at.strftime('%H:%M:%S')}",
+            text=f"类型: {task.genre}  |  模型: {task.config['model']}",
             font=("Arial", 9),
             bg="#f5f5f5",
             fg="gray"
-        ).pack(side=tk.LEFT)
+        )
+        details_label.pack(side=tk.LEFT)
+        task_container.details_label = details_label  # 保存引用
 
         # 右侧：操作按钮
         button_frame = tk.Frame(task_container, bg="#f5f5f5")
@@ -424,6 +440,16 @@ class OutlineGeneratorWithQueue:
         )
         folder_btn.pack(side=tk.LEFT, padx=3)
         task_container.folder_btn = folder_btn  # 保存引用
+
+        # 删除按钮
+        tk.Button(
+            button_frame,
+            text="🗑️ 删除",
+            command=lambda: self.remove_task(task),
+            width=10,
+            bg="#f44336",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=3)
 
     def preview_task_prompt(self, task):
         """预览任务的Prompt"""
@@ -513,6 +539,11 @@ Max Tokens: {task.config['max_tokens']}
         frame = self.task_frames[task.task_id]
         frame.status_label.config(text="🔄 运行中", fg="blue")
         frame.start_btn.config(state=tk.DISABLED)
+
+        # 更新详情显示开始时间
+        frame.details_label.config(
+            text=f"类型: {task.genre}  |  模型: {task.config['model']}  |  开始时间: {task.started_at.strftime('%H:%M:%S')}"
+        )
 
         # 在新线程中执行
         thread = threading.Thread(target=self._execute_task, args=(task,), daemon=True)
@@ -795,6 +826,51 @@ Max Tokens: {task.config['max_tokens']}
                 subprocess.Popen(['xdg-open', task.output_folder])
         except Exception as e:
             messagebox.showerror("错误", f"打开文件夹失败: {str(e)}")
+
+    def remove_task(self, task):
+        """删除单个任务"""
+        if task.status == 'running':
+            messagebox.showwarning("警告", "无法删除正在运行的任务")
+            return
+
+        if messagebox.askyesno("确认", f"确定要删除任务 {os.path.basename(task.source_file)} 吗？"):
+            # 从列表中移除
+            self.tasks.remove(task)
+
+            # 从UI中移除
+            if task.task_id in self.task_frames:
+                frame = self.task_frames[task.task_id]
+                frame.destroy()
+                del self.task_frames[task.task_id]
+
+            # 如果队列为空，显示空提示
+            if len(self.tasks) == 0:
+                self.empty_label.pack()
+
+    def clear_all_tasks(self):
+        """清空所有任务"""
+        # 检查是否有运行中的任务
+        running_tasks = [t for t in self.tasks if t.status == 'running']
+        if running_tasks:
+            messagebox.showwarning("警告", "有任务正在运行中，无法清空队列")
+            return
+
+        if not self.tasks:
+            messagebox.showinfo("提示", "队列已经是空的了")
+            return
+
+        if messagebox.askyesno("确认", f"确定要清空所有 {len(self.tasks)} 个任务吗？"):
+            # 销毁所有任务UI
+            for task in self.tasks[:]:  # 复制列表避免迭代时修改
+                if task.task_id in self.task_frames:
+                    self.task_frames[task.task_id].destroy()
+                    del self.task_frames[task.task_id]
+
+            # 清空任务列表
+            self.tasks.clear()
+
+            # 显示空提示
+            self.empty_label.pack()
 
     def test_api_connection(self):
         """测试API连接"""

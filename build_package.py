@@ -123,6 +123,12 @@ def build():
         # 添加其他必需的模块
         cmd.extend(['--collect-all', 'openai'])
 
+        # 修复Tkinter打包问题 - 收集Tcl/Tk数据文件
+        if system == 'Windows':
+            cmd.extend(['--collect-data', 'tkinter'])
+            cmd.extend(['--collect-data', 'tcl'])
+            cmd.extend(['--collect-data', 'tk'])
+
         # 添加图标（如果有）
         if os.path.exists('icon.ico') and system == 'Windows':
             cmd.extend(['--icon', 'icon.ico'])

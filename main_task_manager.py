@@ -274,10 +274,9 @@ class NewTaskWindow:
 
         self.window = tk.Toplevel(parent)
         self.window.title("新建任务")
-        self.window.geometry("600x500")
+        self.window.geometry("600x450")
 
         self.outline_file = None
-        self.project_folder = None
 
         self.setup_ui()
 
@@ -298,23 +297,6 @@ class NewTaskWindow:
             file_frame,
             text="选择文件夹",
             command=self.select_outline
-        ).pack(side=tk.RIGHT)
-
-        # 项目文件夹（续写用）
-        tk.Label(self.window, text="项目文件夹（续写用，可选）:", font=("Arial", 10)).pack(
-            anchor=tk.W, padx=10, pady=(10, 5)
-        )
-
-        folder_frame = tk.Frame(self.window)
-        folder_frame.pack(fill=tk.X, padx=10, pady=5)
-
-        self.folder_label = tk.Label(folder_frame, text="未选择（新建项目）", fg="gray")
-        self.folder_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
-
-        tk.Button(
-            folder_frame,
-            text="选择文件夹",
-            command=self.select_project_folder
         ).pack(side=tk.RIGHT)
 
         # 配置参数
@@ -449,24 +431,6 @@ class NewTaskWindow:
             self.outline_file = folder_path
             self.file_label.config(text=os.path.basename(folder_path), fg="black")
 
-    def select_project_folder(self):
-        """选择项目文件夹（续写用）"""
-        folder_path = filedialog.askdirectory(
-            title="选择项目文件夹",
-            initialdir="projects"
-        )
-
-        if folder_path:
-            # 扫描已完成的章节
-            scan_result = scan_chapter_files(folder_path)
-            max_chapter = scan_result['max_chapter']
-
-            self.project_folder = folder_path
-            self.folder_label.config(
-                text=f"{os.path.basename(folder_path)} (已完成: {max_chapter}章)",
-                fg="black"
-            )
-
     def create_and_start(self):
         """创建并启动任务"""
         if not self.outline_file:
@@ -496,9 +460,6 @@ class NewTaskWindow:
             'temperature': self.temperature_var.get(),
             'max_tokens': self.max_tokens_var.get()
         }
-
-        if self.project_folder:
-            config['project_folder'] = self.project_folder
 
         try:
             # 创建任务
