@@ -15,21 +15,29 @@ def extract_genre_from_filename(filename):
 
     Returns:
         类型字符串，如 'Romance', 'Fantasy'
+        自动处理大小写，将首字母大写
 
     Raises:
         ValueError: 如果文件名格式不正确
     """
     basename = os.path.basename(filename)
-    match = re.search(r'_([A-Za-z+\-]+)\.txt$', basename)
+    match = re.search(r'_([A-Za-z+\-]+)\.txt$', basename, re.IGNORECASE)
 
     if match:
         genre = match.group(1)
-        return genre
+        # 首字母大写处理，支持LGBTQ+这种特殊情况
+        if genre.upper() == 'LGBTQ+':
+            return 'LGBTQ+'
+        elif genre.lower() in ['sci-fi', 'scifi']:
+            return 'Sci-Fi'
+        else:
+            # 普通类型首字母大写
+            return genre.capitalize()
     else:
         raise ValueError(
             f"无效的文件名格式: {basename}\n"
             f"正确格式: [书名]_[类型].txt\n"
-            f"例如: 霸道总裁_Romance.txt"
+            f"例如: 霸道总裁_Romance.txt 或 霸道总裁_romance.txt"
         )
 
 
