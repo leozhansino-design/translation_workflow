@@ -200,15 +200,15 @@ class WriterWorker:
         if current_chapter <= 1:
             return ""
 
-        # 读取上一章的最后500字符
+        # 读取上一章的最后3000字符
         prev_chapter_file = os.path.join(self.project_folder, f'ch{current_chapter - 1}.txt')
 
         if not os.path.exists(prev_chapter_file):
             return ""
 
         content = load_chapter_content(prev_chapter_file)
-        # 取最后500字符
-        return content[-500:] if len(content) > 500 else content
+        # 取最后3000字符
+        return content[-3000:] if len(content) > 3000 else content
 
     def save_prompt_log(self, batch_start, batch_end, system_prompt, prompt_vars):
         """保存每个批次的Prompt日志"""
@@ -284,27 +284,31 @@ class WriterWorker:
         """生成一个批次的章节"""
         outline = outline_data['outline']
 
-        # 获取这个批次的章节大纲
+        # 只获取相邻章节的大纲（上一章 + 本批次章节）
         chapter_outlines = outline['chapter_outlines']
+
+        # 计算需要包含的章节范围：上一章(如果有) + 本批次
+        context_start = max(1, batch_start - 1) if batch_start > 1 else batch_start
+
         batch_outlines = [
             ch for ch in chapter_outlines
-            if batch_start <= ch['chapter_number'] <= batch_end
+            if context_start <= ch.get('chapter', ch.get('chapter_number', 0)) <= batch_end
         ]
 
-        # 构建章节大纲文本
+        # 构建章节大纲文本（精简版，只包含相邻章节）
         outline_text = ""
         for ch in batch_outlines:
-            outline_text += f"\nChapter {ch['chapter_number']}: {ch['title']}\n"
-            outline_text += f"- Plot: {ch.get('summary', '')}\n"
-            if ch.get('key_events'):
-                outline_text += f"- Key Events: {', '.join(ch['key_events'])}\n"
+            ch_num = ch.get('chapter', ch.get('chapter_number', 0))
+            ch_title = ch.get('title', '')
+            ch_summary = ch.get('summary', ch.get('plot', ''))
 
-        # 构建角色列表
-        characters_text = ""
-        for char in outline.get('main_characters', []):
-            characters_text += f"- {char['name']} ({char['role']}): {char.get('personality', '')}\n"
+            outline_text += f"\nChapter {ch_num}: {ch_title}\n"
+            outline_text += f"Summary: {ch_summary}\n"
 
-        # 准备Prompt变量
+        # main_characters 已经是字符串格式，直接使用
+        characters_text = outline.get('main_characters', '')
+
+        # 准备Prompt变量（精简版）
         prompt_vars = {
             'genre': outline['genre'],
             'style': outline_data.get('style', ''),
@@ -312,7 +316,7 @@ class WriterWorker:
             'characters': characters_text,
             'start_chapter': batch_start,
             'end_chapter': batch_end,
-            'previous_context': f"上一章末尾：\n{previous_context}" if previous_context else "这是第一批章节",
+            'previous_context': previous_context if previous_context else "",
             'chapter_outlines': outline_text
         }
 

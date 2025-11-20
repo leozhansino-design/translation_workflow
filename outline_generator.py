@@ -230,7 +230,18 @@ class OutlineGeneratorWithQueue:
             fg="white",
             height=2,
             width=20
-        ).pack()
+        ).pack(side=tk.LEFT, padx=10)
+
+        tk.Button(
+            button_frame,
+            text="📥 导入网页版大纲",
+            command=self.import_web_outline,
+            font=("Arial", 12, "bold"),
+            bg="#2196F3",
+            fg="white",
+            height=2,
+            width=20
+        ).pack(side=tk.LEFT, padx=10)
 
         # === 下半部分：任务队列 ===
         queue_container = tk.LabelFrame(
@@ -354,6 +365,75 @@ class OutlineGeneratorWithQueue:
             self.empty_label.pack_forget()
 
         messagebox.showinfo("成功", f"任务已添加到队列\n文件: {os.path.basename(self.current_source_file)}")
+
+    def import_web_outline(self):
+        """导入网页版生成的大纲（格式：BookTitle_Genre.txt）"""
+        # 选择文件
+        file_path = filedialog.askopenfilename(
+            title="选择网页版大纲文件（格式：书名_类型.txt）",
+            filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
+        )
+
+        if not file_path:
+            return
+
+        try:
+            # 从文件名提取书名和类型
+            filename = os.path.basename(file_path)
+            match = re.match(r'(.+?)_([A-Za-z+\-]+)\.txt$', filename)
+
+            if not match:
+                messagebox.showerror("错误", "文件名格式不正确！\n正确格式：书名_类型.txt\n例如：MyBook_Romance.txt")
+                return
+
+            book_title = match.group(1)
+            genre = match.group(2)
+
+            # 验证类型
+            available_genres = self.resource_mgr.get_available_genres()
+            if genre not in available_genres:
+                messagebox.showerror("错误", f"类型'{genre}'不存在！\n可用类型：{', '.join(available_genres)}")
+                return
+
+            # 读取文件内容
+            with open(file_path, 'r', encoding='utf-8') as f:
+                result_text = f.read()
+
+            if not result_text.strip():
+                messagebox.showerror("错误", "文件内容为空！")
+                return
+
+            # 创建虚拟任务对象（用于复用保存逻辑）
+            class WebOutlineTask:
+                def __init__(self, genre):
+                    self.genre = genre
+                    self.config = {}
+
+            virtual_task = WebOutlineTask(genre)
+
+            # 使用现有的保存方法
+            output_folder = self._save_outline_text(virtual_task, result_text)
+
+            # 成功提示
+            messagebox.showinfo(
+                "导入成功",
+                f"大纲已成功导入！\n\n书名：{book_title}\n类型：{genre}\n输出文件夹：{output_folder}"
+            )
+
+            # 询问是否打开文件夹
+            if messagebox.askyesno("打开文件夹", "是否打开输出文件夹查看？"):
+                try:
+                    if sys.platform == 'win32':
+                        os.startfile(output_folder)
+                    elif sys.platform == 'darwin':
+                        subprocess.Popen(['open', output_folder])
+                    else:
+                        subprocess.Popen(['xdg-open', output_folder])
+                except Exception as e:
+                    messagebox.showerror("错误", f"打开文件夹失败: {str(e)}")
+
+        except Exception as e:
+            messagebox.showerror("导入失败", f"导入大纲时出错:\n{str(e)}\n\n请确保文件格式正确。")
 
     def add_task_to_ui(self, task):
         """添加任务到UI"""
