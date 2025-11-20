@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 STYLES_FILE = 'data/styles.json'
-NAMES_FILE = 'data/names.json'
+NAMES_FILE = 'data/names_1.json'  # 使用新格式
 SUMMARY_FILE = 'data/summary.json'
 
 
@@ -184,3 +184,52 @@ class ResourceManager:
     def get_available_genres(self):
         """获取所有可用的类型"""
         return list(self.styles.keys())
+
+    def select_names(self, male_count=10, female_count=10):
+        """从names_1.json中选择使用次数最少的人名
+
+        Args:
+            male_count: 需要的男性名字数量
+            female_count: 需要的女性名字数量
+
+        Returns:
+            包含选中人名的字典 {'male': [...], 'female': [...]}
+        """
+        # 获取男性名字（按used排序）
+        male_names = sorted(self.names['male'], key=lambda x: x['used'])
+        selected_male = male_names[:male_count]
+
+        # 获取女性名字（按used排序）
+        female_names = sorted(self.names['female'], key=lambda x: x['used'])
+        selected_female = female_names[:female_count]
+
+        # 更新使用次数
+        for name in selected_male:
+            name['used'] += 1
+        for name in selected_female:
+            name['used'] += 1
+
+        # 保存更新
+        self.save_names()
+
+        return {
+            'male': selected_male,
+            'female': selected_female
+        }
+
+    def format_names_for_prompt(self, selected_names):
+        """格式化人名列表为Prompt字符串
+
+        Args:
+            selected_names: select_names()的返回值
+
+        Returns:
+            格式化的字符串，例如 "Marcus Sterling, Alexander Cross, ..."
+        """
+        male_str = ", ".join([n['fullname'] for n in selected_names['male']])
+        female_str = ", ".join([n['fullname'] for n in selected_names['female']])
+
+        return {
+            'male_names': male_str,
+            'female_names': female_str
+        }
