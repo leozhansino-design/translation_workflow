@@ -290,3 +290,38 @@ class ResourceManager:
             'male_names': male_str,
             'female_names': female_str
         }
+
+    def select_style(self, genre):
+        """选择一个风格（选择使用次数最少的）
+
+        Args:
+            genre: 类型名称，如 'Romance', 'Horror'
+
+        Returns:
+            包含 author 和 style 的字典
+            例如: {'author': 'Colleen Hoover', 'style': '...'}
+        """
+        if genre not in self.styles:
+            raise ValueError(f"类型 '{genre}' 不存在")
+
+        genre_data = self.styles[genre]
+        authors = genre_data['authors']
+        styles = genre_data['styles']
+        used = genre_data['used']
+
+        # 找到使用次数最少的索引
+        min_used = min(used)
+        min_indices = [i for i, u in enumerate(used) if u == min_used]
+
+        # 如果有多个最少使用的，随机选一个
+        import random
+        selected_index = random.choice(min_indices)
+
+        # 更新使用次数
+        self.styles[genre]['used'][selected_index] += 1
+        self.save_styles()
+
+        return {
+            'author': authors[selected_index],
+            'style': styles[selected_index]
+        }
