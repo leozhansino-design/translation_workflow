@@ -13,6 +13,7 @@ from openai import OpenAI
 from config import config
 from resource_mgr import ResourceManager
 from prompt_manager import PromptManager
+from prompt_preview import PromptPreviewWindow
 from utils import (
     extract_genre_from_filename,
     extract_title_from_filename,
