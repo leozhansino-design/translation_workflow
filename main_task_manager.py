@@ -7,6 +7,7 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import time
 import os
+from datetime import datetime
 
 from task_manager import TaskManager
 from utils import format_time_elapsed, scan_chapter_files
@@ -18,11 +19,10 @@ class TaskManagerWindow:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("任务管理器 - 小说写作工具")
-        self.window.geometry("1000x700")
+        self.window.geometry("1100x750")
 
         self.task_mgr = TaskManager()
-        self.tasks = []
-        self.selected_task_id = None
+        self.task_containers = {}  # 存储任务容器的引用
 
         # 轮询线程
         self.polling = False
@@ -43,7 +43,7 @@ class TaskManagerWindow:
 
         tk.Label(
             title_frame,
-            text="📋 任务管理器",
+            text="📝 小说写作工具",
             font=("Arial", 20, "bold"),
             bg="#4CAF50",
             fg="white"
@@ -51,7 +51,7 @@ class TaskManagerWindow:
 
         tk.Label(
             title_frame,
-            text="管理所有写作任务",
+            text="批量生成小说章节",
             font=("Arial", 11),
             bg="#4CAF50",
             fg="white"
@@ -79,169 +79,343 @@ class TaskManagerWindow:
 
         tk.Button(
             toolbar,
-            text="🗑️ 删除任务",
-            command=self.delete_selected_task,
-            width=12
+            text="🗑️ 清空队列",
+            command=self.clear_all_tasks,
+            width=12,
+            bg="#f44336",
+            fg="white"
         ).pack(side=tk.LEFT, padx=5)
 
-        # === 任务列表 ===
-        list_frame = tk.LabelFrame(self.window, text="任务列表", padx=10, pady=10)
-        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # === 任务队列（滚动区域）===
+        queue_frame = tk.LabelFrame(self.window, text="📋 任务队列", padx=5, pady=5)
+        queue_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # 创建Treeview
-        columns = ('状态', '书名', '进度', '费用', '更新时间')
-        self.task_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
+        # 创建Canvas和Scrollbar
+        self.canvas = tk.Canvas(queue_frame, bg="white")
+        scrollbar = ttk.Scrollbar(queue_frame, orient=tk.VERTICAL, command=self.canvas.yview)
 
-        # 设置列
-        self.task_tree.heading('状态', text='状态')
-        self.task_tree.heading('书名', text='书名')
-        self.task_tree.heading('进度', text='进度')
-        self.task_tree.heading('费用', text='费用')
-        self.task_tree.heading('更新时间', text='更新时间')
+        # 创建内部Frame（用于放置任务卡片）
+        self.tasks_frame = tk.Frame(self.canvas, bg="white")
 
-        self.task_tree.column('状态', width=100)
-        self.task_tree.column('书名', width=300)
-        self.task_tree.column('进度', width=150)
-        self.task_tree.column('费用', width=100)
-        self.task_tree.column('更新时间', width=200)
+        # 创建canvas窗口
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.tasks_frame, anchor="nw")
 
-        # 滚动条
-        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.task_tree.yview)
-        self.task_tree.configure(yscroll=scrollbar.set)
+        # 配置Canvas
+        self.canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.task_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # 布局
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # 绑定选择事件
-        self.task_tree.bind('<<TreeviewSelect>>', self.on_task_selected)
-        self.task_tree.bind('<Double-1>', self.open_task_detail)
+        # 绑定配置事件（自动调整canvas窗口宽度）
+        self.tasks_frame.bind("<Configure>", self._on_frame_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
 
-        # === 详情面板 ===
-        detail_frame = tk.LabelFrame(self.window, text="任务详情", padx=10, pady=10)
-        detail_frame.pack(fill=tk.X, padx=10, pady=10)
+    def _on_frame_configure(self, event=None):
+        """更新Canvas的滚动区域"""
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
-        self.detail_text = scrolledtext.ScrolledText(
-            detail_frame,
-            height=8,
-            state=tk.DISABLED,
-            wrap=tk.WORD,
-            font=("Courier", 9)
-        )
-        self.detail_text.pack(fill=tk.BOTH, expand=True)
+    def _on_canvas_configure(self, event):
+        """调整内部Frame的宽度以匹配Canvas"""
+        self.canvas.itemconfig(self.canvas_window, width=event.width)
 
     def refresh_tasks(self):
         """刷新任务列表"""
-        # 清空现有列表
-        for item in self.task_tree.get_children():
-            self.task_tree.delete(item)
+        # 清空现有任务卡片
+        for widget in self.tasks_frame.winfo_children():
+            widget.destroy()
+        self.task_containers.clear()
 
         # 获取所有任务
-        self.tasks = self.task_mgr.list_all_tasks()
+        tasks = self.task_mgr.list_all_tasks()
 
-        # 填充列表
-        for task_data in self.tasks:
-            summary = self.task_mgr.get_task_summary(task_data['task_id'])
-            if summary:
-                status_icon = self.get_status_icon(summary['status'])
-                status_text = f"{status_icon} {summary['status']}"
-
-                progress_text = f"{summary['current_chapter']}/{summary['target_chapters']} ({summary['progress_percent']:.1f}%)"
-
-                cost_text = f"${summary['total_cost']:.2f}"
-
-                updated_time = summary.get('updated_at', '')[:19]  # 只显示日期时间
-
-                self.task_tree.insert('', tk.END, iid=summary['task_id'], values=(
-                    status_text,
-                    summary['title'],
-                    progress_text,
-                    cost_text,
-                    updated_time
-                ))
-
-    def get_status_icon(self, status):
-        """获取状态图标"""
-        icons = {
-            'pending': '⏸️',
-            'initializing': '🔄',
-            'in_progress': '🔄',
-            'completed': '✅',
-            'failed': '❌'
-        }
-        return icons.get(status, '❓')
-
-    def on_task_selected(self, event):
-        """任务选择事件"""
-        selection = self.task_tree.selection()
-        if not selection:
+        if not tasks:
+            # 显示空状态提示
+            empty_label = tk.Label(
+                self.tasks_frame,
+                text="📭 暂无任务，点击「新建任务」开始",
+                font=("Arial", 12),
+                fg="gray",
+                bg="white"
+            )
+            empty_label.pack(pady=50)
             return
 
-        task_id = selection[0]
-        self.selected_task_id = task_id
-        self.show_task_detail(task_id)
+        # 为每个任务创建卡片
+        for task_data in tasks:
+            task_id = task_data['task_id']
+            self._create_task_card(task_id)
 
-    def show_task_detail(self, task_id):
-        """显示任务详情"""
+    def _create_task_card(self, task_id):
+        """创建任务卡片"""
         summary = self.task_mgr.get_task_summary(task_id)
-        progress = self.task_mgr.get_task_progress(task_id)
-        config = self.task_mgr.get_task_config(task_id)
-
-        if not summary or not progress or not config:
+        if not summary:
             return
 
-        detail = f"""
-{'='*70}
-任务ID: {task_id}
-书名: {summary['title']}
-状态: {summary['status']}
-{'='*70}
+        # 创建任务容器（卡片）
+        task_container = tk.Frame(self.tasks_frame, bg="#f5f5f5", relief=tk.RAISED, borderwidth=1)
+        task_container.pack(fill=tk.X, padx=5, pady=5)
 
-进度信息:
-- 当前章节: {summary['current_chapter']} / {summary['target_chapters']}
-- 完成度: {summary['progress_percent']:.1f}%
-- Token使用: {progress.get('total_tokens', 0):,}
-- 预计费用: ${summary['total_cost']:.2f}
+        # 左侧：信息区域
+        info_frame = tk.Frame(task_container, bg="#f5f5f5")
+        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-配置信息:
-- 模型: {config.get('model', 'N/A')}
-- 批次大小: {config.get('batch_size', 'N/A')} 章/批
-- Temperature: {config.get('temperature', 'N/A')}
+        # 标题行
+        title_frame = tk.Frame(info_frame, bg="#f5f5f5")
+        title_frame.pack(fill=tk.X)
 
-时间信息:
-- 创建时间: {summary['created_at'][:19]}
-- 更新时间: {summary['updated_at'][:19]}
+        tk.Label(
+            title_frame,
+            text=f"📖 {summary['title']}",
+            font=("Arial", 12, "bold"),
+            bg="#f5f5f5",
+            anchor="w"
+        ).pack(side=tk.LEFT)
 
-进程状态:
-- 是否运行: {'✅ 运行中' if summary['is_running'] else '❌ 未运行'}
+        # 状态标签
+        status_icon, status_color = self._get_status_display(summary['status'])
+        status_label = tk.Label(
+            title_frame,
+            text=f"{status_icon} {summary['status']}",
+            font=("Arial", 10),
+            bg="#f5f5f5",
+            fg=status_color
+        )
+        status_label.pack(side=tk.LEFT, padx=10)
 
-消息:
-{progress.get('message', 'N/A')}
-"""
+        # 详情行
+        details_frame = tk.Frame(info_frame, bg="#f5f5f5")
+        details_frame.pack(fill=tk.X, pady=(5, 0))
 
-        self.detail_text.config(state=tk.NORMAL)
-        self.detail_text.delete(1.0, tk.END)
-        self.detail_text.insert(1.0, detail)
-        self.detail_text.config(state=tk.DISABLED)
+        details_text = f"模型: {summary.get('model', 'N/A')}  |  章节: {summary['current_chapter']}/{summary['target_chapters']}"
 
-    def open_task_detail(self, event):
-        """双击打开任务详情窗口"""
-        if self.selected_task_id:
-            TaskDetailWindow(self.window, self.selected_task_id, self.task_mgr)
+        # 如果有启动时间，显示启动时间
+        if summary.get('started_at'):
+            started_time = summary['started_at'][:19] if len(summary.get('started_at', '')) > 19 else summary.get('started_at', '')
+            details_text += f"  |  启动: {started_time}"
+
+        details_label = tk.Label(
+            details_frame,
+            text=details_text,
+            font=("Arial", 9),
+            bg="#f5f5f5",
+            fg="gray"
+        )
+        details_label.pack(side=tk.LEFT)
+
+        # 进度条
+        progress_frame = tk.Frame(info_frame, bg="#f5f5f5")
+        progress_frame.pack(fill=tk.X, pady=(8, 0))
+
+        progress_bar = ttk.Progressbar(
+            progress_frame,
+            orient=tk.HORIZONTAL,
+            length=300,
+            mode='determinate',
+            value=summary['progress_percent']
+        )
+        progress_bar.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        progress_text = tk.Label(
+            progress_frame,
+            text=f"{summary['progress_percent']:.1f}% | ${summary['total_cost']:.2f}",
+            font=("Arial", 9),
+            bg="#f5f5f5",
+            fg="gray"
+        )
+        progress_text.pack(side=tk.LEFT, padx=(10, 0))
+
+        # 右侧：按钮区域
+        button_frame = tk.Frame(task_container, bg="#f5f5f5")
+        button_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+
+        # 开始按钮
+        start_btn = tk.Button(
+            button_frame,
+            text="▶️ 开始",
+            command=lambda: self.start_task(task_id),
+            width=12,
+            bg="#4CAF50",
+            fg="white"
+        )
+        start_btn.pack(side=tk.LEFT, padx=3)
+
+        # 停止按钮
+        stop_btn = tk.Button(
+            button_frame,
+            text="⏸️ 停止",
+            command=lambda: self.stop_task(task_id),
+            width=12,
+            bg="#FF9800",
+            fg="white",
+            state=tk.DISABLED
+        )
+        stop_btn.pack(side=tk.LEFT, padx=3)
+
+        # 打开文件夹按钮
+        tk.Button(
+            button_frame,
+            text="📂 文件夹",
+            command=lambda: self.open_project_folder(task_id),
+            width=12
+        ).pack(side=tk.LEFT, padx=3)
+
+        # 删除按钮
+        tk.Button(
+            button_frame,
+            text="🗑️ 删除",
+            command=lambda: self.delete_task(task_id),
+            width=10,
+            bg="#f44336",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=3)
+
+        # 保存引用以便后续更新
+        self.task_containers[task_id] = {
+            'container': task_container,
+            'status_label': status_label,
+            'details_label': details_label,
+            'progress_bar': progress_bar,
+            'progress_text': progress_text,
+            'start_btn': start_btn,
+            'stop_btn': stop_btn
+        }
+
+        # 根据当前状态调整按钮
+        self._update_task_buttons(task_id, summary['status'], summary['is_running'])
+
+    def _get_status_display(self, status):
+        """获取状态显示（图标和颜色）"""
+        status_map = {
+            'pending': ('⏸️', 'orange'),
+            'initializing': ('🔄', 'blue'),
+            'in_progress': ('🔄', 'blue'),
+            'completed': ('✅', 'green'),
+            'failed': ('❌', 'red')
+        }
+        return status_map.get(status, ('❓', 'gray'))
+
+    def _update_task_buttons(self, task_id, status, is_running):
+        """更新任务按钮状态"""
+        if task_id not in self.task_containers:
+            return
+
+        refs = self.task_containers[task_id]
+        start_btn = refs['start_btn']
+        stop_btn = refs['stop_btn']
+
+        if status == 'completed':
+            start_btn.config(state=tk.DISABLED)
+            stop_btn.config(state=tk.DISABLED)
+        elif is_running:
+            start_btn.config(state=tk.DISABLED)
+            stop_btn.config(state=tk.NORMAL)
+        else:
+            start_btn.config(state=tk.NORMAL)
+            stop_btn.config(state=tk.DISABLED)
+
+    def _update_task_display(self, task_id):
+        """更新单个任务的显示信息"""
+        if task_id not in self.task_containers:
+            return
+
+        summary = self.task_mgr.get_task_summary(task_id)
+        if not summary:
+            return
+
+        refs = self.task_containers[task_id]
+
+        # 更新状态
+        status_icon, status_color = self._get_status_display(summary['status'])
+        refs['status_label'].config(text=f"{status_icon} {summary['status']}", fg=status_color)
+
+        # 更新详情
+        details_text = f"模型: {summary.get('model', 'N/A')}  |  章节: {summary['current_chapter']}/{summary['target_chapters']}"
+        if summary.get('started_at'):
+            started_time = summary['started_at'][:19] if len(summary.get('started_at', '')) > 19 else summary.get('started_at', '')
+            details_text += f"  |  启动: {started_time}"
+        refs['details_label'].config(text=details_text)
+
+        # 更新进度条
+        refs['progress_bar']['value'] = summary['progress_percent']
+        refs['progress_text'].config(text=f"{summary['progress_percent']:.1f}% | ${summary['total_cost']:.2f}")
+
+        # 更新按钮
+        self._update_task_buttons(task_id, summary['status'], summary['is_running'])
 
     def create_new_task(self):
         """创建新任务"""
         NewTaskWindow(self.window, self.task_mgr, callback=self.refresh_tasks)
 
-    def delete_selected_task(self):
-        """删除选中的任务"""
-        if not self.selected_task_id:
-            messagebox.showwarning("警告", "请先选择一个任务")
+    def start_task(self, task_id):
+        """启动任务"""
+        try:
+            # 记录启动时间
+            progress = self.task_mgr.get_task_progress(task_id)
+            if progress:
+                progress['started_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                # 直接保存progress.json
+                import json
+                progress_file = os.path.join('tasks', task_id, 'progress.json')
+                with open(progress_file, 'w', encoding='utf-8') as f:
+                    json.dump(progress, f, indent=2, ensure_ascii=False)
+
+            # 启动任务
+            self.task_mgr.start_task(task_id)
+            messagebox.showinfo("成功", f"任务 {task_id} 已启动")
+
+            # 刷新显示
+            self.window.after(500, lambda: self._update_task_display(task_id))
+
+        except Exception as e:
+            messagebox.showerror("错误", f"启动任务失败: {str(e)}")
+
+    def stop_task(self, task_id):
+        """停止任务"""
+        if messagebox.askyesno("确认", "确定要停止这个任务吗？"):
+            success = self.task_mgr.stop_task(task_id)
+            if success:
+                messagebox.showinfo("成功", "任务已停止")
+                self._update_task_display(task_id)
+            else:
+                messagebox.showwarning("警告", "任务可能未运行或已停止")
+
+    def delete_task(self, task_id):
+        """删除任务"""
+        if messagebox.askyesno("确认", "确定要删除这个任务吗？\n注意：这不会删除生成的项目文件。"):
+            self.task_mgr.delete_task(task_id)
+            self.refresh_tasks()
+
+    def clear_all_tasks(self):
+        """清空所有任务"""
+        tasks = self.task_mgr.list_all_tasks()
+        if not tasks:
+            messagebox.showinfo("提示", "任务队列已经是空的")
             return
 
-        if messagebox.askyesno("确认", "确定要删除这个任务吗？\n注意：这不会删除生成的项目文件。"):
-            self.task_mgr.delete_task(self.selected_task_id)
-            self.selected_task_id = None
+        if messagebox.askyesno("确认", f"确定要清空所有 {len(tasks)} 个任务吗？\n注意：这不会删除生成的项目文件。"):
+            for task_data in tasks:
+                self.task_mgr.delete_task(task_data['task_id'])
             self.refresh_tasks()
+            messagebox.showinfo("成功", "已清空所有任务")
+
+    def open_project_folder(self, task_id):
+        """打开项目文件夹"""
+        config = self.task_mgr.get_task_config(task_id)
+        project_folder = config.get('project_folder')
+
+        if project_folder and os.path.exists(project_folder):
+            import platform
+            system = platform.system()
+
+            if system == 'Darwin':  # Mac
+                os.system(f'open "{project_folder}"')
+            elif system == 'Windows':
+                os.system(f'explorer "{project_folder}"')
+            else:  # Linux
+                os.system(f'xdg-open "{project_folder}"')
+        else:
+            messagebox.showwarning("警告", "项目文件夹不存在")
 
     def start_polling(self):
         """启动轮询"""
@@ -250,7 +424,21 @@ class TaskManagerWindow:
         def poll():
             while self.polling:
                 time.sleep(2)  # 每2秒刷新一次
-                self.window.after(0, self.refresh_tasks)
+                # 只更新现有任务的显示，不完全刷新
+                tasks = self.task_mgr.list_all_tasks()
+                task_ids = [t['task_id'] for t in tasks]
+
+                # 检查是否有新任务或任务被删除
+                current_ids = set(self.task_containers.keys())
+                new_ids = set(task_ids)
+
+                if current_ids != new_ids:
+                    # 有变化，完全刷新
+                    self.window.after(0, self.refresh_tasks)
+                else:
+                    # 只更新每个任务的显示
+                    for task_id in task_ids:
+                        self.window.after(0, lambda tid=task_id: self._update_task_display(tid))
 
         threading.Thread(target=poll, daemon=True).start()
 
@@ -400,8 +588,8 @@ class NewTaskWindow:
 
         tk.Button(
             btn_frame,
-            text="创建并启动",
-            command=self.create_and_start,
+            text="创建任务",
+            command=self.create_task,
             bg="#4CAF50",
             fg="white",
             width=15
@@ -431,8 +619,8 @@ class NewTaskWindow:
             self.outline_file = folder_path
             self.file_label.config(text=os.path.basename(folder_path), fg="black")
 
-    def create_and_start(self):
-        """创建并启动任务"""
+    def create_task(self):
+        """创建任务（不自动启动）"""
         if not self.outline_file:
             messagebox.showwarning("警告", "请先选择大纲文件夹")
             return
@@ -462,13 +650,10 @@ class NewTaskWindow:
         }
 
         try:
-            # 创建任务
+            # 只创建任务，不启动
             task_id = self.task_mgr.create_task(self.outline_file, config)
 
-            # 启动任务
-            self.task_mgr.start_task(task_id)
-
-            messagebox.showinfo("成功", f"任务已创建并启动！\n任务ID: {task_id}")
+            messagebox.showinfo("成功", f"任务已创建！\n任务ID: {task_id}\n\n点击「开始」按钮启动任务")
 
             # 刷新父窗口
             if self.callback:

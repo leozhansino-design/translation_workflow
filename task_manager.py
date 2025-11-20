@@ -275,5 +275,7 @@ class TaskManager:
             'total_cost': progress.get('total_cost', 0.0),
             'created_at': progress.get('created_at', ''),
             'updated_at': progress.get('updated_at', ''),
+            'started_at': progress.get('started_at', ''),
+            'model': config.get('model', 'N/A'),
             'is_running': self.is_task_running(task_id)
         }
