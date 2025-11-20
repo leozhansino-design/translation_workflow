@@ -3,8 +3,38 @@
 """
 import json
 import os
+import sys
 
-CONFIG_FILE = 'data/config.json'
+
+def get_resource_path(relative_path):
+    """获取资源文件的绝对路径（支持PyInstaller打包）
+
+    优先使用当前目录的文件，如果不存在则从打包资源复制
+    """
+    local_path = os.path.join(os.getcwd(), relative_path)
+
+    if os.path.exists(local_path):
+        return local_path
+
+    try:
+        base_path = sys._MEIPASS
+        bundled_path = os.path.join(base_path, relative_path)
+
+        if relative_path.startswith('data/') and os.path.exists(bundled_path):
+            os.makedirs(os.path.join(os.getcwd(), 'data'), exist_ok=True)
+            import shutil
+            try:
+                shutil.copy2(bundled_path, local_path)
+            except:
+                pass
+
+        return local_path
+
+    except AttributeError:
+        return local_path
+
+
+CONFIG_FILE = get_resource_path('data/config.json')
 
 
 class Config:

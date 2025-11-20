@@ -4,16 +4,64 @@
 """
 import json
 import os
+import sys
 import re
 import threading
 import time
 from datetime import datetime
 
 
-STYLES_FILE = 'data/styles.json'
-NAMES_FILE = 'data/names_1.json'  # 使用新格式
-SUMMARY_FILE = 'data/summary.json'
-LOCK_FILE = 'data/.resource_lock'
+def get_resource_path(relative_path):
+    """获取资源文件的绝对路径（支持PyInstaller打包）
+
+    如果是打包环境且本地没有data文件夹，会自动从打包资源复制到当前目录
+
+    Args:
+        relative_path: 相对路径，如 'data/styles.json'
+
+    Returns:
+        绝对路径
+    """
+    # 优先使用当前目录的文件（用于读写）
+    local_path = os.path.join(os.getcwd(), relative_path)
+
+    # 如果本地文件存在，直接使用
+    if os.path.exists(local_path):
+        return local_path
+
+    # 检查是否是打包环境
+    try:
+        # PyInstaller创建临时文件夹，路径存储在_MEIPASS中
+        base_path = sys._MEIPASS
+        bundled_path = os.path.join(base_path, relative_path)
+
+        # 如果是data目录下的文件，且打包资源存在，复制到本地
+        if relative_path.startswith('data/') and os.path.exists(bundled_path):
+            # 确保本地data目录存在
+            local_data_dir = os.path.join(os.getcwd(), 'data')
+            os.makedirs(local_data_dir, exist_ok=True)
+
+            # 复制文件到本地
+            import shutil
+            try:
+                shutil.copy2(bundled_path, local_path)
+                print(f"✓ 已复制资源文件: {relative_path}")
+            except Exception as e:
+                print(f"⚠ 复制资源文件失败: {e}")
+                # 复制失败，返回打包路径（只读）
+                return bundled_path
+
+        return local_path
+
+    except AttributeError:
+        # 开发环境，使用当前目录
+        return local_path
+
+
+STYLES_FILE = get_resource_path('data/styles.json')
+NAMES_FILE = get_resource_path('data/names_1.json')
+SUMMARY_FILE = get_resource_path('data/summary.json')
+LOCK_FILE = get_resource_path('data/.resource_lock')
 
 
 class ResourceManager:

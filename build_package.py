@@ -82,6 +82,7 @@ def build():
     # 主程序入口
     entry_points = [
         ('outline_generator.py', 'OutlineGenerator'),
+        ('outline_task_manager.py', 'OutlineTaskManager'),
         ('main_task_manager.py', 'TaskManager'),
     ]
 
@@ -163,11 +164,13 @@ def build():
 
     print(f"\n使用方法:")
     if system == 'Windows':
-        print(f"  双击运行: dist\\OutlineGenerator.exe")
-        print(f"  双击运行: dist\\TaskManager.exe")
+        print(f"  Tool 1 (单任务): dist\\OutlineGenerator.exe")
+        print(f"  Tool 1 (多任务): dist\\OutlineTaskManager.exe")
+        print(f"  Tool 2 (写作任务): dist\\TaskManager.exe")
     else:
-        print(f"  运行: ./dist/OutlineGenerator")
-        print(f"  运行: ./dist/TaskManager")
+        print(f"  Tool 1 (单任务): ./dist/OutlineGenerator")
+        print(f"  Tool 1 (多任务): ./dist/OutlineTaskManager")
+        print(f"  Tool 2 (写作任务): ./dist/TaskManager")
 
     return True
 
