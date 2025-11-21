@@ -165,7 +165,7 @@ def load_chapter_content(chapter_file):
     return content
 
 
-def save_chapter_file(project_folder, chapter_num, content, metadata=None):
+def save_chapter_file(project_folder, chapter_num, content, metadata=None, title=None):
     """保存章节文件
 
     Args:
@@ -173,10 +173,22 @@ def save_chapter_file(project_folder, chapter_num, content, metadata=None):
         chapter_num: 章节号
         content: 章节内容
         metadata: 可选的元数据字典
+        title: 章节标题（用于文件名）
     """
     os.makedirs(project_folder, exist_ok=True)
 
-    filename = f'chapter_{chapter_num}.txt'
+    # 如果有title，使用 chapter_1_Title.txt 格式
+    # 清理title中的特殊字符，只保留字母数字和空格
+    if title:
+        safe_title = "".join(c if c.isalnum() or c.isspace() else "_" for c in title)
+        safe_title = safe_title.strip().replace(" ", "_")
+        # 限制长度避免文件名过长
+        if len(safe_title) > 50:
+            safe_title = safe_title[:50]
+        filename = f'chapter_{chapter_num}_{safe_title}.txt'
+    else:
+        filename = f'chapter_{chapter_num}.txt'
+
     filepath = os.path.join(project_folder, filename)
 
     with open(filepath, 'w', encoding='utf-8') as f:

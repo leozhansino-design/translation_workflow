@@ -556,6 +556,7 @@ Write Chapter {batch_start}"""
 
         for chapter_num, chapter_data in chapters.items():
             content = chapter_data['content']
+            title = chapter_data.get('title', '')
 
             # 验证长度
             is_valid, char_count, message = validate_chapter_length(content, min_chars=9000)
@@ -565,16 +566,17 @@ Write Chapter {batch_start}"""
 
             # 保存
             metadata = {
+                'Title': title,
                 'Character Count': char_count,
                 'Generated At': datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'),
                 'Model': self.config.get('model', 'unknown'),
                 'Valid': 'Yes' if is_valid else f'No - {message}'
             }
 
-            save_chapter_file(self.project_folder, chapter_num, content, metadata)
+            save_chapter_file(self.project_folder, chapter_num, content, metadata, title=title)
             self.chapters_completed += 1
 
-            print(f"  ✓ Chapter {chapter_num}: {char_count:,} 字符 {'✅' if is_valid else '⚠️'}")
+            print(f"  ✓ Chapter {chapter_num}: {title} - {char_count:,} 字符 {'✅' if is_valid else '⚠️'}")
 
     def run(self):
         """运行写作任务"""

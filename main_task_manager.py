@@ -13,6 +13,7 @@ from datetime import datetime
 
 from writer_worker import WriterWorker
 from utils import scan_chapter_files
+from prompt_manager import PromptManager
 
 
 class WritingTask:
@@ -64,6 +65,7 @@ class WritingToolWindow:
 
         self.tasks = []  # 任务列表
         self.task_containers = {}  # 任务卡片引用
+        self.prompt_mgr = PromptManager()  # Prompt管理器
 
         self.setup_ui()
 
@@ -142,6 +144,15 @@ class WritingToolWindow:
             text="测试Gemini",
             command=self.test_gemini_simple,
             bg="#FF9800",
+            fg="white",
+            width=12
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            test_frame,
+            text="📝 Prompt管理",
+            command=self.manage_writer_prompts,
+            bg="#9C27B0",
             fg="white",
             width=12
         ).pack(side=tk.LEFT, padx=5)
@@ -329,6 +340,223 @@ class WritingToolWindow:
 
         thread = threading.Thread(target=_test, daemon=True)
         thread.start()
+
+    def manage_writer_prompts(self):
+        """Prompt管理和版本控制"""
+        # 创建Prompt管理窗口
+        prompt_window = tk.Toplevel(self.window)
+        prompt_window.title("写作Prompt管理")
+        prompt_window.geometry("900x700")
+
+        # 标题
+        title_label = tk.Label(
+            prompt_window,
+            text="📝 写作Prompt模板管理",
+            font=("Arial", 16, "bold"),
+            bg="#4CAF50",
+            fg="white",
+            pady=15
+        )
+        title_label.pack(fill=tk.X)
+
+        # 主容器
+        main_frame = tk.Frame(prompt_window, padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # 说明文本和版本选择
+        info_frame = tk.Frame(main_frame)
+        info_frame.pack(fill=tk.X, pady=(0, 10))
+
+        tk.Label(
+            info_frame,
+            text="Prompt版本:",
+            font=("Arial", 10, "bold")
+        ).pack(side=tk.LEFT)
+
+        # 版本下拉选择
+        version_var = tk.StringVar()
+        available_versions = self.prompt_mgr.get_writer_versions()
+        current_version = self.prompt_mgr.prompts['writer'].get('active_version', 'Default')
+        version_var.set(current_version)
+
+        def on_version_change(event=None):
+            selected_version = version_var.get()
+            prompt_text.config(state=tk.NORMAL)
+            prompt_text.delete("1.0", tk.END)
+            try:
+                version_prompt = self.prompt_mgr.get_writer_prompt(selected_version)
+                prompt_text.insert(tk.END, version_prompt)
+            except Exception as e:
+                prompt_text.insert(tk.END, f"加载版本失败: {str(e)}")
+            prompt_text.config(state=tk.DISABLED)
+            edit_btn.config(state=tk.NORMAL)
+            save_btn.config(state=tk.DISABLED)
+
+        version_combo = ttk.Combobox(
+            info_frame,
+            textvariable=version_var,
+            values=available_versions,
+            state="readonly",
+            width=30
+        )
+        version_combo.pack(side=tk.LEFT, padx=10)
+        version_combo.bind('<<ComboboxSelected>>', on_version_change)
+
+        # 设为活跃版本按钮
+        def set_active():
+            selected_version = version_var.get()
+            self.prompt_mgr.set_active_writer_version(selected_version)
+            messagebox.showinfo("成功", f"已将 '{selected_version}' 设为活跃版本")
+
+        tk.Button(
+            info_frame,
+            text="设为活跃",
+            command=set_active,
+            bg="#4CAF50",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=5)
+
+        # Prompt显示区域
+        prompt_text = scrolledtext.ScrolledText(
+            main_frame,
+            wrap=tk.WORD,
+            font=("Courier", 9),
+            height=25
+        )
+        prompt_text.pack(fill=tk.BOTH, expand=True)
+
+        # 加载当前Prompt
+        try:
+            current_prompt = self.prompt_mgr.get_writer_prompt()
+            prompt_text.insert(tk.END, current_prompt)
+            prompt_text.config(state=tk.DISABLED)  # 只读
+        except Exception as e:
+            prompt_text.insert(tk.END, f"加载失败: {str(e)}")
+
+        # 按钮区域
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        # 编辑按钮
+        def edit_prompt():
+            prompt_text.config(state=tk.NORMAL)
+            edit_btn.config(state=tk.DISABLED)
+            save_btn.config(state=tk.NORMAL)
+
+        # 保存按钮
+        def save_prompt():
+            # 创建版本名输入窗口
+            version_window = tk.Toplevel(prompt_window)
+            version_window.title("保存Prompt版本")
+            version_window.geometry("400x180")
+            version_window.transient(prompt_window)
+            version_window.grab_set()
+
+            tk.Label(
+                version_window,
+                text="请输入版本名称:",
+                font=("Arial", 12)
+            ).pack(pady=(20, 10))
+
+            version_entry = tk.Entry(version_window, width=40, font=("Arial", 11))
+            version_entry.pack(pady=10)
+            version_entry.insert(0, f"Custom_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            version_entry.select_range(0, tk.END)
+            version_entry.focus()
+
+            def do_save():
+                version_name = version_entry.get().strip()
+                if not version_name:
+                    messagebox.showwarning("警告", "版本名称不能为空", parent=version_window)
+                    return
+
+                new_prompt = prompt_text.get("1.0", tk.END).strip()
+                try:
+                    # 保存到prompt_manager
+                    self.prompt_mgr.save_custom_writer_prompt(version_name, new_prompt)
+                    self.prompt_mgr.set_active_writer_version(version_name)
+
+                    # 更新版本下拉框
+                    version_combo['values'] = self.prompt_mgr.get_writer_versions()
+                    version_var.set(version_name)
+
+                    messagebox.showinfo("成功", f"Prompt已保存为版本 '{version_name}'！\n将在下次生成任务时使用新的Prompt。", parent=version_window)
+                    version_window.destroy()
+                    prompt_text.config(state=tk.DISABLED)
+                    edit_btn.config(state=tk.NORMAL)
+                    save_btn.config(state=tk.DISABLED)
+                except Exception as e:
+                    messagebox.showerror("保存失败", f"保存Prompt时出错:\n{str(e)}", parent=version_window)
+
+            button_frame_save = tk.Frame(version_window)
+            button_frame_save.pack(pady=20)
+
+            tk.Button(
+                button_frame_save,
+                text="保存",
+                command=do_save,
+                width=10,
+                bg="#4CAF50",
+                fg="white"
+            ).pack(side=tk.LEFT, padx=5)
+
+            tk.Button(
+                button_frame_save,
+                text="取消",
+                command=version_window.destroy,
+                width=10
+            ).pack(side=tk.LEFT, padx=5)
+
+            # 绑定回车键
+            version_entry.bind('<Return>', lambda e: do_save())
+
+        # 重置为默认
+        def reset_to_default():
+            if messagebox.askyesno("确认", "确定要重置为默认Prompt吗？"):
+                try:
+                    self.prompt_mgr.restore_default_writer()
+                    prompt_text.config(state=tk.NORMAL)
+                    prompt_text.delete("1.0", tk.END)
+                    prompt_text.insert(tk.END, self.prompt_mgr.get_writer_prompt())
+                    prompt_text.config(state=tk.DISABLED)
+                    messagebox.showinfo("成功", "已重置为默认Prompt")
+                except Exception as e:
+                    messagebox.showerror("重置失败", f"重置Prompt时出错:\n{str(e)}")
+
+        edit_btn = tk.Button(
+            button_frame,
+            text="✏️ 编辑",
+            command=edit_prompt,
+            width=15,
+            bg="#FF9800",
+            fg="white"
+        )
+        edit_btn.pack(side=tk.LEFT, padx=5)
+
+        save_btn = tk.Button(
+            button_frame,
+            text="💾 保存",
+            command=save_prompt,
+            width=15,
+            bg="#4CAF50",
+            fg="white",
+            state=tk.DISABLED
+        )
+        save_btn.pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame,
+            text="🔄 重置为默认",
+            command=reset_to_default,
+            width=15
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame,
+            text="关闭",
+            command=prompt_window.destroy,
+            width=15
+        ).pack(side=tk.RIGHT, padx=5)
 
     def select_outline_folder(self):
         """选择大纲文件夹 - 自动检测章节数"""

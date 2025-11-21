@@ -289,6 +289,17 @@ class OutlineGeneratorWithQueue:
 
         tk.Button(
             button_status_frame,
+            text="👁️ 预览Prompt",
+            command=self.preview_cover_prompt,
+            font=("Arial", 11, "bold"),
+            bg="#FF9800",
+            fg="white",
+            height=2,
+            width=15
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_status_frame,
             text="🎨 生成封面",
             command=self.generate_covers,
             font=("Arial", 12, "bold"),
@@ -826,7 +837,11 @@ Max Tokens: {task.config['max_tokens']}
         with open(os.path.join(output_folder, 'category.txt'), 'w', encoding='utf-8') as f:
             f.write(task.genre)
 
-        # 5. 保存章节大纲（每章一个prompt文件：chapter_X_prompt.txt）
+        # 5. 保存 age.txt
+        with open(os.path.join(output_folder, 'age.txt'), 'w', encoding='utf-8') as f:
+            f.write(parsed_data.get('age_category', '') or '')
+
+        # 6. 保存章节大纲（每章一个prompt文件：chapter_X_prompt.txt）
         chapters = parsed_data.get('chapters', [])
         for chapter in chapters:
             ch_num = chapter.get('number', 0)
@@ -860,11 +875,11 @@ Max Tokens: {task.config['max_tokens']}
                 if 'characters' in chapter:
                     f.write(f"Characters: {chapter['characters']}\n")
 
-        # 6. 保存完整大纲备份
+        # 7. 保存完整大纲备份
         with open(os.path.join(output_folder, '_full_outline.txt'), 'w', encoding='utf-8') as f:
             f.write(result_text)
 
-        # 7. 保存写作用的精简Prompt（_writing_prompt.txt）
+        # 8. 保存写作用的精简Prompt（_writing_prompt.txt）
         self._save_writing_prompt(output_folder, result_text, parsed_data)
 
         return output_folder
@@ -1440,6 +1455,99 @@ Max Tokens: {task.config['max_tokens']}
         ).pack(side=tk.RIGHT, padx=5)
 
     # === 封面生成相关方法 ===
+    def preview_cover_prompt(self):
+        """预览封面生成Prompt"""
+        if not self.cover_folders:
+            messagebox.showwarning("警告", "请先选择Outline文件夹")
+            return
+
+        # 如果选择了多个文件夹，预览第一个
+        folder = self.cover_folders[0]
+        folder_name = os.path.basename(folder)
+
+        try:
+            # 读取outline信息
+            outline_info = self._read_outline_info(folder)
+
+            # 构建prompt
+            prompt = self._create_cover_prompt(outline_info)
+
+            # 创建预览窗口
+            preview_window = tk.Toplevel(self.window)
+            preview_window.title(f"封面Prompt预览 - {folder_name}")
+            preview_window.geometry("900x700")
+
+            # 标题
+            title_label = tk.Label(
+                preview_window,
+                text=f"📝 封面生成Prompt预览\n{outline_info['title']} ({outline_info['genre']})",
+                font=("Arial", 14, "bold"),
+                bg="#9C27B0",
+                fg="white",
+                pady=15
+            )
+            title_label.pack(fill=tk.X)
+
+            # 提示信息
+            info_frame = tk.Frame(preview_window, bg="#f5f5f5", padx=10, pady=10)
+            info_frame.pack(fill=tk.X, padx=10, pady=(10, 5))
+
+            tk.Label(
+                info_frame,
+                text=f"文件夹: {folder_name}",
+                font=("Arial", 10),
+                bg="#f5f5f5",
+                anchor="w"
+            ).pack(fill=tk.X)
+
+            tk.Label(
+                info_frame,
+                text=f"Prompt长度: {len(prompt)} 字符",
+                font=("Arial", 10),
+                bg="#f5f5f5",
+                fg="gray",
+                anchor="w"
+            ).pack(fill=tk.X)
+
+            if len(self.cover_folders) > 1:
+                tk.Label(
+                    info_frame,
+                    text=f"注: 已选择 {len(self.cover_folders)} 个文件夹，当前预览第一个",
+                    font=("Arial", 9),
+                    bg="#f5f5f5",
+                    fg="orange",
+                    anchor="w"
+                ).pack(fill=tk.X)
+
+            # Prompt显示区域
+            prompt_frame = tk.Frame(preview_window, padx=10, pady=5)
+            prompt_frame.pack(fill=tk.BOTH, expand=True)
+
+            prompt_text = scrolledtext.ScrolledText(
+                prompt_frame,
+                wrap=tk.WORD,
+                font=("Courier", 9),
+                height=25
+            )
+            prompt_text.pack(fill=tk.BOTH, expand=True)
+            prompt_text.insert(tk.END, prompt)
+            prompt_text.config(state=tk.DISABLED)
+
+            # 按钮区域
+            button_frame = tk.Frame(preview_window, pady=10)
+            button_frame.pack(fill=tk.X)
+
+            tk.Button(
+                button_frame,
+                text="关闭",
+                command=preview_window.destroy,
+                width=15,
+                font=("Arial", 11)
+            ).pack(pady=5)
+
+        except Exception as e:
+            messagebox.showerror("错误", f"预览Prompt失败:\n{str(e)}")
+
     def add_cover_folder(self):
         """添加outline文件夹"""
         folder = filedialog.askdirectory(title="选择Outline文件夹", initialdir="outlines")
@@ -1568,11 +1676,23 @@ Max Tokens: {task.config['max_tokens']}
             with open(category_file, 'r', encoding='utf-8') as f:
                 info['genre'] = f.read().strip()
 
-        # 读取完整outline
+        # 读取完整outline（优先读取_full_outline.txt）
+        full_outline_file = os.path.join(folder, '_full_outline.txt')
         writing_prompt_file = os.path.join(folder, '_writing_prompt.txt')
-        if os.path.exists(writing_prompt_file):
+
+        if os.path.exists(full_outline_file):
+            with open(full_outline_file, 'r', encoding='utf-8') as f:
+                info['outline'] = f.read()
+        elif os.path.exists(writing_prompt_file):
             with open(writing_prompt_file, 'r', encoding='utf-8') as f:
                 info['outline'] = f.read()
+
+        # 读取tags
+        tags_file = os.path.join(folder, 'tags.txt')
+        if os.path.exists(tags_file):
+            with open(tags_file, 'r', encoding='utf-8') as f:
+                tags_text = f.read().strip()
+                info['tags'] = [tag.strip() for tag in tags_text.split(',') if tag.strip()]
 
         return info
 
@@ -1580,7 +1700,8 @@ Max Tokens: {task.config['max_tokens']}
         """构建封面生成prompt"""
         title = outline_info['title']
         genre = outline_info['genre'].lower()
-        outline = outline_info['outline'][:2000]  # 只取前2000字符
+        outline = outline_info['outline']  # 使用完整outline
+        tags = outline_info.get('tags', [])
 
         # 根据genre定制prompt
         genre_styles = {
@@ -1589,32 +1710,37 @@ Max Tokens: {task.config['max_tokens']}
             'fantasy': 'epic fantasy with magical elements, mystical atmosphere, vibrant colors',
             'mystery': 'mysterious and suspenseful mood, noir style, dramatic lighting',
             'scifi': 'futuristic sci-fi aesthetic, high-tech elements, cool blue tones',
-            'thriller': 'intense and suspenseful, high contrast, dramatic composition'
+            'thriller': 'intense and suspenseful, high contrast, dramatic composition',
+            'urban': 'modern urban setting, sleek and stylish, contemporary aesthetic',
+            'action': 'dynamic and energetic, explosive composition, high adrenaline'
         }
 
         style = genre_styles.get(genre, 'professional and cinematic aesthetic, dramatic lighting')
 
-        prompt = f"""Create a professional book cover for "{title}".
+        # 构建完整的prompt，包含完整outline
+        prompt = f"""Create a professional book cover image for "{title}".
 
 Genre: {genre}
+Tags: {', '.join(tags[:5]) if tags else 'N/A'}
 
-Visual style:
+Visual Style Requirements:
 - {style}
-- Photorealistic but with cinematic quality
-- High contrast lighting
-- Professional book cover composition
+- Photorealistic with cinematic quality
+- High contrast dramatic lighting
+- Professional publishing-grade composition
+- Clear focal point with atmospheric background
 
-Based on story outline:
-{outline[:500]}...
+Story Context (use this to inform the visual design):
+{outline}
 
-Technical requirements:
-- Vertical orientation for book cover (portrait)
-- Clean composition with space for title text
-- Sharp focus on main subject
-- Atmospheric background
-- Size: 1024x1792
+Technical Specifications:
+- Vertical portrait orientation (1024x1792)
+- Composition leaves space for title overlay
+- Sharp focus on main visual elements
+- Evocative of {genre} genre atmosphere
+- Professional book cover quality
 
-The cover should evoke the mood and atmosphere of a {genre} novel, with professional publishing quality."""
+Design a visually striking cover that captures the essence and mood of this {genre} story."""
 
         return prompt
 
