@@ -40,116 +40,89 @@ PROMPTS_FILE = get_resource_path('data/prompts.json')
 
 
 # 默认Prompt模板
-DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件中的故事改编成一篇爆款本土化英文小说大纲。
+DEFAULT_OUTLINE_PROMPT = """你是英语网文作者，将附件改编成{end_chapter}章英文小说大纲。
 
-【核心任务】
-起一个 Wattpad 网文标题，写 blurb（简介，少于 3000 characters），选择类型和 tags（最多 20 个），构建完整的世界观、角色表和详细的章节大纲。
+本土化要求：
+- 西方背景（美国/英国/欧洲），禁用中文名/地名/文化
+- 人名：{male_names}（男）/ {female_names}（女）
+- 反派建议：Angela（傲慢/嫉妒型）
+- 日常：西方食物/货币/社交
+- 语言：地道英语
 
-【翻译本土化要求】
-1. **地理/文化背景**：改为非亚洲国家背景
-2. **人名**：
-   - 优先使用提供的英文名作为主要角色
-   - 如需更多角色可自由创造英文名
-   - 避免中文和拼音
-   - 典型女反派角色建议：Angela（适合傲慢、嫉妒、背后捅刀子类型）
+剧情要求：
+- 从原文扩展到{end_chapter}章
+- 节奏快、有反转、够爽
+- 每章3-5个爽点
 
-3. **日常细节本土化**：
-   - 食物/饮品、货币单位、计量单位、网络平台等
+简洁原则：
+- Summary: 100-150词
+- 人物：2-3句
+- 场景：具体不啰嗦
 
-4. **语言风格**：地道英语口语，避免中式英语
+类型：{genre}
+风格：{style}
 
-【剧情扩展要求】⭐
-- 原文可能很短（如2章），你需要扩展到要求的章节数（如15章、50章、100章）
-- 保证剧情合理、连贯、有吸引力
-- 节奏快、有反转、让读者感觉爽
-
-【重要：简洁性要求】🎯
-- 用最少的语言解释清楚
-- 章节大纲Summary控制在100-150词
-- 不要啰嗦，不要重复
-- 关键信息点到即止
-
-【类型】
-{genre}
-
-【建议人名】（可使用或自创）
-男性: {male_names}
-女性: {female_names}
-
-【作者风格】
-{style}
-
-【要求章节数】
-第 1 章到第 {end_chapter} 章（共 {end_chapter} 章）
-
-【输出格式】
-请按以下格式输出（纯文本，不要JSON）：
+输出格式（纯文本）：
 
 ===== TITLE =====
-[英文标题]
+[标题，避免The XX]
 
 ===== BLURB =====
-[简介，少于3000字符]
+[简介，<3000字符]
 
 ===== CATEGORY =====
 {genre}
 
 ===== TAGS =====
-[用逗号分隔，例如: #SlowBurn, #ForcedProximity, #AlphaMale]
+#Tag1, #Tag2, #Tag3（最多20个）
 
 ===== AGE_CATEGORY =====
 [Young Adult / New Adult / Adult]
 
 ===== WORLD_SETTING =====
-[世界观，150-200词，简洁描述背景设定]
+[150-200词背景设定]
 
 ===== MAIN_CHARACTERS =====
-[每个角色简洁描述，格式：]
 
-Character 1: [Name] - [Gender] - [protagonist/antagonist/supporting]
-Personality: [2-3个关键性格特点]
-Background: [1-2句背景]
-
-Character 2: [Name] - [Gender] - [Role]
-Personality: [2-3个关键特点]
+Character 1: [名] - [性别] - [protagonist/antagonist/supporting]
+Personality: [2-3特质]
 Background: [1-2句]
 
-===== CHAPTER_OUTLINES =====
-[使用结构化大纲格式，每章包含：Opening, Development, Conflict, Climax, Hook, Key Scenes]
+Character 2: [名] - [性别] - [定位]
+Personality: [特质]
+Background: [背景]
 
-Chapter 1: [章节标题]
-Opening: [开场场景，1-2句话描述如何吸引读者]
-Development: [情节发展，2-3句话]
-Conflict: [冲突点，1-2句话]
-Climax: [高潮时刻，1-2句话]
-Hook: [结尾钩子，让读者想继续看下一章，1句话]
-Key Scenes (expand each fully): [列出需要详细扩展的关键场景]
-1. [场景名] - [具体描述，包括对话、动作、情感]
-2. [场景名] - [具体描述]
-3. [场景名] - [具体描述]
-[根据需要添加更多场景，通常5-8个场景]
+===== CHAPTER_OUTLINES =====
+
+Chapter 1: [标题]
+
+Summary (≈120 words): [核心剧情]
+
+Opening: [开场，1-2句]
+Development: [发展，2-3句]
+Conflict: [冲突，1-2句]
+Climax: [高潮，1-2句]
+Hook: [钩子，1句]
+
+Key Scenes (expand each fully):
+1. [场景名] - [具体描述：对话/动作/情绪]
+2. [场景名] - [互动/冲突/转折]
+3. [场景名] - [爽点/满足感]
+4-5. [继续5-8个场景]
 
 Chapter 2: [标题]
-Opening: [开场]
-Development: [发展]
-Conflict: [冲突]
-Climax: [高潮]
-Hook: [钩子]
+Summary (≈120 words): [...]
+Opening: [...]
+Development: [...]
+Conflict: [...]
+Climax: [...]
+Hook: [...]
 Key Scenes (expand each fully):
-1. [场景描述]
-2. [场景描述]
-3. [场景描述]
+1-5. [...]
 
-[继续到第 {end_chapter} 章...]
+[继续到第{end_chapter}章]
 
-===== END =====
-
-【最后提醒】
-1. 必须是纯文本格式，严格按上述格式
-2. 每章的Key Scenes要具体，给出详细场景描述
-3. Opening/Development/Conflict/Climax/Hook要简洁有力
-4. Key Scenes帮助作者扩展章节，每个场景应包含对话、动作、情感等元素
-5. 如果原文很短，合理扩展剧情满足章节数要求"""
+===== END ====="""
 
 
 DEFAULT_WRITER_PROMPT = """你是一个专业的英语网文作家。根据以下信息写作章节内容。
