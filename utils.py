@@ -4,6 +4,7 @@
 import os
 import re
 import json
+import http.client
 from datetime import datetime
 
 
@@ -338,3 +339,111 @@ def load_project_metadata(project_folder):
             metadata['genre'] = f.read().strip()
 
     return metadata
+
+
+def call_api_with_http_client(api_key, base_url, model, messages, temperature=0.8, max_tokens=8000):
+    """使用http.client调用API（支持Gemini等模型）
+
+    这个方法适用于Gemini等需要特殊处理的API端点。
+
+    Args:
+        api_key: API密钥
+        base_url: API基础URL（如 "https://yunwuapi.com/v1/"）
+        model: 模型名称
+        messages: 消息列表 [{"role": "system/user", "content": "..."}]
+        temperature: 温度参数
+        max_tokens: 最大token数
+
+    Returns:
+        {
+            'success': True/False,
+            'content': 响应内容（成功时）,
+            'usage': token使用统计（成功时）,
+            'error': 错误信息（失败时）,
+            'details': 详细信息（失败时）
+        }
+    """
+    # 合并system和user消息为一条user消息（某些API要求这样）
+    combined_content = ""
+    for msg in messages:
+        if msg['role'] == 'system':
+            combined_content += msg['content'] + "\n\n"
+        elif msg['role'] == 'user':
+            combined_content += msg['content']
+
+    # 构建请求payload
+    payload = json.dumps({
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": combined_content
+            }
+        ],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": False
+    })
+
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {api_key}'
+    }
+
+    # 解析URL
+    if base_url.startswith('https://'):
+        host = base_url.replace('https://', '').rstrip('/')
+        # 提取path
+        parts = host.split('/', 1)
+        host = parts[0]
+        path = '/' + parts[1] if len(parts) > 1 else ''
+    elif base_url.startswith('http://'):
+        host = base_url.replace('http://', '').rstrip('/')
+        parts = host.split('/', 1)
+        host = parts[0]
+        path = '/' + parts[1] if len(parts) > 1 else ''
+    else:
+        host = base_url.rstrip('/')
+        path = ''
+
+    # 添加/chat/completions端点
+    if not path.endswith('/chat/completions'):
+        path = path.rstrip('/') + '/chat/completions'
+
+    conn = None
+    try:
+        # 使用HTTPS连接
+        conn = http.client.HTTPSConnection(host, timeout=300)
+
+        # 发送请求
+        conn.request("POST", path, payload, headers)
+        response = conn.getresponse()
+        data = response.read().decode('utf-8')
+
+        if response.status == 200:
+            response_data = json.loads(data)
+            content = response_data['choices'][0]['message']['content']
+            usage = response_data.get('usage', {})
+
+            return {
+                'success': True,
+                'content': content,
+                'usage': usage
+            }
+        else:
+            return {
+                'success': False,
+                'error': f"API返回状态码: {response.status}",
+                'details': data
+            }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'details': f"连接失败: {type(e).__name__}"
+        }
+
+    finally:
+        if conn:
+            conn.close()

@@ -14,7 +14,8 @@ from prompt_manager import PromptManager
 from utils import (
     extract_genre_from_filename,
     extract_title_from_filename,
-    parse_json_from_llm_response
+    parse_json_from_llm_response,
+    call_api_with_http_client
 )
 
 
@@ -132,18 +133,43 @@ class OutlineWorker:
             print("✓ API客户端初始化完成")
             print("正在调用AI...")
 
-            # 调用API
-            response = self.client.chat.completions.create(
-                model=self.config.get('model', 'gpt-4-turbo-preview'),
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"原文内容：\n\n{content}"}
-                ],
-                temperature=self.config.get('temperature', 0.8),
-                max_tokens=self.config.get('max_tokens', 8000)
-            )
+            # 检测模型类型，决定使用哪种API调用方式
+            model = self.config.get('model', 'gpt-4-turbo-preview')
+            use_http_client = 'gemini' in model.lower() or 'gpt-5' in model.lower()
 
-            result_text = response.choices[0].message.content
+            if use_http_client:
+                # 使用http.client方式（适合Gemini等模型）
+                print(f"检测到特殊模型 '{model}'，使用http.client方式调用API...")
+                result = call_api_with_http_client(
+                    api_key=self.config['api_key'],
+                    base_url=self.config.get('base_url', 'https://api.openai.com/v1/'),
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"原文内容：\n\n{content}"}
+                    ],
+                    temperature=self.config.get('temperature', 0.8),
+                    max_tokens=self.config.get('max_tokens', 8000)
+                )
+
+                if not result['success']:
+                    raise Exception(f"API调用失败: {result['error']}\n详情: {result.get('details', 'N/A')}")
+
+                result_text = result['content']
+            else:
+                # 使用标准OpenAI客户端方式
+                print(f"使用标准OpenAI客户端调用模型 '{model}'...")
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"原文内容：\n\n{content}"}
+                    ],
+                    temperature=self.config.get('temperature', 0.8),
+                    max_tokens=self.config.get('max_tokens', 8000)
+                )
+
+                result_text = response.choices[0].message.content
 
             print("✓ AI响应完成")
 

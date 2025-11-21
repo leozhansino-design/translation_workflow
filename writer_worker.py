@@ -17,7 +17,8 @@ from utils import (
     load_chapter_content,
     save_chapter_file,
     validate_chapter_length,
-    save_project_metadata
+    save_project_metadata,
+    call_api_with_http_client
 )
 
 
@@ -337,23 +338,57 @@ class WriterWorker:
         # 保存Prompt日志（用于调试）
         self.save_prompt_log(batch_start, batch_end, full_prompt, prompt_vars)
 
-        # 调用API
-        response = self.client.chat.completions.create(
-            model=self.config.get('model', 'gpt-4-turbo-preview'),
-            messages=[
-                {"role": "system", "content": full_prompt},
-                {"role": "user", "content": f"请写作 Chapter {batch_start} - {batch_end}"}
-            ],
-            temperature=self.config.get('temperature', 0.8),
-            max_tokens=self.config.get('max_tokens', 8000)
-        )
+        # 检测模型类型，决定使用哪种API调用方式
+        model = self.config.get('model', 'gpt-4-turbo-preview')
+        use_http_client = 'gemini' in model.lower() or 'gpt-5' in model.lower()
 
-        # 更新统计
-        self.total_tokens += response.usage.total_tokens
-        self.total_cost += self.calculate_cost(response.usage)
+        if use_http_client:
+            # 使用http.client方式（适合Gemini等模型）
+            print(f"使用http.client方式调用模型 '{model}'...")
+            result = call_api_with_http_client(
+                api_key=self.config['api_key'],
+                base_url=self.config.get('base_url', 'https://api.openai.com/v1/'),
+                model=model,
+                messages=[
+                    {"role": "system", "content": full_prompt},
+                    {"role": "user", "content": f"请写作 Chapter {batch_start} - {batch_end}"}
+                ],
+                temperature=self.config.get('temperature', 0.8),
+                max_tokens=self.config.get('max_tokens', 8000)
+            )
 
-        # 解析章节
-        result_text = response.choices[0].message.content
+            if not result['success']:
+                raise Exception(f"API调用失败: {result['error']}\n详情: {result.get('details', 'N/A')}")
+
+            result_text = result['content']
+
+            # 更新统计（从usage中获取）
+            if result.get('usage'):
+                self.total_tokens += result['usage'].get('total_tokens', 0)
+                # 估算费用（如果没有usage信息）
+                prompt_tokens = result['usage'].get('prompt_tokens', 0)
+                completion_tokens = result['usage'].get('completion_tokens', 0)
+                if prompt_tokens > 0 and completion_tokens > 0:
+                    self.total_cost += self.calculate_cost_from_tokens(prompt_tokens, completion_tokens)
+        else:
+            # 使用标准OpenAI客户端方式
+            print(f"使用标准OpenAI客户端调用模型 '{model}'...")
+            response = self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": full_prompt},
+                    {"role": "user", "content": f"请写作 Chapter {batch_start} - {batch_end}"}
+                ],
+                temperature=self.config.get('temperature', 0.8),
+                max_tokens=self.config.get('max_tokens', 8000)
+            )
+
+            # 更新统计
+            self.total_tokens += response.usage.total_tokens
+            self.total_cost += self.calculate_cost(response.usage)
+
+            # 解析章节
+            result_text = response.choices[0].message.content
         chapters = self.parse_chapters_from_response(result_text, batch_start, batch_end)
 
         return chapters
@@ -363,6 +398,12 @@ class WriterWorker:
         # 这里使用GPT-4 Turbo的定价作为示例
         input_cost = (usage.prompt_tokens / 1000) * 0.01
         output_cost = (usage.completion_tokens / 1000) * 0.03
+        return input_cost + output_cost
+
+    def calculate_cost_from_tokens(self, prompt_tokens, completion_tokens):
+        """从token数计算费用"""
+        input_cost = (prompt_tokens / 1000) * 0.01
+        output_cost = (completion_tokens / 1000) * 0.03
         return input_cost + output_cost
 
     def validate_and_save_chapters(self, chapters):

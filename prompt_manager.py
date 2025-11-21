@@ -115,17 +115,30 @@ Personality: [2-3个关键特点]
 Background: [1-2句]
 
 ===== CHAPTER_OUTLINES =====
-[每章格式：]
+[使用结构化大纲格式，每章包含：Opening, Development, Conflict, Climax, Hook, Key Scenes]
 
 Chapter 1: [章节标题]
-Summary: [100-150词剧情概要，简洁清晰]
-Key Events: [事件1], [事件2], [事件3]
-Characters: [角色名，逗号分隔]
+Opening: [开场场景，1-2句话描述如何吸引读者]
+Development: [情节发展，2-3句话]
+Conflict: [冲突点，1-2句话]
+Climax: [高潮时刻，1-2句话]
+Hook: [结尾钩子，让读者想继续看下一章，1句话]
+Key Scenes (expand each fully): [列出需要详细扩展的关键场景]
+1. [场景名] - [具体描述，包括对话、动作、情感]
+2. [场景名] - [具体描述]
+3. [场景名] - [具体描述]
+[根据需要添加更多场景，通常5-8个场景]
 
 Chapter 2: [标题]
-Summary: [100-150词]
-Key Events: [列表]
-Characters: [列表]
+Opening: [开场]
+Development: [发展]
+Conflict: [冲突]
+Climax: [高潮]
+Hook: [钩子]
+Key Scenes (expand each fully):
+1. [场景描述]
+2. [场景描述]
+3. [场景描述]
 
 [继续到第 {end_chapter} 章...]
 
@@ -133,9 +146,10 @@ Characters: [列表]
 
 【最后提醒】
 1. 必须是纯文本格式，严格按上述格式
-2. Summary保持简洁（100-150词），不要超出
-3. 用最少的语言说清楚关键情节
-4. 如果原文很短，合理扩展剧情满足章节数要求"""
+2. 每章的Key Scenes要具体，给出详细场景描述
+3. Opening/Development/Conflict/Climax/Hook要简洁有力
+4. Key Scenes帮助作者扩展章节，每个场景应包含对话、动作、情感等元素
+5. 如果原文很短，合理扩展剧情满足章节数要求"""
 
 
 DEFAULT_WRITER_PROMPT = """你是一个专业的英语网文作家。根据以下信息写作章节内容。
