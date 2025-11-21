@@ -8,6 +8,7 @@ import threading
 import os
 import json
 import time
+import traceback
 from datetime import datetime
 
 from writer_worker import WriterWorker
@@ -507,9 +508,219 @@ class WritingToolWindow:
         }
 
     def preview_prompt(self, task):
-        """预览Prompt"""
-        # TODO: 根据当前进度动态生成prompt预览
-        messagebox.showinfo("预览Prompt", f"功能开发中...\n任务：{task.title}\n当前章节：{task.current_chapter}")
+        """预览Prompt - 显示实际会发送给API的完整prompt"""
+        try:
+            # 读取outline文件夹
+            outline_folder = task.outline_folder
+
+            # 1. 读取 _writing_prompt.txt（基础prompt）
+            writing_prompt_file = os.path.join(outline_folder, '_writing_prompt.txt')
+            if not os.path.exists(writing_prompt_file):
+                messagebox.showerror("错误", "找不到 _writing_prompt.txt 文件")
+                return
+
+            with open(writing_prompt_file, 'r', encoding='utf-8') as f:
+                base_prompt = f.read()
+
+            # 2. 确定当前要生成的章节范围
+            # 扫描已生成的章节
+            project_folder = task.config.get('project_folder', outline_folder)
+            if os.path.exists(project_folder):
+                scan_result = scan_chapter_files(project_folder)
+                max_chapter = scan_result['max_chapter']
+            else:
+                max_chapter = 0
+
+            # 计算下一批次
+            config_start = task.config.get('start_chapter', 1)
+            batch_size = task.config.get('batch_size', 3)
+
+            next_start = max(max_chapter + 1, config_start)
+            next_end = min(next_start + batch_size - 1, task.config.get('end_chapter', 100))
+
+            # 3. 读取相关章节的prompts
+            chapter_prompts = ""
+
+            # 如果不是从第1章开始，添加上一章的prompt
+            if next_start > 1:
+                prev_chapter_prompt_file = os.path.join(outline_folder, f'chapter_{next_start - 1}_prompt.txt')
+                if os.path.exists(prev_chapter_prompt_file):
+                    with open(prev_chapter_prompt_file, 'r', encoding='utf-8') as f:
+                        chapter_prompts += f"===== 上一章 (Chapter {next_start - 1}) =====\n"
+                        chapter_prompts += f.read() + "\n\n"
+
+            # 添加当前批次所有章节的prompts
+            for ch_num in range(next_start, next_end + 1):
+                chapter_prompt_file = os.path.join(outline_folder, f'chapter_{ch_num}_prompt.txt')
+                if os.path.exists(chapter_prompt_file):
+                    with open(chapter_prompt_file, 'r', encoding='utf-8') as f:
+                        chapter_prompts += f.read() + "\n\n"
+
+            # 4. 组合完整的prompt
+            full_prompt = base_prompt + "\n\n===== CHAPTER_OUTLINES =====\n" + chapter_prompts
+
+            # 5. 检查是否有前文（上一章的最后2000字符）
+            previous_context = ""
+            if next_start > 1:
+                prev_chapter_file = os.path.join(project_folder, f'chapter_{next_start - 1}.txt')
+                if os.path.exists(prev_chapter_file):
+                    try:
+                        with open(prev_chapter_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            # 提取正文（去掉元数据）
+                            if '---' in content:
+                                content = content.split('---')[0]
+                            previous_context = content[-2000:] if len(content) > 2000 else content
+                    except:
+                        pass
+
+            if previous_context:
+                full_prompt += f"\n\n===== PREVIOUS_CONTEXT =====\n{previous_context}\n"
+
+            # User prompt
+            user_prompt = f"请写作 Chapter {next_start} - {next_end}"
+
+            # 6. 显示在窗口中
+            self._show_prompt_window(task, full_prompt, user_prompt, next_start, next_end, max_chapter)
+
+        except Exception as e:
+            messagebox.showerror("错误", f"预览Prompt失败: {str(e)}\n{traceback.format_exc()}")
+
+    def _show_prompt_window(self, task, system_prompt, user_prompt, next_start, next_end, max_chapter):
+        """显示Prompt预览窗口"""
+        # 创建窗口
+        prompt_window = tk.Toplevel(self.window)
+        prompt_window.title(f"Prompt预览 - {task.title}")
+        prompt_window.geometry("900x700")
+
+        # 顶部信息
+        info_frame = tk.Frame(prompt_window, bg="#f0f0f0", padx=10, pady=10)
+        info_frame.pack(fill=tk.X)
+
+        tk.Label(
+            info_frame,
+            text=f"📖 {task.title}",
+            font=("Arial", 14, "bold"),
+            bg="#f0f0f0"
+        ).pack(anchor=tk.W)
+
+        tk.Label(
+            info_frame,
+            text=f"已完成: {max_chapter} 章  |  下一批次: Chapter {next_start}-{next_end}",
+            font=("Arial", 10),
+            bg="#f0f0f0",
+            fg="blue"
+        ).pack(anchor=tk.W, pady=5)
+
+        tk.Label(
+            info_frame,
+            text=f"模型: {task.config.get('model', 'N/A')}  |  Temperature: {task.config.get('temperature', 0.8)}  |  Max Tokens: {task.config.get('max_tokens', 20000)}",
+            font=("Arial", 9),
+            bg="#f0f0f0",
+            fg="gray"
+        ).pack(anchor=tk.W)
+
+        # 统计信息
+        system_chars = len(system_prompt)
+        user_chars = len(user_prompt)
+        total_chars = system_chars + user_chars
+
+        tk.Label(
+            info_frame,
+            text=f"System Prompt: {system_chars:,} 字符  |  User Prompt: {user_chars:,} 字符  |  总计: {total_chars:,} 字符",
+            font=("Arial", 9, "bold"),
+            bg="#f0f0f0",
+            fg="#d32f2f"
+        ).pack(anchor=tk.W, pady=5)
+
+        # Notebook (标签页)
+        notebook = ttk.Notebook(prompt_window)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Tab 1: System Prompt
+        system_frame = tk.Frame(notebook)
+        notebook.add(system_frame, text="System Prompt")
+
+        system_text = scrolledtext.ScrolledText(
+            system_frame,
+            wrap=tk.WORD,
+            font=("Courier", 10),
+            bg="#f5f5f5"
+        )
+        system_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        system_text.insert('1.0', system_prompt)
+        system_text.config(state=tk.DISABLED)
+
+        # Tab 2: User Prompt
+        user_frame = tk.Frame(notebook)
+        notebook.add(user_frame, text="User Prompt")
+
+        user_text = scrolledtext.ScrolledText(
+            user_frame,
+            wrap=tk.WORD,
+            font=("Courier", 10),
+            bg="#f5f5f5"
+        )
+        user_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        user_text.insert('1.0', user_prompt)
+        user_text.config(state=tk.DISABLED)
+
+        # Tab 3: 完整Prompt（合并后的）
+        combined_frame = tk.Frame(notebook)
+        notebook.add(combined_frame, text="完整Prompt（发送给API）")
+
+        combined_text = scrolledtext.ScrolledText(
+            combined_frame,
+            wrap=tk.WORD,
+            font=("Courier", 10),
+            bg="#fff3cd"
+        )
+        combined_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # 按照实际API调用的方式合并（system + user）
+        combined_prompt = f"{system_prompt}\n\n{user_prompt}"
+        combined_text.insert('1.0', combined_prompt)
+        combined_text.config(state=tk.DISABLED)
+
+        # 底部按钮
+        button_frame = tk.Frame(prompt_window)
+        button_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        tk.Button(
+            button_frame,
+            text="🔄 刷新",
+            command=lambda: [prompt_window.destroy(), self.preview_prompt(task)],
+            width=15,
+            bg="#2196F3",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame,
+            text="📋 复制System Prompt",
+            command=lambda: self._copy_to_clipboard(system_prompt),
+            width=20
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame,
+            text="📋 复制完整Prompt",
+            command=lambda: self._copy_to_clipboard(combined_prompt),
+            width=20
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame,
+            text="关闭",
+            command=prompt_window.destroy,
+            width=10
+        ).pack(side=tk.RIGHT, padx=5)
+
+    def _copy_to_clipboard(self, text):
+        """复制到剪贴板"""
+        self.window.clipboard_clear()
+        self.window.clipboard_append(text)
+        messagebox.showinfo("成功", f"已复制 {len(text):,} 字符到剪贴板")
 
     def start_task(self, task):
         """启动任务"""
