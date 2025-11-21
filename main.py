@@ -195,13 +195,19 @@ class TranslatorApp:
         """显示设置对话框"""
         settings_win = tk.Toplevel(self.window)
         settings_win.title("设置")
-        settings_win.geometry("400x300")
+        settings_win.geometry("500x350")
 
-        # Model选择
+        # Model选择 - 使用Combobox支持自定义输入
         tk.Label(settings_win, text="模型:").grid(row=0, column=0, sticky=tk.W, padx=10, pady=5)
         model_var = tk.StringVar(value=config.get_model())
-        models = ["gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo"]
-        tk.OptionMenu(settings_win, model_var, *models).grid(row=0, column=1, sticky=tk.W, padx=10, pady=5)
+        models = ["gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo", "claude-3-opus-20240229", "claude-3-sonnet-20240229"]
+        model_combo = ttk.Combobox(
+            settings_win,
+            textvariable=model_var,
+            values=models,
+            width=30
+        )
+        model_combo.grid(row=0, column=1, sticky=tk.W, padx=10, pady=5)
 
         # Temperature
         tk.Label(settings_win, text="Temperature:").grid(row=1, column=0, sticky=tk.W, padx=10, pady=5)
@@ -227,6 +233,31 @@ class TranslatorApp:
             width=10
         ).grid(row=2, column=1, sticky=tk.W, padx=10, pady=5)
 
+        # 测试API按钮
+        test_status_label = tk.Label(settings_win, text="", fg="gray")
+        test_status_label.grid(row=3, column=0, columnspan=2, pady=5)
+
+        def test_api_in_settings():
+            """在设置界面测试API连接"""
+            # 先保存当前模型设置
+            config.set('model', model_var.get())
+
+            def test():
+                test_status_label.config(text="测试中...", fg="orange")
+                success, message = self.translator.test_connection()
+                if success:
+                    test_status_label.config(text="✅ 连接成功", fg="green")
+                else:
+                    test_status_label.config(text="❌ " + message, fg="red")
+
+            threading.Thread(target=test, daemon=True).start()
+
+        tk.Button(
+            settings_win,
+            text="测试API连接",
+            command=test_api_in_settings
+        ).grid(row=4, column=0, columnspan=2, pady=5)
+
         def save_settings():
             config.set('model', model_var.get())
             config.set('temperature', temp_var.get())
@@ -238,7 +269,7 @@ class TranslatorApp:
             settings_win,
             text="保存",
             command=save_settings
-        ).grid(row=3, column=0, columnspan=2, pady=20)
+        ).grid(row=5, column=0, columnspan=2, pady=20)
 
     def test_connection(self):
         """测试API连接"""
