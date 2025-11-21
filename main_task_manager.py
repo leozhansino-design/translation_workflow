@@ -7,6 +7,7 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import os
 import json
+import time
 from datetime import datetime
 
 from writer_worker import WriterWorker
@@ -519,8 +520,72 @@ class WritingToolWindow:
         task.status = 'in_progress'
         task.started_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        # TODO: 启动WriterWorker线程
-        messagebox.showinfo("成功", f"任务已启动：{task.title}")
+        # 启动WriterWorker子进程
+        def _run_task():
+            try:
+                # 创建任务配置文件
+                task_id = f"writing_{int(time.time()*1000)}"
+                task_dir = f"tasks/{task_id}"
+                os.makedirs(task_dir, exist_ok=True)
+
+                config_file = os.path.join(task_dir, 'config.json')
+                with open(config_file, 'w', encoding='utf-8') as f:
+                    json.dump(task.config, f, indent=2, ensure_ascii=False)
+
+                # 启动writer_worker_v2.py作为子进程
+                import subprocess
+                import sys
+
+                cmd = [
+                    sys.executable,
+                    'writer_worker_v2.py',
+                    '--config', config_file,
+                    '--task-id', task_id
+                ]
+
+                print(f"🚀 启动任务: {task.title}")
+                print(f"  命令: {' '.join(cmd)}")
+
+                # 运行子进程
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
+
+                # 实时读取输出
+                for line in process.stdout:
+                    print(line.rstrip())
+
+                # 等待完成
+                process.wait()
+
+                if process.returncode == 0:
+                    print(f"✅ 任务完成: {task.title}")
+                    task.status = 'completed'
+                else:
+                    print(f"❌ 任务失败: {task.title} (返回码: {process.returncode})")
+                    task.status = 'failed'
+
+                # 更新UI
+                self.window.after(0, self.refresh_task_list)
+
+            except Exception as e:
+                print(f"❌ 任务异常: {e}")
+                import traceback
+                traceback.print_exc()
+                task.status = 'failed'
+                self.window.after(0, self.refresh_task_list)
+
+        # 在新线程中运行
+        import threading
+        thread = threading.Thread(target=_run_task, daemon=True)
+        thread.start()
+
+        messagebox.showinfo("成功", f"任务已启动：{task.title}\n查看控制台输出了解进度")
         self.refresh_task_list()
 
     def restart_task(self, task):
