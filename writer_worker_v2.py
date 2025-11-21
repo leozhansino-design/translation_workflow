@@ -430,9 +430,15 @@ Now write Chapter {chapter_num} based on the outline above."""
         if current_chapter <= 1:
             return ""
 
-        prev_file = os.path.join(self.project_folder, f'chapter_{current_chapter - 1}.txt')
-        if not os.path.exists(prev_file):
+        # 查找上一章的文件（支持 chapter_X.txt 和 chapter_X_Title.txt 两种格式）
+        import glob
+        prev_pattern = os.path.join(self.project_folder, f'chapter_{current_chapter - 1}*.txt')
+        prev_files = glob.glob(prev_pattern)
+
+        if not prev_files:
             return ""
+
+        prev_file = prev_files[0]  # 取第一个匹配的文件
 
         try:
             with open(prev_file, 'r', encoding='utf-8') as f:
@@ -441,7 +447,7 @@ Now write Chapter {chapter_num} based on the outline above."""
                 if '---' in content:
                     content = content.split('---')[0]
                 context = content[-1500:] if len(content) > 1500 else content
-                print(f"  ✓ 加载前文: {len(context)} 字符")
+                print(f"  ✓ 加载前文: {len(context)} 字符 (from {os.path.basename(prev_file)})")
                 return context
         except:
             return ""

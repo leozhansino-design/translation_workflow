@@ -122,9 +122,9 @@ def scan_chapter_files(project_folder):
     chapter_files = []
     chapter_numbers = []
 
-    # 查找所有ch*.txt文件
+    # 查找所有chapter_*.txt文件（支持 chapter_1.txt 和 chapter_1_Title.txt 格式）
     for filename in os.listdir(project_folder):
-        match = re.match(r'ch(\d+)\.txt$', filename)
+        match = re.match(r'chapter_(\d+)(?:_.*)?\.txt$', filename)
         if match:
             chapter_num = int(match.group(1))
             chapter_numbers.append(chapter_num)
