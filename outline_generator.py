@@ -832,6 +832,134 @@ class OutlineGeneratorWithQueue:
             font=("Arial", 8)
         ).pack(side=tk.LEFT, padx=2)
 
+    def preview_cover_task_prompt(self, task):
+        """预览封面任务的Prompt"""
+        try:
+            # 渲染封面prompt
+            prompt_vars = {
+                'title': task.title,
+                'genre': task.genre,
+                'blurb': task.blurb[:500] if len(task.blurb) > 500 else task.blurb
+            }
+            cover_prompt = self.prompt_mgr.render_cover_prompt(prompt_vars)
+
+            # 创建预览窗口
+            preview_win = tk.Toplevel(self.window)
+            preview_win.title(f"封面Prompt预览 - {task.title}")
+            preview_win.geometry("800x600")
+
+            # 显示prompt
+            text_widget = scrolledtext.ScrolledText(preview_win, wrap=tk.WORD, font=("Arial", 10))
+            text_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            text_widget.insert(1.0, cover_prompt)
+            text_widget.config(state=tk.DISABLED)
+
+        except Exception as e:
+            messagebox.showerror("错误", f"预览Prompt失败: {str(e)}")
+
+    def start_cover_task(self, task):
+        """开始封面生成任务"""
+        if task.status == 'running':
+            messagebox.showinfo("提示", "任务正在运行中")
+            return
+
+        if task.status == 'completed':
+            if not messagebox.askyesno("确认", "任务已完成，是否重新生成？"):
+                return
+
+        # 更新任务状态
+        task.status = 'running'
+        task.started_at = datetime.now()
+
+        # 更新UI
+        if task.task_id in self.cover_task_frames:
+            container = self.cover_task_frames[task.task_id]
+
+            # 更新状态标签
+            if hasattr(container, 'status_label'):
+                container.status_label.config(text="🔄 running", fg="blue")
+
+            # 更新详情标签（添加开始时间）
+            if hasattr(container, 'details_label'):
+                start_time_str = task.started_at.strftime('%H:%M:%S')
+                details_text = f"类型: {task.genre}  |  模型: {task.config.get('model', 'dall-e-3')}  |  开始: {start_time_str}"
+                container.details_label.config(text=details_text)
+
+            # 禁用开始按钮
+            if hasattr(container, 'start_btn'):
+                container.start_btn.config(state=tk.DISABLED)
+
+        # 在后台线程中生成封面
+        def generate_thread():
+            try:
+                # TODO: 调用实际的封面生成逻辑
+                # 这里应该调用DALL-E或其他图片生成API
+                messagebox.showinfo("提示", "封面生成功能正在开发中\n请使用批量封面生成功能")
+
+                # 暂时标记为完成
+                task.status = 'completed'
+                task.completed_at = datetime.now()
+
+                # 更新UI
+                if task.task_id in self.cover_task_frames:
+                    container = self.cover_task_frames[task.task_id]
+                    if hasattr(container, 'status_label'):
+                        container.status_label.config(text="✅ completed", fg="green")
+                    if hasattr(container, 'view_btn'):
+                        container.view_btn.config(state=tk.NORMAL)
+                    if hasattr(container, 'start_btn'):
+                        container.start_btn.config(state=tk.NORMAL)
+
+            except Exception as e:
+                task.status = 'failed'
+                messagebox.showerror("错误", f"封面生成失败: {str(e)}")
+                if task.task_id in self.cover_task_frames:
+                    container = self.cover_task_frames[task.task_id]
+                    if hasattr(container, 'status_label'):
+                        container.status_label.config(text="❌ failed", fg="red")
+                    if hasattr(container, 'start_btn'):
+                        container.start_btn.config(state=tk.NORMAL)
+
+        threading.Thread(target=generate_thread, daemon=True).start()
+
+    def view_cover(self, task):
+        """查看生成的封面"""
+        if not task.cover_path or not os.path.exists(task.cover_path):
+            messagebox.showwarning("警告", "封面文件不存在")
+            return
+
+        try:
+            # 在系统默认查看器中打开图片
+            import platform
+            system = platform.system()
+            if system == 'Darwin':
+                os.system(f'open "{task.cover_path}"')
+            elif system == 'Windows':
+                os.system(f'start "" "{task.cover_path}"')
+            else:
+                os.system(f'xdg-open "{task.cover_path}"')
+        except Exception as e:
+            messagebox.showerror("错误", f"打开封面失败: {str(e)}")
+
+    def remove_cover_task(self, task):
+        """删除封面任务"""
+        if task.status == 'running':
+            messagebox.showwarning("警告", "任务正在运行中，无法删除")
+            return
+
+        if messagebox.askyesno("确认", f"确定要删除封面任务「{task.title}」吗？"):
+            # 从UI中移除
+            if task.task_id in self.cover_task_frames:
+                self.cover_task_frames[task.task_id].destroy()
+                del self.cover_task_frames[task.task_id]
+
+            # 从列表中移除
+            self.cover_tasks = [t for t in self.cover_tasks if t.task_id != task.task_id]
+
+            # 如果队列空了，显示空提示
+            if not self.cover_tasks and hasattr(self, 'cover_empty_label'):
+                self.cover_empty_label.pack()
+
     def preview_task_prompt(self, task):
         """预览任务的Prompt"""
         try:
