@@ -2250,17 +2250,26 @@ Max Tokens: {task.config['max_tokens']}
         """添加outline文件夹"""
         folder = filedialog.askdirectory(title="选择Outline文件夹", initialdir="novels_for_translation")
         if folder:
+            print(f"🔍 选择的文件夹: {folder}")
+
             # 验证文件夹包含必要文件（_full_outline.txt 或 _writing_prompt.txt）
             full_outline = os.path.join(folder, '_full_outline.txt')
             writing_prompt = os.path.join(folder, '_writing_prompt.txt')
 
+            print(f"  检查 _full_outline.txt: {os.path.exists(full_outline)}")
+            print(f"  检查 _writing_prompt.txt: {os.path.exists(writing_prompt)}")
+
             if not os.path.exists(full_outline) and not os.path.exists(writing_prompt):
                 messagebox.showwarning("警告", "所选文件夹不包含 _full_outline.txt 或 _writing_prompt.txt 文件")
+                print(f"  ❌ 验证失败：缺少必要文件")
                 return
 
             if folder not in self.cover_folders:
                 self.cover_folders.append(folder)
+                print(f"  ✅ 文件夹已添加，当前列表: {self.cover_folders}")
                 self._update_cover_folders_label()
+            else:
+                print(f"  ⚠️ 文件夹已存在于列表中")
 
     def clear_cover_folders(self):
         """清空选择的文件夹"""
@@ -2280,22 +2289,30 @@ Max Tokens: {task.config['max_tokens']}
 
     def generate_covers(self):
         """创建封面生成任务（支持批量）"""
+        print(f"\n🎨 开始生成封面流程")
+        print(f"  当前 cover_folders 列表: {self.cover_folders}")
+        print(f"  列表长度: {len(self.cover_folders)}")
+
         if not self.cover_folders:
+            print(f"  ❌ cover_folders 为空，显示警告")
             messagebox.showwarning("警告", "请先选择Outline文件夹")
             return
 
         if not self.api_key_var.get():
+            print(f"  ❌ API Key 未配置")
             messagebox.showwarning("警告", "请先配置API Key")
             return
 
         # 确认创建任务
         if not messagebox.askyesno("确认", f"将为 {len(self.cover_folders)} 个文件夹创建封面生成任务，确认继续？"):
+            print(f"  ⚠️ 用户取消创建任务")
             return
 
         # 创建任务
         created_count = 0
         skipped_count = 0
 
+        print(f"  开始循环创建任务...")
         for folder in self.cover_folders:
             try:
                 # 读取outline信息
@@ -2348,6 +2365,8 @@ Max Tokens: {task.config['max_tokens']}
 
     def _read_outline_info(self, folder):
         """读取outline文件夹信息"""
+        print(f"    📖 读取文件夹信息: {os.path.basename(folder)}")
+
         info = {
             'title': 'Untitled',
             'genre': 'Unknown',
@@ -2360,12 +2379,14 @@ Max Tokens: {task.config['max_tokens']}
         if os.path.exists(title_file):
             with open(title_file, 'r', encoding='utf-8') as f:
                 info['title'] = f.read().strip()
+                print(f"      Title: {info['title']}")
 
         # 读取genre
         category_file = os.path.join(folder, 'category.txt')
         if os.path.exists(category_file):
             with open(category_file, 'r', encoding='utf-8') as f:
                 info['genre'] = f.read().strip()
+                print(f"      Genre: {info['genre']}")
 
         # 读取完整outline（优先读取_full_outline.txt）
         full_outline_file = os.path.join(folder, '_full_outline.txt')
@@ -2374,9 +2395,13 @@ Max Tokens: {task.config['max_tokens']}
         if os.path.exists(full_outline_file):
             with open(full_outline_file, 'r', encoding='utf-8') as f:
                 info['outline'] = f.read()
+                print(f"      使用 _full_outline.txt ({len(info['outline'])} 字符)")
         elif os.path.exists(writing_prompt_file):
             with open(writing_prompt_file, 'r', encoding='utf-8') as f:
                 info['outline'] = f.read()
+                print(f"      使用 _writing_prompt.txt ({len(info['outline'])} 字符)")
+        else:
+            print(f"      ⚠️ 未找到 outline 文件")
 
         # 读取tags
         tags_file = os.path.join(folder, 'tags.txt')
