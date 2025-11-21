@@ -674,7 +674,7 @@ class WritingToolWindow:
         messagebox.showinfo("成功", f"已复制 {len(text):,} 字符到剪贴板")
 
     def start_task(self, task):
-        """启动任务"""
+        """启动任务 - 直接运行worker（不用subprocess，避免exe打包问题）"""
         if task.status == 'in_progress':
             messagebox.showinfo("提示", "任务正在运行中")
             return
@@ -682,21 +682,20 @@ class WritingToolWindow:
         task.status = 'in_progress'
         task.started_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        # 启动WriterWorker子进程
+        # 直接运行WriterWorker（不用subprocess，就像Jupyter代码一样）
         def _run_task():
             try:
-                # 创建任务配置文件
-                task_id = f"writing_{int(time.time()*1000)}"
-                task_dir = f"tasks/{task_id}"
-                os.makedirs(task_dir, exist_ok=True)
-
-                config_file = os.path.join(task_dir, 'config.json')
-
                 print(f"\n{'='*70}")
                 print(f"🚀 启动任务: {task.title}")
                 print(f"{'='*70}")
+
+                # 直接导入并运行worker（不用subprocess！）
+                from writer_worker_v2 import WriterWorkerV2
+
+                # 创建临时配置（不需要文件）
+                task_id = f"writing_{int(time.time()*1000)}"
+
                 print(f"  任务ID: {task_id}")
-                print(f"  配置文件: {config_file}")
                 print(f"\n📝 配置内容:")
                 for key, value in task.config.items():
                     if key == 'api_key':
@@ -704,52 +703,28 @@ class WritingToolWindow:
                     else:
                         print(f"  {key}: {value}")
 
+                # 创建任务目录
+                task_dir = f"tasks/{task_id}"
+                os.makedirs(task_dir, exist_ok=True)
+
+                # 创建临时config文件（worker需要读取）
+                config_file = os.path.join(task_dir, 'config.json')
                 with open(config_file, 'w', encoding='utf-8') as f:
                     json.dump(task.config, f, indent=2, ensure_ascii=False)
 
-                print(f"\n✅ 配置文件已创建")
-
-                # 启动writer_worker_v2.py作为子进程
-                import subprocess
-                import sys
-
-                cmd = [
-                    sys.executable,
-                    'writer_worker_v2.py',
-                    '--config', config_file,
-                    '--task-id', task_id
-                ]
-
-                print(f"\n🔧 执行命令: {' '.join(cmd)}\n")
+                print(f"\n✅ 配置文件已创建: {config_file}")
+                print(f"\n🔧 直接运行 WriterWorkerV2（不用subprocess）...")
                 print(f"{'='*70}\n")
 
-                # 运行子进程
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                    universal_newlines=True
-                )
-
-                # 实时读取输出
-                for line in process.stdout:
-                    print(line.rstrip())
-
-                # 等待完成
-                process.wait()
+                # 直接创建并运行worker（就像Jupyter一样！）
+                worker = WriterWorkerV2(config_file, task_id)
+                worker.run()
 
                 print(f"\n{'='*70}")
-                if process.returncode == 0:
-                    print(f"✅ 任务完成: {task.title}")
-                    task.status = 'completed'
-                else:
-                    print(f"❌ 任务失败: {task.title} (返回码: {process.returncode})")
-                    task.status = 'failed'
+                print(f"✅ 任务完成: {task.title}")
                 print(f"{'='*70}\n")
 
-                # 更新UI
+                task.status = 'completed'
                 self.window.after(0, self.refresh_task_list)
 
             except Exception as e:
