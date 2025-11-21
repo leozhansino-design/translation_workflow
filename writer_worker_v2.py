@@ -579,7 +579,8 @@ Now write Chapter {chapter_num} based on the outline above."""
                 self.update_progress('completed', current_chapter=end_chapter, message='所有章节已完成')
                 return
 
-            self.update_progress('in_progress', current_chapter=start_chapter, message='开始生成')
+            # 开始生成 - current_chapter设为0表示还没有完成任何章节
+            self.update_progress('in_progress', current_chapter=0, message=f'开始生成 Chapter {start_chapter}')
 
             # 逐章节生成（不再批次生成）
             for chapter_num in range(start_chapter, end_chapter + 1):
