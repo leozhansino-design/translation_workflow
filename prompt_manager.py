@@ -40,7 +40,7 @@ PROMPTS_FILE = get_resource_path('data/prompts.json')
 
 
 # 默认Prompt模板
-DEFAULT_OUTLINE_PROMPT = """你是英语网文作者，将附件改编成英文小说大纲。
+DEFAULT_OUTLINE_PROMPT = """你是英语爽文作者，将附件改编成{end_chapter}章{genre}风格小说大纲。
 
 【⚠️ CRITICAL REQUIREMENT - 章节数量要求 ⚠️】
 你必须生成 **准确的 {end_chapter} 章** 大纲。
@@ -49,55 +49,83 @@ DEFAULT_OUTLINE_PROMPT = """你是英语网文作者，将附件改编成英文�
 - 每一章都必须有完整的 Summary, Opening, Development, Conflict, Climax, Hook, Key Scenes
 - 如果你生成的章节数量不是 {end_chapter} 章，这个大纲将被拒绝
 
-本土化要求：
-- 西方背景（美国/英国/欧洲），禁用中文名/地名/文化
+【核心目标】
+生成快节奏、高爽点密度、强钩子的商业爽文大纲
+
+【本土化要求】
+- 西方背景（美国/英国/欧洲），完全西化
 - 人名：{male_names}（男）/ {female_names}（女）
-- 反派建议：Angela（傲慢/嫉妒型）
-- 日常：西方食物/货币/社交
-- 语言：地道英语
+- 典型反派：Angela（傲慢/嫉妒/背后捅刀型）
+- 日常细节：西方食物/货币/社交/职场文化
+- 语言：地道口语英语
 
-剧情要求：
-- 从原文扩展到{end_chapter}章（必须准确）
-- 节奏快、有反转、够爽
-- 每章3-5个爽点
+【剧情设计原则】
+扩展策略：
+- 从原文扩展到{end_chapter}章，保持核心冲突
+- 每3-5章一个大反转
+- 主线清晰，支线服务爽点
 
-简洁原则：
-- Summary: 100-150词
-- 人物：2-3句
-- 场景：具体不啰嗦
+爽点密度（每章必须）：
+- 打脸时刻：主角反击/真相揭露/敌人崩溃
+- 能力展示：主角智商在线/技能爆发/资源到位
+- 情感满足：浪漫进展/亲情回归/友情深化
+- 正义伸张：恶人受罚/冤情昭雪/地位逆转
+- 意外惊喜：隐藏身份曝光/援军出现/关键信息
 
-类型：{genre}
-风格：{style}
+节奏控制：
+- 前3章：快速建立冲突，第一个小高潮
+- 中间章节：爽点+反转交替，不拖沓
+- 最后3章：连续高潮，大决战
 
-输出格式（纯文本）：
+【类型】{genre}
+【类型重点】{genre_focus}
+
+【输出格式】纯文本，严格遵循：
 
 ===== TITLE =====
-[标题，避免The XX]
+[爽文标题，直击核心矛盾，避免The XX]
 
 ===== BLURB =====
 [简介，<3000字符]
+必须包含：
+1. 主角困境（1-2句）
+2. 核心冲突（2-3句）
+3. 反转预告（1句）
+4. 爽点承诺（1-2句）
 
 ===== CATEGORY =====
 {genre}
 
 ===== TAGS =====
-#Tag1, #Tag2, #Tag3（最多20个）
+[最多20个，必须包含爽文标签]
 
 ===== AGE_CATEGORY =====
 [Young Adult / New Adult / Adult]
 
 ===== WORLD_SETTING =====
-[150-200词背景设定]
+[150-200词，聚焦冲突背景]
+- 社会阶层/权力结构
+- 关键规则/系统
+- 主要场景
 
 ===== MAIN_CHARACTERS =====
 
-Character 1: [名] - [性别] - [protagonist/antagonist/supporting]
-Personality: [2-3特质]
-Background: [1-2句]
+主角:
+[名] - [性别] - protagonist
+核心特质：[2-3个]
+起点状态：[困境，1句]
+隐藏优势：[秘密优势，1句]
+目标：[具体目标，1句]
 
-Character 2: [名] - [性别] - [定位]
-Personality: [特质]
-Background: [背景]
+反派:
+[名] - [性别] - main antagonist
+核心特质：[2-3个负面]
+恶行：[具体坏事，1-2句]
+弱点：[如何被打败，1句]
+
+配角1-4:
+[名] - [性别] - [角色定位]
+作用：[功能，1句]
 
 ===== CHAPTER_OUTLINES =====
 
@@ -105,29 +133,28 @@ Background: [背景]
 
 Chapter 1: [标题]
 
-Summary (≈120 words): [核心剧情]
+Summary (≈120 words):
+爽点：[列出2-3个]
+剧情：[简述]
 
-Opening: [开场，1-2句]
-Development: [发展，2-3句]
-Conflict: [冲突，1-2句]
-Climax: [高潮，1-2句]
-Hook: [钩子，1句]
+Opening: [冲突/震惊开场，1-2句]
+Development: [3个场景简述]
+Conflict: [核心对抗，1-2句]
+Climax: [最爽时刻，1-2句]
+Hook: [悬念，1句]
 
-Key Scenes (expand each fully):
-1. [场景名] - [具体描述：对话/动作/情绪]
-2. [场景名] - [互动/冲突/转折]
-3. [场景名] - [爽点/满足感]
-4-5. [继续5-8个场景]
+Key Scenes:
+1. [场景名]
+- 地点+人物：[...]
+- 冲突触发：[...]
+- 对话示例：[2轮+]
+- 爽点时刻：[...]
+- 情绪变化：[...]
+
+2-6. [继续5-8个场景]
 
 Chapter 2: [标题]
-Summary (≈120 words): [...]
-Opening: [...]
-Development: [...]
-Conflict: [...]
-Climax: [...]
-Hook: [...]
-Key Scenes (expand each fully):
-1-5. [...]
+[同样格式]
 
 [继续到第{end_chapter}章]
 
@@ -140,57 +167,92 @@ Key Scenes (expand each fully):
 ===== END ====="""
 
 
-DEFAULT_WRITER_PROMPT = """You are a professional web novel writer. Write addictive English fiction in pure narrative form.
+DEFAULT_WRITER_PROMPT = """You are a professional web novelist. Write addictive fiction that feels human-written.
 
-CRITICAL FORMAT REQUIREMENTS:
-- Output format: "Chapter X: [Title]" followed immediately by the story content
-- DO NOT include ANY structural markers like "爽点1.", "Opening:", "Development:", etc.
-- Write in continuous narrative prose ONLY
-- NO meta-commentary, NO section labels, NO structural annotations
+Requirements:
+- English only
+- Target: 10,000+ characters per chapter (not words)
+- Western settings only (no Asian cultural elements)
 
-CONTENT RULES:
-1. English ONLY - Absolutely no Chinese names, places, or cultural elements
-2. Chapter length: 15,000-20,000 words
-3. Include 3-5 satisfying moments per chapter (victories, reveals, confrontations, romance)
-4. Western setting exclusively (American/British/European names, places, culture)
+Core principles:
+1. Fast pacing: major event every 300-500 words
+2. Multiple payoffs per chapter: victories, reveals, romance, confrontations
+3. Strong hook endings
 
-WRITING STYLE:
-- Short, punchy sentences (10-15 words average)
-- Varied paragraph lengths (1-5 sentences, mostly 1-3)
-- Fast pacing: major event every 200-300 words
-- Mobile-friendly formatting
+Style variations to avoid AI patterns:
+- Mix sentence lengths: some 5 words, some 20 words, some fragments
+- Vary paragraph structure: occasional 1-liner, occasional 4-5 sentences
+- Inconsistent rhythm: speed up action, slow down emotion
+- Strategic imperfections: occasional colloquialisms, casual grammar
+- Natural dialogue: interruptions, trailing off, overlapping speech
+- Sensory details: specific smells, textures, sounds (not just visual)
 
-CHAPTER STRUCTURE (integrate naturally, don't label):
-- Start with immediate action or tension
-- Build through 3-5 major scenes
-- Include satisfying payoffs throughout
-- End with hook/cliffhanger
+Dialogue rules:
+- Keep natural and messy
+- Use contractions heavily (I'm, don't, won't)
+- Include filler words occasionally (well, uh, like)
+- Show interruptions with em-dashes
+- Vary speech patterns per character
 
-DIALOGUE:
-- Natural, conversational exchanges
-- Use contractions (I'm, don't, can't)
-- Interruptions and overlaps
-- Character-specific speech patterns
+Examples of natural dialogue:
+"Look, I don't—" She stopped. "Forget it."
+"You really think I'd—wait, what?"
+He laughed. Not the nice kind. "Yeah. Sure."
 
-EXAMPLE OUTPUT FORMAT:
-Chapter 1: The Beginning
+Avoid these AI tells:
+- Every paragraph same length
+- Overuse of "like" or "as" comparisons
+- Too-perfect sentence structure
+- Repetitive transition words (however, moreover, furthermore)
+- Generic descriptions (piercing eyes, dazzling smile)
+- Explaining emotions after showing them
 
-Emma pushed through the glass doors, her heels clicking against marble. The office was silent.
+Instead:
+- Let actions speak (show trembling hands, don't say "nervous")
+- Use specific details (chipped mug, not beautiful cup)
+- Break grammar rules occasionally for voice
+- Include mundane details mixed with dramatic ones
+- Let some moments breathe without commentary
 
-Too silent.
+Pacing variety:
+- Action scenes: rapid-fire short sentences
+- Emotional scenes: longer, flowing sentences
+- Tension: sentence fragments
+- Relief: casual, conversational tone
 
-"Where is everyone?" She glanced at her phone. 8:47 AM. The place should be buzzing.
+Structure per chapter:
+Opening: hook immediately (conflict/question/action)
+Body: 3-5 major scenes with rising tension
+Climax: biggest moment of chapter
+Ending: cliffhanger or burning question
 
-Lucas appeared from around the corner. His face was pale. "Em, we need to talk."
+Vary your opening hooks:
+- Dialogue first
+- Action mid-scene
+- Internal thought
+- Unexpected statement
+- Sensory detail
 
-"Not now. I have the presentation—"
+Character voice consistency:
+- Track each character's speech patterns
+- Maintain their vocabulary level
+- Keep their emotional baseline
+- Remember their backstory details
 
-"The company's bankrupt."
+World-building subtlety:
+- Drop details through action, not exposition
+- Show culture through behavior
+- Let readers infer setting
+- No information dumps
 
-[Continue the narrative without any structural markers or meta-commentary...]
+Format:
+Chapter [X]: [Title]
 
-WRITE PURE NARRATIVE ONLY. NO LABELS. NO MARKERS. START NOW.
-"""
+[Content starting immediately, no preamble]
+
+Write like a human who sometimes makes interesting choices, not a machine following perfect patterns. Prioritize readability and addiction over technical perfection.
+
+START WRITING."""
 
 
 DEFAULT_COVER_PROMPT_TEMPLATE = """Create a professional book cover image for "{title}".
