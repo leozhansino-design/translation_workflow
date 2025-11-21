@@ -125,59 +125,82 @@ Key Scenes (expand each fully):
 ===== END ====="""
 
 
-DEFAULT_WRITER_PROMPT = """你是一个专业的英语网文作家。根据以下信息写作章节内容。
+DEFAULT_WRITER_PROMPT = """You are a professional web novel writer. Write addictive English fiction in pure narrative form.
 
-【必须遵守的规则】
-1. 每章字符数必须在 9500-30000 之间（包括空格和标点）
-2. 保持故事连贯性和情感张力
-3. 对话要自然、地道，符合角色性格
-4. 避免重复描写和冗长段落
-5. 确保章节独立但互相衔接
+CRITICAL FORMAT REQUIREMENTS:
+- Output format: "Chapter X: [Title]" followed immediately by the story content
+- DO NOT include ANY structural markers like "爽点1.", "Opening:", "Development:", etc.
+- Write in continuous narrative prose ONLY
+- NO meta-commentary, NO section labels, NO structural annotations
 
-【字符数检查】
-- 最少：9500 字符（不能少）
-- 最多：30000 字符（不能超）
-- 如果不符合，自动调整重写
+CONTENT RULES:
+1. English ONLY - Absolutely no Chinese names, places, or cultural elements
+2. Chapter length: 15,000-20,000 words
+3. Include 3-5 satisfying moments per chapter (victories, reveals, confrontations, romance)
+4. Western setting exclusively (American/British/European names, places, culture)
 
-【类型】
-{genre}
+WRITING STYLE:
+- Short, punchy sentences (10-15 words average)
+- Varied paragraph lengths (1-5 sentences, mostly 1-3)
+- Fast pacing: major event every 200-300 words
+- Mobile-friendly formatting
 
-【作者风格】
-{style}
+CHAPTER STRUCTURE (integrate naturally, don't label):
+- Start with immediate action or tension
+- Build through 3-5 major scenes
+- Include satisfying payoffs throughout
+- End with hook/cliffhanger
 
-【世界观】
-{world_setting}
+DIALOGUE:
+- Natural, conversational exchanges
+- Use contractions (I'm, don't, can't)
+- Interruptions and overlaps
+- Character-specific speech patterns
 
-【主要角色】
-{characters}
+EXAMPLE OUTPUT FORMAT:
+Chapter 1: The Beginning
 
-【任务】
-请根据以下大纲写作 Chapter {start_chapter} - {end_chapter}，
-确保：
-1. 突出主角的视角和情感
-2. 推进情节发展
-3. 保持与前文的连贯性（见下文）
-4. 每章字符数 9500-30000
+Emma pushed through the glass doors, her heels clicking against marble. The office was silent.
 
-【前文参考】
-（仅续写时提供）
-{previous_context}
+Too silent.
 
-【章节大纲】
-{chapter_outlines}
+"Where is everyone?" She glanced at her phone. 8:47 AM. The place should be buzzing.
 
-【输出格式】
-每章单独输出，格式如下：
+Lucas appeared from around the corner. His face was pale. "Em, we need to talk."
 
-Chapter {n}: [章节标题]
+"Not now. I have the presentation—"
 
-[正文内容...]
+"The company's bankrupt."
 
----
+[Continue the narrative without any structural markers or meta-commentary...]
 
-（在每章末尾标注字符数）
-Character Count: XXXX
+WRITE PURE NARRATIVE ONLY. NO LABELS. NO MARKERS. START NOW.
 """
+
+
+DEFAULT_COVER_PROMPT_TEMPLATE = """Create a professional book cover image for "{title}".
+
+Genre: {genre}
+Tags: {tags}
+
+Visual Style Requirements:
+- {genre_style}
+- Photorealistic with cinematic quality
+- High contrast dramatic lighting
+- Professional publishing-grade composition
+- Clear focal point with atmospheric background
+
+Story Context (use this to inform the visual design):
+{outline}
+
+Technical Specifications:
+- Vertical portrait orientation (1024x1792)
+- Composition leaves space for title overlay
+- Sharp focus on main visual elements
+- Evocative of {genre} genre atmosphere
+- Professional book cover quality
+
+Design a visually striking cover that captures the essence and mood of this {genre} story."""
 
 
 class PromptManager:
@@ -211,6 +234,17 @@ class PromptManager:
                         {
                             'name': 'Default',
                             'content': DEFAULT_WRITER_PROMPT,
+                            'created_at': datetime.now().isoformat()
+                        }
+                    ],
+                    'active_version': 'Default'
+                },
+                'cover': {
+                    'default': DEFAULT_COVER_PROMPT_TEMPLATE,
+                    'versions': [
+                        {
+                            'name': 'Default',
+                            'content': DEFAULT_COVER_PROMPT_TEMPLATE,
                             'created_at': datetime.now().isoformat()
                         }
                     ],
@@ -360,3 +394,83 @@ class PromptManager:
     def reset_to_default(self):
         """重置为默认Prompt（简化方法）"""
         self.restore_default_outline()
+
+    # === Cover Prompt 管理方法 ===
+    def get_cover_prompt(self, version=None):
+        """获取封面生成Prompt模板"""
+        # 确保cover字段存在（向后兼容）
+        if 'cover' not in self.prompts:
+            self.prompts['cover'] = {
+                'default': DEFAULT_COVER_PROMPT_TEMPLATE,
+                'versions': [
+                    {
+                        'name': 'Default',
+                        'content': DEFAULT_COVER_PROMPT_TEMPLATE,
+                        'created_at': datetime.now().isoformat()
+                    }
+                ],
+                'active_version': 'Default'
+            }
+            self.save_prompts()
+
+        if version is None:
+            version = self.prompts['cover'].get('active_version', 'Default')
+
+        for v in self.prompts['cover']['versions']:
+            if v['name'] == version:
+                return v['content']
+
+        return self.prompts['cover']['default']
+
+    def save_custom_cover_prompt(self, name, content):
+        """保存自定义封面Prompt"""
+        # 确保cover字段存在
+        if 'cover' not in self.prompts:
+            self.prompts['cover'] = {
+                'default': DEFAULT_COVER_PROMPT_TEMPLATE,
+                'versions': [],
+                'active_version': 'Default'
+            }
+
+        for v in self.prompts['cover']['versions']:
+            if v['name'] == name:
+                v['content'] = content
+                v['updated_at'] = datetime.now().isoformat()
+                self.save_prompts()
+                return
+
+        self.prompts['cover']['versions'].append({
+            'name': name,
+            'content': content,
+            'created_at': datetime.now().isoformat()
+        })
+        self.save_prompts()
+
+    def set_active_cover_version(self, version_name):
+        """设置当前使用的封面Prompt版本"""
+        if 'cover' not in self.prompts:
+            self.prompts['cover'] = {
+                'default': DEFAULT_COVER_PROMPT_TEMPLATE,
+                'versions': [{'name': 'Default', 'content': DEFAULT_COVER_PROMPT_TEMPLATE, 'created_at': datetime.now().isoformat()}],
+                'active_version': 'Default'
+            }
+        self.prompts['cover']['active_version'] = version_name
+        self.save_prompts()
+
+    def get_cover_versions(self):
+        """获取所有封面Prompt版本列表"""
+        if 'cover' not in self.prompts:
+            return ['Default']
+        return [v['name'] for v in self.prompts['cover']['versions']]
+
+    def restore_default_cover(self):
+        """恢复默认封面Prompt"""
+        if 'cover' not in self.prompts:
+            self.prompts['cover'] = {
+                'default': DEFAULT_COVER_PROMPT_TEMPLATE,
+                'versions': [{'name': 'Default', 'content': DEFAULT_COVER_PROMPT_TEMPLATE, 'created_at': datetime.now().isoformat()}],
+                'active_version': 'Default'
+            }
+        else:
+            self.prompts['cover']['active_version'] = 'Default'
+        self.save_prompts()

@@ -191,18 +191,16 @@ def save_chapter_file(project_folder, chapter_num, content, metadata=None, title
 
     filepath = os.path.join(project_folder, filename)
 
+    # 只保存纯正文，不添加任何metadata
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(content)
-        f.write('\n\n---\n')
 
-        # 写入元数据
-        if metadata:
-            for key, value in metadata.items():
-                f.write(f'{key}: {value}\n')
-        else:
-            # 默认元数据
-            f.write(f'Character Count: {len(content)}\n')
-            f.write(f'Generated At: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}\n')
+    # metadata信息只在console显示，不写入文件
+    print(f"  💾 章节已保存: {filename}")
+    if metadata:
+        print(f"  📊 元数据: {metadata}")
+    else:
+        print(f"  📊 字符数: {len(content)}")
 
 
 def parse_json_from_llm_response(response_text):

@@ -727,22 +727,12 @@ class WritingToolWindow:
         }
 
     def preview_prompt(self, task):
-        """预览Prompt - 显示实际会发送给API的完整prompt"""
+        """预览Prompt - 显示实际会发送给API的完整prompt（新逻辑：单章节）"""
         try:
             # 读取outline文件夹
             outline_folder = task.outline_folder
 
-            # 1. 读取 _writing_prompt.txt（基础prompt）
-            writing_prompt_file = os.path.join(outline_folder, '_writing_prompt.txt')
-            if not os.path.exists(writing_prompt_file):
-                messagebox.showerror("错误", "找不到 _writing_prompt.txt 文件")
-                return
-
-            with open(writing_prompt_file, 'r', encoding='utf-8') as f:
-                base_prompt = f.read()
-
-            # 2. 确定当前要生成的章节范围
-            # 扫描已生成的章节
+            # 1. 确定下一章节号
             project_folder = task.config.get('project_folder', outline_folder)
             if os.path.exists(project_folder):
                 scan_result = scan_chapter_files(project_folder)
@@ -750,57 +740,82 @@ class WritingToolWindow:
             else:
                 max_chapter = 0
 
-            # 计算下一批次
             config_start = task.config.get('start_chapter', 1)
-            batch_size = task.config.get('batch_size', 3)
+            next_chapter = max(max_chapter + 1, config_start)
 
-            next_start = max(max_chapter + 1, config_start)
-            next_end = min(next_start + batch_size - 1, task.config.get('end_chapter', 100))
+            # 2. 从prompt_mgr获取system prompt（固定的写作规则）
+            system_prompt = self.prompt_mgr.get_writer_prompt()
 
-            # 3. 读取相关章节的prompts
-            chapter_prompts = ""
+            # 3. 读取_writing_prompt.txt（世界观+角色）
+            writing_prompt_file = os.path.join(outline_folder, '_writing_prompt.txt')
+            base_info = ""
+            if os.path.exists(writing_prompt_file):
+                with open(writing_prompt_file, 'r', encoding='utf-8') as f:
+                    base_info = f.read()
 
-            # 如果不是从第1章开始，添加上一章的prompt
-            if next_start > 1:
-                prev_chapter_prompt_file = os.path.join(outline_folder, f'chapter_{next_start - 1}_prompt.txt')
-                if os.path.exists(prev_chapter_prompt_file):
-                    with open(prev_chapter_prompt_file, 'r', encoding='utf-8') as f:
-                        chapter_prompts += f"===== 上一章 (Chapter {next_start - 1}) =====\n"
-                        chapter_prompts += f.read() + "\n\n"
+            # 4. 读取当前章节的summary（只读取单个章节）
+            chapter_summary = ""
 
-            # 添加当前批次所有章节的prompts
-            for ch_num in range(next_start, next_end + 1):
-                chapter_prompt_file = os.path.join(outline_folder, f'chapter_{ch_num}_prompt.txt')
-                if os.path.exists(chapter_prompt_file):
-                    with open(chapter_prompt_file, 'r', encoding='utf-8') as f:
-                        chapter_prompts += f.read() + "\n\n"
+            # 添加上一章summary（如果有）
+            if next_chapter > 1:
+                prev_file = os.path.join(outline_folder, f'chapter_{next_chapter - 1}_prompt.txt')
+                if os.path.exists(prev_file):
+                    with open(prev_file, 'r', encoding='utf-8') as f:
+                        chapter_summary += f"===== Previous Chapter Summary =====\n"
+                        chapter_summary += f.read() + "\n\n"
 
-            # 4. 组合完整的prompt
-            full_prompt = base_prompt + "\n\n===== CHAPTER_OUTLINES =====\n" + chapter_prompts
+            # 添加当前章节summary
+            current_file = os.path.join(outline_folder, f'chapter_{next_chapter}_prompt.txt')
+            if os.path.exists(current_file):
+                with open(current_file, 'r', encoding='utf-8') as f:
+                    chapter_summary += f"===== Current Chapter Outline =====\n"
+                    chapter_summary += f.read() + "\n\n"
 
-            # 5. 检查是否有前文（上一章的最后2000字符）
+            # 5. 构建user prompt
+            user_prompt = f"""【Book Information】
+Title: {task.title}
+Genre: {task.config.get('genre', 'Novel')}
+
+【World & Characters】
+{base_info}
+
+【Chapter Outline】
+{chapter_summary}"""
+
+            # 6. 读取上一章最后1500字符
             previous_context = ""
-            if next_start > 1:
-                prev_chapter_file = os.path.join(project_folder, f'chapter_{next_start - 1}.txt')
+            if next_chapter > 1:
+                prev_chapter_file = os.path.join(project_folder, f'chapter_{next_chapter - 1}.txt')
                 if os.path.exists(prev_chapter_file):
                     try:
                         with open(prev_chapter_file, 'r', encoding='utf-8') as f:
                             content = f.read()
-                            # 提取正文（去掉元数据）
                             if '---' in content:
                                 content = content.split('---')[0]
-                            previous_context = content[-2000:] if len(content) > 2000 else content
+                            previous_context = content[-1500:] if len(content) > 1500 else content
                     except:
                         pass
 
             if previous_context:
-                full_prompt += f"\n\n===== PREVIOUS_CONTEXT =====\n{previous_context}\n"
+                user_prompt += f"""
 
-            # User prompt
-            user_prompt = f"请写作 Chapter {next_start} - {next_end}"
+【Previous Chapter Ending (Last 1500 characters)】
+{previous_context}
+"""
+            else:
+                if next_chapter == 1:
+                    user_prompt += """
 
-            # 6. 显示在窗口中
-            self._show_prompt_window(task, full_prompt, user_prompt, next_start, next_end, max_chapter)
+【Note】
+This is the first chapter - establish the world and hook readers immediately.
+"""
+
+            user_prompt += f"""
+
+Now write Chapter {next_chapter} based on the outline above."""
+
+            # 7. 显示在窗口中
+            self._show_prompt_window(task, system_prompt, user_prompt, next_chapter, next_chapter, max_chapter)
 
         except Exception as e:
             messagebox.showerror("错误", f"预览Prompt失败: {str(e)}\n{traceback.format_exc()}")
@@ -825,7 +840,7 @@ class WritingToolWindow:
 
         tk.Label(
             info_frame,
-            text=f"已完成: {max_chapter} 章  |  下一批次: Chapter {next_start}-{next_end}",
+            text=f"已完成: {max_chapter} 章  |  下一章节: Chapter {next_start}",
             font=("Arial", 10),
             bg="#f0f0f0",
             fg="blue"

@@ -16,6 +16,7 @@ from utils import (
     validate_chapter_length,
     save_project_metadata
 )
+from prompt_manager import PromptManager
 
 
 # 写作系统提示词（固定在代码中）- 强调自然人类写作风格
@@ -134,6 +135,7 @@ class WriterWorkerV2:
         self.project_folder = None
         self.outline_file = None
         self.progress_file = f'tasks/{task_id}/progress.json'
+        self.prompt_mgr = PromptManager()  # Prompt管理器
 
         # 统计
         self.total_tokens = 0
@@ -357,10 +359,11 @@ class WriterWorkerV2:
 
         return batches
 
-    def build_user_prompt(self, outline_data, batch_start, batch_end, previous_context=""):
+    def build_user_prompt(self, outline_data, chapter_num, previous_context=""):
         """
-        构建用户prompt - 基于成功脚本的结构
-        关键：明确告诉AI要做什么！
+        构建用户prompt - 简化版（只包含当前单个章节）
+        System Prompt: 固定的写作规则（从prompt_mgr获取）
+        User Prompt: _writing_prompt.txt（世界观+角色） + 当前章节summary + 上一章最后1500字符
         """
         outline_folder = outline_data['outline_folder']
 
@@ -371,112 +374,59 @@ class WriterWorkerV2:
             with open(writing_prompt_file, 'r', encoding='utf-8') as f:
                 base_info = f.read()
 
-        # 2. 读取相关章节的prompts
-        chapter_outlines = ""
+        # 2. 读取当前章节的summary（只读取单个章节！）
+        chapter_summary = ""
 
-        # 添加上一章（如果有）
-        if batch_start > 1:
-            prev_file = os.path.join(outline_folder, f'chapter_{batch_start - 1}_prompt.txt')
+        # 添加上一章summary（如果有）
+        if chapter_num > 1:
+            prev_file = os.path.join(outline_folder, f'chapter_{chapter_num - 1}_prompt.txt')
             if os.path.exists(prev_file):
                 with open(prev_file, 'r', encoding='utf-8') as f:
-                    chapter_outlines += f"===== Previous Chapter (Chapter {batch_start - 1}) =====\n"
-                    chapter_outlines += f.read() + "\n\n"
+                    chapter_summary += f"===== Previous Chapter Summary =====\n"
+                    chapter_summary += f.read() + "\n\n"
 
-        # 添加当前批次所有章节
-        for ch_num in range(batch_start, batch_end + 1):
-            chapter_file = os.path.join(outline_folder, f'chapter_{ch_num}_prompt.txt')
-            if os.path.exists(chapter_file):
-                with open(chapter_file, 'r', encoding='utf-8') as f:
-                    chapter_outlines += f.read() + "\n\n"
+        # 添加当前章节summary
+        current_file = os.path.join(outline_folder, f'chapter_{chapter_num}_prompt.txt')
+        if os.path.exists(current_file):
+            with open(current_file, 'r', encoding='utf-8') as f:
+                chapter_summary += f"===== Current Chapter Outline =====\n"
+                chapter_summary += f.read() + "\n\n"
 
-        # 3. 构建完整的用户prompt（强调爽点和章节结构）
-        user_prompt = f"""Generate Chapter {batch_start}"""
-        if batch_end > batch_start:
-            user_prompt += f" to {batch_end}"
-        user_prompt += f""" for this web novel.
-
-【Book Information】
+        # 3. 构建完整的用户prompt
+        user_prompt = f"""【Book Information】
 Title: {outline_data['title']}
 Genre: {outline_data['genre']}
-Target: Fast-paced, addictive {outline_data['genre']} web fiction
 
 【World & Characters】
 {base_info}
 
-【Chapter Outlines】
-{chapter_outlines}"""
+【Chapter Outline】
+{chapter_summary}"""
 
-        # 添加前文context（如果有）
+        # 添加前文context（上一章最后1500字符）
         if previous_context:
             user_prompt += f"""
 
-【Previous Chapter Summary】
+【Previous Chapter Ending (Last 1500 characters)】
 {previous_context}
 """
         else:
-            if batch_start == 1:
+            if chapter_num == 1:
                 user_prompt += """
 
-【Previous Chapter Summary】
-This is the first chapter - establish world and hook readers immediately.
+【Note】
+This is the first chapter - establish the world and hook readers immediately.
 """
 
-        # 添加明确的写作指令（关键！强调爽点）
+        # 添加写作指令
         user_prompt += f"""
 
-【Requirements】
-- 10,000-12,000 characters per chapter (about 2,500-3,000 words)
-- Include 3-5 爽点 (satisfaction moments) per chapter
-- Short paragraphs (mobile-friendly)
-- Fast pacing (short-sharp-fast principle)
-- Strong hook ending
-- All names/places MUST be English/Western
-
-【Chapter Structure for Each Chapter】
-1. Opening Hook (500-800 characters)
-   - Start with action/tension
-   - Grab attention immediately
-   - NO weather/waking up scenes
-
-2. Development (4,000-5,000 characters)
-   - 2-3 major scenes
-   - Each scene delivers a 爽点:
-     * Victory/achievement
-     * Face-slapping moment
-     * Romantic tension
-     * Power reveal
-     * Clever comeback
-     * Justice/revenge
-   - Multiple dialogue exchanges (3-5 back-and-forth)
-   - Crowd reactions and bystander comments
-   - Sensory details (smells, sounds, textures)
-   - Character thoughts shown through action
-
-3. Climax (2,000-3,000 characters)
-   - Biggest 爽点 of the chapter
-   - Emotional/action peak
-   - Satisfying payoff
-   - Detailed physical descriptions
-
-4. Hook Ending (500-800 characters)
-   - New tension/question
-   - Tease next chapter
-   - Leave readers wanting more
-   - Promise of next 爽点
-
-Write Chapter {batch_start}"""
-        if batch_end > batch_start:
-            user_prompt += f" through {batch_end}"
-        user_prompt += f""" now. Remember:
-- 3-5 爽点 per chapter
-- 10,000-12,000 characters per chapter
-- Short-Sharp-Fast style
-- English names/places only!"""
+Now write Chapter {chapter_num} based on the outline above."""
 
         return user_prompt
 
     def get_previous_context(self, current_chapter):
-        """获取前文上下文"""
+        """获取前文上下文（上一章最后1500字符）"""
         if current_chapter <= 1:
             return ""
 
@@ -490,21 +440,25 @@ Write Chapter {batch_start}"""
                 # 去掉元数据
                 if '---' in content:
                     content = content.split('---')[0]
-                context = content[-2000:] if len(content) > 2000 else content
+                context = content[-1500:] if len(content) > 1500 else content
                 print(f"  ✓ 加载前文: {len(context)} 字符")
                 return context
         except:
             return ""
 
-    def generate_batch(self, outline_data, batch_start, batch_end, previous_context=""):
-        """生成一个批次的章节"""
+    def generate_single_chapter(self, outline_data, chapter_num, previous_context=""):
+        """生成单个章节（不再批次生成）"""
         print(f"\n{'#'*70}")
-        print(f"# 批次: Chapter {batch_start}-{batch_end}")
+        print(f"# 生成: Chapter {chapter_num}")
         print(f"{'#'*70}")
 
-        # 构建prompt
-        system_prompt = WRITING_SYSTEM_PROMPT
-        user_prompt = self.build_user_prompt(outline_data, batch_start, batch_end, previous_context)
+        # 构建prompt - 从prompt_mgr获取system prompt
+        system_prompt = self.prompt_mgr.get_writer_prompt()
+        user_prompt = self.build_user_prompt(outline_data, chapter_num, previous_context)
+
+        print(f"\n📝 Prompt信息:")
+        print(f"  System Prompt: {len(system_prompt)} 字符")
+        print(f"  User Prompt: {len(user_prompt)} 字符")
 
         # 调用API
         result = self.call_api(system_prompt, user_prompt)
@@ -518,8 +472,18 @@ Write Chapter {batch_start}"""
 
         # 解析章节
         print(f"\n📄 解析章节...")
-        chapters = self.parse_chapters(result['content'], batch_start, batch_end)
-        print(f"  ✓ 解析到 {len(chapters)} 个章节")
+        chapters = self.parse_chapters(result['content'], chapter_num, chapter_num)
+
+        if not chapters or chapter_num not in chapters:
+            print(f"⚠️  警告：未能解析到Chapter {chapter_num}，使用原始内容")
+            # 如果解析失败，使用原始内容
+            chapters = {chapter_num: {
+                'number': chapter_num,
+                'title': f'Chapter {chapter_num}',
+                'content': result['content']
+            }}
+
+        print(f"  ✓ 解析到 Chapter {chapter_num}")
 
         return chapters
 
@@ -609,28 +573,23 @@ Write Chapter {batch_start}"""
                 self.update_progress('completed', current_chapter=end_chapter, message='所有章节已完成')
                 return
 
-            # 构建批次
-            print(f"\n🔄 调用 build_chapter_batches()...")
-            batches = self.build_chapter_batches(start_chapter, end_chapter)
-            print(f"✅ build_chapter_batches() 完成: {len(batches)} 个批次")
-
             self.update_progress('in_progress', current_chapter=start_chapter, message='开始生成')
 
-            # 逐批生成
-            for i, (batch_start, batch_end) in enumerate(batches, 1):
+            # 逐章节生成（不再批次生成）
+            for chapter_num in range(start_chapter, end_chapter + 1):
                 print(f"\n{'='*70}")
-                print(f"📦 批次 {i}/{len(batches)}: Chapter {batch_start}-{batch_end}")
+                print(f"📖 生成 Chapter {chapter_num}/{end_chapter}")
                 print(f"{'='*70}")
 
-                # 获取前文
+                # 获取前文（上一章最后1500字符）
                 print(f"\n🔄 获取前文上下文...")
-                previous_context = self.get_previous_context(batch_start)
+                previous_context = self.get_previous_context(chapter_num)
                 print(f"✅ 前文上下文: {len(previous_context)} 字符")
 
-                # 生成
-                print(f"\n🔄 调用 generate_batch()... 【这里会调用API】")
-                chapters = self.generate_batch(outline_data, batch_start, batch_end, previous_context)
-                print(f"✅ generate_batch() 完成: {len(chapters)} 个章节")
+                # 生成单个章节
+                print(f"\n🔄 调用 generate_single_chapter()... 【这里会调用API】")
+                chapters = self.generate_single_chapter(outline_data, chapter_num, previous_context)
+                print(f"✅ generate_single_chapter() 完成")
 
                 # 保存
                 self.save_chapters(chapters)
@@ -638,11 +597,11 @@ Write Chapter {batch_start}"""
                 # 更新进度
                 self.update_progress(
                     'in_progress',
-                    current_chapter=batch_end,
-                    message=f'已完成 {batch_end}/{end_chapter} 章'
+                    current_chapter=chapter_num,
+                    message=f'已完成 {chapter_num}/{end_chapter} 章'
                 )
 
-                print(f"\n✅ 批次 {i} 完成")
+                print(f"\n✅ Chapter {chapter_num} 完成")
 
             # 完成
             self.update_progress(

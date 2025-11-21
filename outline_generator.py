@@ -289,6 +289,17 @@ class OutlineGeneratorWithQueue:
 
         tk.Button(
             button_status_frame,
+            text="📝 Prompt管理",
+            command=self.manage_cover_prompts,
+            font=("Arial", 11, "bold"),
+            bg="#2196F3",
+            fg="white",
+            height=2,
+            width=15
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_status_frame,
             text="👁️ 预览Prompt",
             command=self.preview_cover_prompt,
             font=("Arial", 11, "bold"),
@@ -1454,6 +1465,224 @@ Max Tokens: {task.config['max_tokens']}
             width=15
         ).pack(side=tk.RIGHT, padx=5)
 
+    def manage_cover_prompts(self):
+        """封面Prompt管理和版本控制"""
+        # 创建Prompt管理窗口
+        prompt_window = tk.Toplevel(self.window)
+        prompt_window.title("封面Prompt管理")
+        prompt_window.geometry("900x700")
+
+        # 标题
+        title_label = tk.Label(
+            prompt_window,
+            text="📝 封面生成Prompt模板管理",
+            font=("Arial", 16, "bold"),
+            bg="#9C27B0",
+            fg="white",
+            pady=15
+        )
+        title_label.pack(fill=tk.X)
+
+        # 主容器
+        main_frame = tk.Frame(prompt_window, padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # 说明
+        info_text = tk.Label(
+            main_frame,
+            text="支持变量: {title}, {genre}, {tags}, {genre_style}, {outline}",
+            font=("Arial", 9),
+            fg="gray",
+            anchor="w"
+        )
+        info_text.pack(fill=tk.X, pady=(0, 10))
+
+        # 版本选择
+        info_frame = tk.Frame(main_frame)
+        info_frame.pack(fill=tk.X, pady=(0, 10))
+
+        tk.Label(
+            info_frame,
+            text="Prompt版本:",
+            font=("Arial", 10, "bold")
+        ).pack(side=tk.LEFT)
+
+        version_var = tk.StringVar()
+        available_versions = self.prompt_mgr.get_cover_versions()
+        current_version = self.prompt_mgr.prompts.get('cover', {}).get('active_version', 'Default')
+        version_var.set(current_version)
+
+        def on_version_change(event=None):
+            selected_version = version_var.get()
+            prompt_text.config(state=tk.NORMAL)
+            prompt_text.delete("1.0", tk.END)
+            try:
+                version_prompt = self.prompt_mgr.get_cover_prompt(selected_version)
+                prompt_text.insert(tk.END, version_prompt)
+            except Exception as e:
+                prompt_text.insert(tk.END, f"加载版本失败: {str(e)}")
+            prompt_text.config(state=tk.DISABLED)
+            edit_btn.config(state=tk.NORMAL)
+            save_btn.config(state=tk.DISABLED)
+
+        version_combo = ttk.Combobox(
+            info_frame,
+            textvariable=version_var,
+            values=available_versions,
+            state="readonly",
+            width=30
+        )
+        version_combo.pack(side=tk.LEFT, padx=10)
+        version_combo.bind('<<ComboboxSelected>>', on_version_change)
+
+        def set_active():
+            selected_version = version_var.get()
+            self.prompt_mgr.set_active_cover_version(selected_version)
+            messagebox.showinfo("成功", f"已将 '{selected_version}' 设为活跃版本")
+
+        tk.Button(
+            info_frame,
+            text="设为活跃",
+            command=set_active,
+            bg="#9C27B0",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=5)
+
+        # Prompt显示区域
+        prompt_text = scrolledtext.ScrolledText(
+            main_frame,
+            wrap=tk.WORD,
+            font=("Courier", 9),
+            height=25
+        )
+        prompt_text.pack(fill=tk.BOTH, expand=True)
+
+        # 加载当前Prompt
+        try:
+            current_prompt = self.prompt_mgr.get_cover_prompt()
+            prompt_text.insert(tk.END, current_prompt)
+            prompt_text.config(state=tk.DISABLED)
+        except Exception as e:
+            prompt_text.insert(tk.END, f"加载失败: {str(e)}")
+
+        # 按钮区域
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def edit_prompt():
+            prompt_text.config(state=tk.NORMAL)
+            edit_btn.config(state=tk.DISABLED)
+            save_btn.config(state=tk.NORMAL)
+
+        def save_prompt():
+            version_window = tk.Toplevel(prompt_window)
+            version_window.title("保存Prompt版本")
+            version_window.geometry("400x180")
+            version_window.transient(prompt_window)
+            version_window.grab_set()
+
+            tk.Label(
+                version_window,
+                text="请输入版本名称:",
+                font=("Arial", 12)
+            ).pack(pady=(20, 10))
+
+            version_entry = tk.Entry(version_window, width=40, font=("Arial", 11))
+            version_entry.pack(pady=10)
+            version_entry.insert(0, f"Custom_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            version_entry.select_range(0, tk.END)
+            version_entry.focus()
+
+            def do_save():
+                version_name = version_entry.get().strip()
+                if not version_name:
+                    messagebox.showwarning("警告", "版本名称不能为空", parent=version_window)
+                    return
+
+                new_prompt = prompt_text.get("1.0", tk.END).strip()
+                try:
+                    self.prompt_mgr.save_custom_cover_prompt(version_name, new_prompt)
+                    self.prompt_mgr.set_active_cover_version(version_name)
+
+                    version_combo['values'] = self.prompt_mgr.get_cover_versions()
+                    version_var.set(version_name)
+
+                    messagebox.showinfo("成功", f"Prompt已保存为版本 '{version_name}'！", parent=version_window)
+                    version_window.destroy()
+                    prompt_text.config(state=tk.DISABLED)
+                    edit_btn.config(state=tk.NORMAL)
+                    save_btn.config(state=tk.DISABLED)
+                except Exception as e:
+                    messagebox.showerror("保存失败", f"保存Prompt时出错:\n{str(e)}", parent=version_window)
+
+            button_frame_save = tk.Frame(version_window)
+            button_frame_save.pack(pady=20)
+
+            tk.Button(
+                button_frame_save,
+                text="保存",
+                command=do_save,
+                width=10,
+                bg="#4CAF50",
+                fg="white"
+            ).pack(side=tk.LEFT, padx=5)
+
+            tk.Button(
+                button_frame_save,
+                text="取消",
+                command=version_window.destroy,
+                width=10
+            ).pack(side=tk.LEFT, padx=5)
+
+            version_entry.bind('<Return>', lambda e: do_save())
+
+        def reset_to_default():
+            if messagebox.askyesno("确认", "确定要重置为默认Prompt吗？"):
+                try:
+                    self.prompt_mgr.restore_default_cover()
+                    prompt_text.config(state=tk.NORMAL)
+                    prompt_text.delete("1.0", tk.END)
+                    prompt_text.insert(tk.END, self.prompt_mgr.get_cover_prompt())
+                    prompt_text.config(state=tk.DISABLED)
+                    messagebox.showinfo("成功", "已重置为默认Prompt")
+                except Exception as e:
+                    messagebox.showerror("重置失败", f"重置Prompt时出错:\n{str(e)}")
+
+        edit_btn = tk.Button(
+            button_frame,
+            text="✏️ 编辑",
+            command=edit_prompt,
+            width=15,
+            bg="#FF9800",
+            fg="white"
+        )
+        edit_btn.pack(side=tk.LEFT, padx=5)
+
+        save_btn = tk.Button(
+            button_frame,
+            text="💾 保存",
+            command=save_prompt,
+            width=15,
+            bg="#4CAF50",
+            fg="white",
+            state=tk.DISABLED
+        )
+        save_btn.pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame,
+            text="🔄 重置为默认",
+            command=reset_to_default,
+            width=15
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            button_frame,
+            text="关闭",
+            command=prompt_window.destroy,
+            width=15
+        ).pack(side=tk.RIGHT, padx=5)
+
     # === 封面生成相关方法 ===
     def preview_cover_prompt(self):
         """预览封面生成Prompt"""
@@ -1697,13 +1926,13 @@ Max Tokens: {task.config['max_tokens']}
         return info
 
     def _create_cover_prompt(self, outline_info):
-        """构建封面生成prompt"""
+        """构建封面生成prompt（从prompt_mgr获取模板）"""
         title = outline_info['title']
         genre = outline_info['genre'].lower()
         outline = outline_info['outline']  # 使用完整outline
         tags = outline_info.get('tags', [])
 
-        # 根据genre定制prompt
+        # 根据genre定制style
         genre_styles = {
             'horror': 'dark, atmospheric horror with haunting elements, deep shadows, blood red accents',
             'romance': 'romantic and dreamy atmosphere, soft lighting, warm colors, emotional depth',
@@ -1715,32 +1944,19 @@ Max Tokens: {task.config['max_tokens']}
             'action': 'dynamic and energetic, explosive composition, high adrenaline'
         }
 
-        style = genre_styles.get(genre, 'professional and cinematic aesthetic, dramatic lighting')
+        genre_style = genre_styles.get(genre, 'professional and cinematic aesthetic, dramatic lighting')
 
-        # 构建完整的prompt，包含完整outline
-        prompt = f"""Create a professional book cover image for "{title}".
+        # 从prompt_mgr获取模板
+        template = self.prompt_mgr.get_cover_prompt()
 
-Genre: {genre}
-Tags: {', '.join(tags[:5]) if tags else 'N/A'}
-
-Visual Style Requirements:
-- {style}
-- Photorealistic with cinematic quality
-- High contrast dramatic lighting
-- Professional publishing-grade composition
-- Clear focal point with atmospheric background
-
-Story Context (use this to inform the visual design):
-{outline}
-
-Technical Specifications:
-- Vertical portrait orientation (1024x1792)
-- Composition leaves space for title overlay
-- Sharp focus on main visual elements
-- Evocative of {genre} genre atmosphere
-- Professional book cover quality
-
-Design a visually striking cover that captures the essence and mood of this {genre} story."""
+        # 渲染变量
+        prompt = template.format(
+            title=title,
+            genre=genre,
+            tags=', '.join(tags[:5]) if tags else 'N/A',
+            genre_style=genre_style,
+            outline=outline
+        )
 
         return prompt
 
