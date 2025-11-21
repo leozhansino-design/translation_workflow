@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-小说生成器 - 主应用（完全重写版本）
-参考outline_generator架构
+小说生成器 - 主应用（参考工作代码重写）
+支持从文件夹自动抓取prompts，断点续写
 """
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
@@ -17,35 +17,71 @@ from datetime import datetime
 from pathlib import Path
 
 from prompt_manager import PromptManager
-from prompt_preview import PromptPreviewWindow
-from utils import extract_genre_from_filename
+
+
+# 固定的SYSTEM_PROMPT（参考用户代码）
+SYSTEM_PROMPT = """You are a web novel writer. Write addictive English web fiction.
+
+【RULES】
+1. English ONLY - No Chinese names/places
+2. Each chapter: 15,000-20,000 words
+3. Include 3-5 "爽点" per chapter:
+   - Victories, face-slapping, power-ups
+   - Romantic moments, revelations
+   - Plot twists, justice served
+
+【STYLE: 短平快】
+- Short sentences (10-15 words)
+- Short paragraphs (1-3 sentences)
+- Fast pacing (event every 200-300 words)
+- Mobile-friendly
+
+【STRUCTURE】
+Opening: Action/tension immediately
+Development: 2-3 scenes with 爽点
+Climax: Biggest 爽点
+Hook: Cliffhanger ending
+
+【LOCALIZATION】
+Names: Emma, Lucas, Ethan (Western)
+Places: Manhattan, London, Seattle
+Culture: Western only
+
+【DIALOGUE】
+Short, punchy exchanges:
+"You're fired." He grinned.
+She smiled. "Check your email."
+His face went pale.
+
+Write addictive entertainment. START NOW."""
 
 
 class WriterTask:
     """写作任务"""
 
-    def __init__(self, task_id, outline_file, start_chapter, end_chapter, config_params):
+    def __init__(self, task_id, prompt_folder, batch_size, config_params):
         self.task_id = task_id
-        self.outline_file = outline_file
-        self.start_chapter = start_chapter
-        self.end_chapter = end_chapter
+        self.prompt_folder = prompt_folder
+        self.batch_size = batch_size
         self.config = config_params
-        self.status = 'pending'  # pending, running, completed, failed
+        self.status = 'pending'
         self.created_at = datetime.now()
         self.started_at = None
         self.completed_at = None
         self.output_folder = None
-        self.prompt_cache = None  # 缓存生成的prompt
-        self.current_chapter = start_chapter
-        self.total_chapters = end_chapter - start_chapter + 1
-        self.progress = 0  # 0-100
+        self.current_chapter = 1
+        self.total_chapters = 0
+        self.current_batch = 0
+        self.total_batches = 0
+        self.progress = 0
+        self.title = ""
+        self.category = ""
 
     def to_dict(self):
         return {
             'task_id': self.task_id,
-            'outline_file': self.outline_file,
-            'start_chapter': self.start_chapter,
-            'end_chapter': self.end_chapter,
+            'prompt_folder': self.prompt_folder,
+            'batch_size': self.batch_size,
             'config': self.config,
             'status': self.status,
             'created_at': self.created_at.isoformat(),
@@ -53,6 +89,7 @@ class WriterTask:
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
             'output_folder': self.output_folder,
             'current_chapter': self.current_chapter,
+            'total_chapters': self.total_chapters,
             'progress': self.progress
         }
 
@@ -62,20 +99,17 @@ class NovelWriterApp:
 
     def __init__(self):
         self.window = tk.Tk()
-        self.window.title("小说生成器 - 多任务队列")
+        self.window.title("小说生成器 - 自动批次生成")
         self.window.geometry("1200x900")
 
-        # 初始化管理器
-        self.prompt_mgr = PromptManager()
-
         # 任务队列
-        self.tasks = []  # 任务列表
-        self.task_frames = {}  # task_id -> frame widget
-        self.running_processes = {}  # task_id -> subprocess
+        self.tasks = []
+        self.task_frames = {}
+        self.running_processes = {}
 
         # 当前选择
-        self.current_outline_file = None
-        self.current_outline_data = None
+        self.current_prompt_folder = None
+        self.current_prompt_data = None
 
         # 初始化界面
         self.setup_ui()
@@ -92,21 +126,21 @@ class NovelWriterApp:
 
         tk.Label(
             title_frame,
-            text="✍️ 小说生成器 - 多任务队列",
+            text="✍️ 小说生成器 - 自动批次生成",
             font=("Arial", 20, "bold"),
             bg="#FF6B6B",
             fg="white"
         ).pack(side=tk.LEFT, padx=20, pady=10)
 
-        # === 上半部分：配置和添加任务 ===
-        top_container = tk.Frame(self.window)
-        top_container.pack(fill=tk.X, padx=10, pady=10)
+        # === 配置区域 ===
+        config_container = tk.Frame(self.window)
+        config_container.pack(fill=tk.X, padx=10, pady=10)
 
-        # API配置区域
-        api_frame = tk.LabelFrame(top_container, text="API 配置", padx=15, pady=10)
+        # API配置
+        api_frame = tk.LabelFrame(config_container, text="API 配置", padx=15, pady=10)
         api_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # 第一行：API Key和Base URL
+        # 第一行：API Key
         tk.Label(api_frame, text="API Key:").grid(row=0, column=0, sticky=tk.W, pady=5)
         self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
         tk.Entry(
@@ -137,7 +171,7 @@ class NovelWriterApp:
 
         tk.Label(api_frame, text="模型:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(20, 5))
         self.model_var = tk.StringVar(value="gpt-5-mini")
-        models = ["gpt-5-mini", "gpt-5.1", "gemini-2.5-pro", "gpt-5", "gemini-3-pro-preview"]
+        models = ["gpt-5-mini", "gpt-5.1", "gemini-2.5-pro", "gpt-5", "claude-3.5-sonnet"]
         model_combo = ttk.Combobox(
             api_frame,
             textvariable=self.model_var,
@@ -146,98 +180,47 @@ class NovelWriterApp:
         )
         model_combo.grid(row=1, column=3, sticky=tk.W, pady=5, padx=5)
 
-        # 第三行：并发数和Prompt管理
-        tk.Label(api_frame, text="并发章节数:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.parallel_count_var = tk.IntVar(value=3)
-        tk.Spinbox(
-            api_frame,
-            from_=1,
-            to=10,
-            textvariable=self.parallel_count_var,
-            width=10
-        ).grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
-
-        tk.Button(
-            api_frame,
-            text="📝 Prompt管理",
-            command=self.manage_prompts,
-            width=12
-        ).grid(row=2, column=2, pady=5, padx=(20, 5))
-
-        # 任务配置区域
-        task_frame = tk.LabelFrame(top_container, text="新建任务", padx=15, pady=10)
+        # 任务配置
+        task_frame = tk.LabelFrame(config_container, text="新建任务", padx=15, pady=10)
         task_frame.pack(fill=tk.X)
 
-        # 第一行：大纲文件选择
-        tk.Label(task_frame, text="大纲文件:", font=("Arial", 10, "bold")).grid(
+        # 第一行：文件夹选择
+        tk.Label(task_frame, text="Prompt文件夹:", font=("Arial", 10, "bold")).grid(
             row=0, column=0, sticky=tk.W, pady=5
         )
 
         file_select_frame = tk.Frame(task_frame)
         file_select_frame.grid(row=0, column=1, sticky=tk.W, pady=5, padx=5, columnspan=3)
 
-        self.file_label = tk.Label(
+        self.folder_label = tk.Label(
             file_select_frame,
-            text="未选择大纲文件（需要.json文件）",
+            text="未选择文件夹（需包含_writing_prompt.txt和chapter_X_prompt.txt）",
             fg="gray",
             font=("Arial", 9)
         )
-        self.file_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
-
-        tk.Button(
-            file_select_frame,
-            text="选择大纲",
-            command=self.select_outline_file
-        ).pack(side=tk.LEFT, padx=5)
+        self.folder_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         tk.Button(
             file_select_frame,
             text="选择文件夹",
-            command=self.select_outline_folder
+            command=self.select_prompt_folder
         ).pack(side=tk.LEFT, padx=5)
 
-        self.outline_info_label = tk.Label(file_select_frame, text="", fg="blue", font=("Arial", 9, "bold"))
-        self.outline_info_label.pack(side=tk.LEFT, padx=10)
+        self.folder_info_label = tk.Label(file_select_frame, text="", fg="blue", font=("Arial", 9, "bold"))
+        self.folder_info_label.pack(side=tk.LEFT, padx=10)
 
-        # 第二行：章节范围和每次章节数
-        tk.Label(task_frame, text="章节范围:").grid(row=1, column=0, sticky=tk.W, pady=5)
-
-        chapter_range_frame = tk.Frame(task_frame)
-        chapter_range_frame.grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
-
-        tk.Label(chapter_range_frame, text="从第").pack(side=tk.LEFT)
-        self.start_chapter_var = tk.IntVar(value=1)
-        tk.Spinbox(
-            chapter_range_frame,
-            from_=1,
-            to=500,
-            textvariable=self.start_chapter_var,
-            width=8
-        ).pack(side=tk.LEFT, padx=5)
-
-        tk.Label(chapter_range_frame, text="章到第").pack(side=tk.LEFT)
-        self.end_chapter_var = tk.IntVar(value=10)
-        tk.Spinbox(
-            chapter_range_frame,
-            from_=1,
-            to=500,
-            textvariable=self.end_chapter_var,
-            width=8
-        ).pack(side=tk.LEFT, padx=5)
-        tk.Label(chapter_range_frame, text="章").pack(side=tk.LEFT)
-
-        tk.Label(task_frame, text="每次生成:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(20, 5))
-        self.chapters_per_batch_var = tk.IntVar(value=1)
+        # 第二行：批次大小和参数
+        tk.Label(task_frame, text="每批章节数:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.batch_size_var = tk.IntVar(value=3)
         tk.Spinbox(
             task_frame,
             from_=1,
             to=5,
-            textvariable=self.chapters_per_batch_var,
-            width=8
-        ).grid(row=1, column=3, sticky=tk.W, pady=5, padx=5)
+            textvariable=self.batch_size_var,
+            width=10
+        ).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
 
-        # 第三行：Temperature和Max Tokens
-        tk.Label(task_frame, text="Temperature:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        tk.Label(task_frame, text="Temperature:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(20, 5))
         self.temperature_var = tk.DoubleVar(value=0.85)
         tk.Scale(
             task_frame,
@@ -247,18 +230,18 @@ class NovelWriterApp:
             orient=tk.HORIZONTAL,
             variable=self.temperature_var,
             length=150
-        ).grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
+        ).grid(row=1, column=3, sticky=tk.W, pady=5, padx=5)
 
-        tk.Label(task_frame, text="Max Tokens:").grid(row=2, column=2, sticky=tk.W, pady=5, padx=(20, 5))
-        self.max_tokens_var = tk.IntVar(value=32000)
+        tk.Label(task_frame, text="Max Tokens:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.max_tokens_var = tk.IntVar(value=120000)
         tk.Spinbox(
             task_frame,
-            from_=8000,
-            to=128000,
-            increment=4000,
+            from_=32000,
+            to=200000,
+            increment=16000,
             textvariable=self.max_tokens_var,
             width=10
-        ).grid(row=2, column=3, sticky=tk.W, pady=5, padx=5)
+        ).grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
 
         # 添加任务按钮
         add_btn_frame = tk.Frame(task_frame)
@@ -275,19 +258,13 @@ class NovelWriterApp:
             height=2
         ).pack()
 
-        # === 下半部分：任务队列 ===
+        # === 任务队列 ===
         queue_frame = tk.LabelFrame(self.window, text="任务队列", padx=10, pady=10)
         queue_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         # 工具栏
         toolbar = tk.Frame(queue_frame)
         toolbar.pack(fill=tk.X, pady=(0, 10))
-
-        tk.Label(
-            toolbar,
-            text="0 个任务",
-            font=("Arial", 10)
-        ).pack(side=tk.LEFT)
 
         self.queue_count_label = tk.Label(
             toolbar,
@@ -345,10 +322,18 @@ class NovelWriterApp:
             # 解析base_url
             if base_url.startswith("https://"):
                 host = base_url.replace("https://", "").rstrip("/")
-                path = "/v1/chat/completions" if "/v1" in base_url else "/chat/completions"
+                if "/v1" in host:
+                    path = "/chat/completions"
+                    host = host.split("/v1")[0]
+                else:
+                    path = "/v1/chat/completions"
             else:
                 host = base_url.replace("http://", "").rstrip("/")
-                path = "/v1/chat/completions" if "/v1" in base_url else "/chat/completions"
+                if "/v1" in host:
+                    path = "/chat/completions"
+                    host = host.split("/v1")[0]
+                else:
+                    path = "/v1/chat/completions"
 
             payload = json.dumps({
                 "model": model,
@@ -362,7 +347,7 @@ class NovelWriterApp:
             }
 
             try:
-                conn = http.client.HTTPSConnection(host.split("/")[0])
+                conn = http.client.HTTPSConnection(host)
                 conn.request("POST", path, payload, headers)
                 response = conn.getresponse()
                 data = response.read().decode('utf-8')
@@ -378,82 +363,98 @@ class NovelWriterApp:
 
         threading.Thread(target=test, daemon=True).start()
 
-    def manage_prompts(self):
-        """打开Prompt管理窗口"""
-        PromptPreviewWindow(self.window, self.prompt_mgr, prompt_type='writer')
-
-    def select_outline_file(self):
-        """选择单个大纲文件"""
-        file_path = filedialog.askopenfilename(
-            title="选择大纲JSON文件",
-            filetypes=[("JSON文件", "*.json"), ("所有文件", "*.*")]
-        )
-
-        if file_path:
-            self.load_outline_file(file_path)
-
-    def select_outline_folder(self):
-        """选择文件夹（自动查找大纲JSON）"""
-        folder_path = filedialog.askdirectory(title="选择大纲文件夹")
+    def select_prompt_folder(self):
+        """选择prompt文件夹"""
+        folder_path = filedialog.askdirectory(title="选择Prompt文件夹")
 
         if folder_path:
-            # 查找文件夹中的JSON文件
-            json_files = [f for f in os.listdir(folder_path) if f.endswith('.json')]
+            self.load_prompt_folder(folder_path)
 
-            if not json_files:
-                messagebox.showwarning("警告", "文件夹中没有找到JSON文件")
+    def load_prompt_folder(self, folder_path):
+        """加载prompt文件夹（参考用户代码）"""
+        try:
+            folder = Path(folder_path)
+
+            if not folder.exists():
+                messagebox.showerror("错误", f"文件夹不存在: {folder_path}")
                 return
 
-            if len(json_files) == 1:
-                # 只有一个JSON文件，直接加载
-                file_path = os.path.join(folder_path, json_files[0])
-                self.load_outline_file(file_path)
-            else:
-                # 多个JSON文件，让用户选择
-                choice = messagebox.askquestion(
-                    "选择文件",
-                    f"找到{len(json_files)}个JSON文件，选择第一个吗？\n{json_files[0]}"
-                )
-                if choice == 'yes':
-                    file_path = os.path.join(folder_path, json_files[0])
-                    self.load_outline_file(file_path)
+            data = {
+                'writing_prompt': '',
+                'title': '',
+                'category': '',
+                'chapters': {}
+            }
 
-    def load_outline_file(self, file_path):
-        """加载大纲文件"""
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                self.current_outline_data = json.load(f)
+            # 读取_writing_prompt.txt（必需）
+            writing_prompt_file = folder / '_writing_prompt.txt'
+            if not writing_prompt_file.exists():
+                messagebox.showerror("错误", "找不到 _writing_prompt.txt（必需文件）")
+                return
 
-            self.current_outline_file = file_path
+            with open(writing_prompt_file, 'r', encoding='utf-8') as f:
+                data['writing_prompt'] = f.read().strip()
+
+            # 读取可选文件
+            title_file = folder / 'title.txt'
+            if title_file.exists():
+                with open(title_file, 'r', encoding='utf-8') as f:
+                    data['title'] = f.read().strip()
+
+            category_file = folder / 'category.txt'
+            if category_file.exists():
+                with open(category_file, 'r', encoding='utf-8') as f:
+                    data['category'] = f.read().strip()
+
+            # 读取所有章节prompts
+            chapter_files = sorted(folder.glob('chapter_*_prompt.txt'))
+            for chapter_file in chapter_files:
+                filename = chapter_file.name
+                try:
+                    chapter_num = int(filename.split('_')[1])
+                    with open(chapter_file, 'r', encoding='utf-8') as f:
+                        data['chapters'][chapter_num] = f.read().strip()
+                except (IndexError, ValueError):
+                    continue
+
+            if not data['chapters']:
+                messagebox.showerror("错误", "没有找到章节prompt文件 (chapter_X_prompt.txt)")
+                return
+
+            # 保存数据
+            self.current_prompt_folder = folder_path
+            self.current_prompt_data = data
 
             # 显示信息
-            outline = self.current_outline_data.get('outline', {})
-            title = outline.get('title', '未知')
-            genre = outline.get('genre', '未知')
-            chapters = len(outline.get('chapter_outlines', []))
-
-            self.file_label.config(
-                text=os.path.basename(file_path),
+            total_chapters = len(data['chapters'])
+            self.folder_label.config(
+                text=os.path.basename(folder_path),
                 fg="black"
             )
 
-            self.outline_info_label.config(
-                text=f"📖 {title} | {genre} | {chapters}章"
+            info_text = f"📖 {total_chapters}章"
+            if data['title']:
+                info_text = f"📖 {data['title'][:30]}... | {total_chapters}章"
+            if data['category']:
+                info_text += f" | {data['category']}"
+
+            self.folder_info_label.config(text=info_text)
+
+            messagebox.showinfo(
+                "成功",
+                f"已加载Prompt文件夹：\n"
+                f"书名: {data['title'] or '未知'}\n"
+                f"类型: {data['category'] or '未知'}\n"
+                f"章节: {total_chapters}章"
             )
 
-            # 自动设置章节范围
-            self.start_chapter_var.set(1)
-            self.end_chapter_var.set(chapters)
-
-            messagebox.showinfo("成功", f"已加载大纲：\n书名: {title}\n类型: {genre}\n章节: {chapters}章")
-
         except Exception as e:
-            messagebox.showerror("错误", f"加载大纲文件失败：\n{str(e)}")
+            messagebox.showerror("错误", f"加载文件夹失败：\n{str(e)}")
 
     def add_task_to_queue(self):
         """添加任务到队列"""
-        if not self.current_outline_file:
-            messagebox.showwarning("警告", "请先选择大纲文件")
+        if not self.current_prompt_folder:
+            messagebox.showwarning("警告", "请先选择Prompt文件夹")
             return
 
         # 生成任务ID
@@ -465,29 +466,30 @@ class NovelWriterApp:
             'base_url': self.base_url_var.get(),
             'model': self.model_var.get(),
             'temperature': self.temperature_var.get(),
-            'max_tokens': self.max_tokens_var.get(),
-            'parallel_count': self.parallel_count_var.get(),
-            'chapters_per_batch': self.chapters_per_batch_var.get()
+            'max_tokens': self.max_tokens_var.get()
         }
 
         # 创建任务
         task = WriterTask(
             task_id=task_id,
-            outline_file=self.current_outline_file,
-            start_chapter=self.start_chapter_var.get(),
-            end_chapter=self.end_chapter_var.get(),
+            prompt_folder=self.current_prompt_folder,
+            batch_size=self.batch_size_var.get(),
             config_params=config_params
         )
+
+        task.total_chapters = len(self.current_prompt_data['chapters'])
+        task.total_batches = (task.total_chapters + task.batch_size - 1) // task.batch_size
+        task.title = self.current_prompt_data.get('title', '未知')
+        task.category = self.current_prompt_data.get('category', '未知')
 
         self.tasks.append(task)
         self.create_task_widget(task)
         self.update_queue_count()
 
-        messagebox.showinfo("成功", f"任务已添加到队列\nID: {task_id}")
+        messagebox.showinfo("成功", f"任务已添加到队列\nID: {task_id}\n预计{task.total_batches}批次")
 
     def create_task_widget(self, task):
         """创建任务显示组件"""
-        # 任务框架
         task_frame = tk.Frame(
             self.tasks_container,
             relief=tk.RAISED,
@@ -500,12 +502,7 @@ class NovelWriterApp:
         header_frame = tk.Frame(task_frame, bg="#e0e0e0")
         header_frame.pack(fill=tk.X)
 
-        # 任务信息
-        outline = self.current_outline_data.get('outline', {})
-        title = outline.get('title', '未知')
-        genre = outline.get('genre', '未知')
-
-        info_text = f"📖 {title} | {genre} | 第{task.start_chapter}-{task.end_chapter}章"
+        info_text = f"📖 {task.title} | {task.category} | {task.total_chapters}章 | 每批{task.batch_size}章"
 
         tk.Label(
             header_frame,
@@ -525,6 +522,16 @@ class NovelWriterApp:
         )
         status_label.pack(side=tk.RIGHT, padx=10, pady=5)
 
+        # 进度信息
+        progress_info_label = tk.Label(
+            task_frame,
+            text=f"批次: 0/{task.total_batches} | 章节: 0/{task.total_chapters}",
+            font=("Arial", 9),
+            bg="#f0f0f0",
+            anchor=tk.W
+        )
+        progress_info_label.pack(fill=tk.X, padx=10, pady=2)
+
         # 进度条
         progress_bar = ttk.Progressbar(
             task_frame,
@@ -538,7 +545,6 @@ class NovelWriterApp:
         btn_frame = tk.Frame(task_frame, bg="#f0f0f0")
         btn_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        # 开始按钮
         start_btn = tk.Button(
             btn_frame,
             text="▶️ 开始",
@@ -549,7 +555,6 @@ class NovelWriterApp:
         )
         start_btn.pack(side=tk.LEFT, padx=2)
 
-        # 预览Prompt按钮
         tk.Button(
             btn_frame,
             text="👁️ 预览Prompt",
@@ -557,7 +562,6 @@ class NovelWriterApp:
             width=12
         ).pack(side=tk.LEFT, padx=2)
 
-        # 打开输出目录按钮
         open_dir_btn = tk.Button(
             btn_frame,
             text="📂 打开目录",
@@ -567,7 +571,6 @@ class NovelWriterApp:
         )
         open_dir_btn.pack(side=tk.LEFT, padx=2)
 
-        # 删除按钮
         tk.Button(
             btn_frame,
             text="🗑️ 删除",
@@ -580,42 +583,61 @@ class NovelWriterApp:
             'frame': task_frame,
             'status_label': status_label,
             'progress_bar': progress_bar,
+            'progress_info_label': progress_info_label,
             'start_btn': start_btn,
             'open_dir_btn': open_dir_btn
         }
 
     def preview_prompt(self, task):
-        """预览任务的Prompt"""
+        """预览任务的Prompt（第一批次）"""
         try:
-            # 加载大纲数据
-            with open(task.outline_file, 'r', encoding='utf-8') as f:
-                outline_data = json.load(f)
+            # 加载prompt数据
+            folder = Path(task.prompt_folder)
 
-            outline = outline_data.get('outline', {})
+            # 读取_writing_prompt.txt
+            with open(folder / '_writing_prompt.txt', 'r', encoding='utf-8') as f:
+                writing_prompt = f.read().strip()
 
-            # 构建prompt变量
-            prompt_vars = {
-                'genre': outline.get('genre', 'Fiction'),
-                'style': outline_data.get('style', ''),
-                'world_setting': outline.get('world_setting', ''),
-                'characters': self.format_characters(outline.get('main_characters', [])),
-                'start_chapter': task.start_chapter,
-                'end_chapter': task.end_chapter,
-                'chapter_outlines': self.format_chapter_outlines(
-                    outline.get('chapter_outlines', []),
-                    task.start_chapter,
-                    task.end_chapter
-                ),
-                'previous_context': ''
-            }
+            # 读取第一批章节prompts
+            chapter_nums = sorted([int(f.stem.split('_')[1]) for f in folder.glob('chapter_*_prompt.txt')])
+            first_batch_nums = chapter_nums[:task.batch_size]
 
-            # 渲染prompt
-            prompt = self.prompt_mgr.render_writer_prompt(prompt_vars)
+            chapter_prompts = []
+            for num in first_batch_nums:
+                with open(folder / f'chapter_{num}_prompt.txt', 'r', encoding='utf-8') as f:
+                    chapter_prompts.append((num, f.read().strip()))
+
+            # 构建完整prompt（参考用户代码）
+            prompt_parts = []
+
+            prompt_parts.append("="*70)
+            prompt_parts.append("SYSTEM PROMPT（固定）")
+            prompt_parts.append("="*70)
+            prompt_parts.append(SYSTEM_PROMPT)
+            prompt_parts.append("\n" + "="*70)
+            prompt_parts.append("USER PROMPT")
+            prompt_parts.append("="*70)
+
+            prompt_parts.append("\n【写作要求】")
+            prompt_parts.append(writing_prompt)
+            prompt_parts.append("\n" + "="*60)
+
+            prompt_parts.append("\n【本批次章节大纲】")
+            for ch_num, prompt in chapter_prompts:
+                prompt_parts.append(f"\n===== 第{ch_num}章 =====")
+                prompt_parts.append(prompt)
+
+            prompt_parts.append("\n" + "="*60)
+            prompt_parts.append(f"\n现在写第{first_batch_nums[0]}-{first_batch_nums[-1]}章。")
+            prompt_parts.append(f"要求：每章15,000-20,000英文单词，只输出小说正文。")
+            prompt_parts.append("\n开始写作：")
+
+            full_prompt = "\n".join(prompt_parts)
 
             # 显示预览窗口
             preview_window = tk.Toplevel(self.window)
-            preview_window.title(f"Prompt预览 - 任务 {task.task_id}")
-            preview_window.geometry("800x600")
+            preview_window.title(f"Prompt预览（第一批次） - 任务 {task.task_id}")
+            preview_window.geometry("900x700")
 
             text_area = scrolledtext.ScrolledText(
                 preview_window,
@@ -623,36 +645,11 @@ class NovelWriterApp:
                 font=("Courier", 9)
             )
             text_area.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-            text_area.insert(tk.END, prompt)
+            text_area.insert(tk.END, full_prompt)
             text_area.config(state=tk.DISABLED)
 
         except Exception as e:
             messagebox.showerror("错误", f"生成Prompt预览失败：\n{str(e)}")
-
-    def format_characters(self, characters):
-        """格式化角色信息"""
-        result = []
-        for char in characters:
-            result.append(f"- {char.get('name', '')} ({char.get('gender', '')})")
-            result.append(f"  Role: {char.get('role', '')}")
-            result.append(f"  Personality: {char.get('personality', '')}")
-            result.append(f"  Background: {char.get('background', '')}")
-        return '\n'.join(result)
-
-    def format_chapter_outlines(self, chapter_outlines, start, end):
-        """格式化章节大纲"""
-        result = []
-        for ch in chapter_outlines:
-            ch_num = ch.get('chapter_number', 0)
-            if start <= ch_num <= end:
-                result.append(f"Chapter {ch_num}: {ch.get('title', '')}")
-                result.append(f"Summary: {ch.get('summary', '')}")
-                if ch.get('key_events'):
-                    result.append(f"Key Events: {', '.join(ch['key_events'])}")
-                if ch.get('characters_involved'):
-                    result.append(f"Characters: {', '.join(ch['characters_involved'])}")
-                result.append("")
-        return '\n'.join(result)
 
     def open_output_directory(self, task):
         """打开输出目录"""
@@ -672,18 +669,15 @@ class NovelWriterApp:
             if not messagebox.askyesno("确认", "任务正在运行，确定要删除吗？"):
                 return
 
-            # 停止进程
             if task.task_id in self.running_processes:
                 process = self.running_processes[task.task_id]
                 process.terminate()
                 del self.running_processes[task.task_id]
 
-        # 删除widget
         if task.task_id in self.task_frames:
             self.task_frames[task.task_id]['frame'].destroy()
             del self.task_frames[task.task_id]
 
-        # 删除任务
         self.tasks.remove(task)
         self.update_queue_count()
 
@@ -693,13 +687,11 @@ class NovelWriterApp:
             return
 
         if messagebox.askyesno("确认", f"确定要清空所有 {len(self.tasks)} 个任务吗？"):
-            # 停止所有运行中的任务
             for task in self.tasks:
                 if task.task_id in self.running_processes:
                     process = self.running_processes[task.task_id]
                     process.terminate()
 
-            # 清空
             for task_id in list(self.task_frames.keys()):
                 self.task_frames[task_id]['frame'].destroy()
 
@@ -714,7 +706,6 @@ class NovelWriterApp:
             messagebox.showinfo("提示", "任务已在运行中")
             return
 
-        # 更新状态
         task.status = 'running'
         task.started_at = datetime.now()
 
@@ -736,16 +727,13 @@ class NovelWriterApp:
         config = {
             'task_type': 'writer',
             'task_id': task.task_id,
-            'outline_file': task.outline_file,
-            'start_chapter': task.start_chapter,
-            'end_chapter': task.end_chapter,
+            'prompt_folder': task.prompt_folder,
+            'batch_size': task.batch_size,
             'api_key': task.config['api_key'],
             'base_url': task.config['base_url'],
             'model': task.config['model'],
             'temperature': task.config['temperature'],
-            'max_tokens': task.config['max_tokens'],
-            'parallel_count': task.config['parallel_count'],
-            'chapters_per_batch': task.config['chapters_per_batch']
+            'max_tokens': task.config['max_tokens']
         }
 
         config_file = f'{task_dir}/config.json'
@@ -757,7 +745,8 @@ class NovelWriterApp:
             'task_id': task.task_id,
             'status': 'initializing',
             'message': '初始化中...',
-            'current_chapter': task.start_chapter,
+            'current_chapter': 1,
+            'current_batch': 0,
             'progress': 0,
             'updated_at': datetime.now().isoformat()
         }
@@ -771,7 +760,6 @@ class NovelWriterApp:
         task_dir = f'tasks/{task.task_id}'
         config_file = f'{task_dir}/config.json'
 
-        # 启动独立进程
         cmd = [
             sys.executable,
             'writer_worker.py',
@@ -799,7 +787,7 @@ class NovelWriterApp:
         if messagebox.askyesno("确认", f"确定要启动 {len(pending_tasks)} 个任务吗？"):
             for task in pending_tasks:
                 self.start_task(task)
-                time.sleep(0.5)  # 避免同时启动太多
+                time.sleep(0.5)
 
     def update_queue_count(self):
         """更新队列计数"""
@@ -815,7 +803,6 @@ class NovelWriterApp:
             if task.status == 'running':
                 self.update_task_status(task)
 
-        # 每2秒轮询一次
         self.window.after(2000, self.poll_task_status)
 
     def update_task_status(self, task):
@@ -830,18 +817,17 @@ class NovelWriterApp:
                 progress = json.load(f)
 
             status = progress.get('status', 'unknown')
-            current_chapter = progress.get('current_chapter', task.start_chapter)
+            current_batch = progress.get('current_batch', 0)
+            current_chapter = progress.get('current_chapter', 1)
             progress_pct = progress.get('progress', 0)
-            message = progress.get('message', '')
             output_folder = progress.get('output_folder', '')
 
-            # 更新任务对象
+            task.current_batch = current_batch
             task.current_chapter = current_chapter
             task.progress = progress_pct
             if output_folder:
                 task.output_folder = output_folder
 
-            # 更新UI
             widgets = self.task_frames.get(task.task_id)
             if not widgets:
                 return
@@ -851,6 +837,9 @@ class NovelWriterApp:
                 task.completed_at = datetime.now()
                 widgets['status_label'].config(text="✅ 完成", fg="green")
                 widgets['progress_bar']['value'] = 100
+                widgets['progress_info_label'].config(
+                    text=f"批次: {task.total_batches}/{task.total_batches} | 章节: {task.total_chapters}/{task.total_chapters} | ✅ 完成"
+                )
                 widgets['start_btn'].config(state=tk.NORMAL, text="✅ 完成")
                 widgets['open_dir_btn'].config(state=tk.NORMAL)
 
@@ -861,10 +850,13 @@ class NovelWriterApp:
 
             elif status == 'generating':
                 widgets['status_label'].config(
-                    text=f"🔄 第{current_chapter}章 ({progress_pct}%)",
+                    text=f"🔄 批次{current_batch}/{task.total_batches}",
                     fg="blue"
                 )
                 widgets['progress_bar']['value'] = progress_pct
+                widgets['progress_info_label'].config(
+                    text=f"批次: {current_batch}/{task.total_batches} | 章节: {current_chapter}/{task.total_chapters} | {progress_pct}%"
+                )
                 if output_folder:
                     widgets['open_dir_btn'].config(state=tk.NORMAL)
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-小说生成独立进程（完全重写版本）
-作为独立进程运行，负责生成小说章节
+小说生成独立进程（参考工作代码重写）
+支持批次生成、断点续写、前文context
 """
 import argparse
 import json
@@ -13,15 +13,13 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from prompt_manager import PromptManager
 
-
-# 你提供的核心SYSTEM_PROMPT
+# 固定的SYSTEM_PROMPT
 SYSTEM_PROMPT = """You are a web novel writer. Write addictive English web fiction.
 
 【RULES】
 1. English ONLY - No Chinese names/places
-2. Each chapter: 8,000-12,000 characters
+2. Each chapter: 15,000-20,000 words
 3. Include 3-5 "爽点" per chapter:
    - Victories, face-slapping, power-ups
    - Romantic moments, revelations
@@ -64,13 +62,12 @@ class WriterWorker:
         with open(config_file, 'r', encoding='utf-8') as f:
             self.config = json.load(f)
 
-        # 初始化
-        self.prompt_mgr = PromptManager()
         self.progress_file = f'tasks/{task_id}/progress.json'
-        self.outline_data = None
+        self.prompt_data = None
         self.output_folder = None
 
-    def update_progress(self, status, message="", current_chapter=None, progress=0, output_folder=None):
+    def update_progress(self, status, message="", current_chapter=None, current_batch=None,
+                       progress=0, output_folder=None):
         """更新进度文件"""
         progress_data = {
             'task_id': self.task_id,
@@ -82,6 +79,9 @@ class WriterWorker:
         if current_chapter is not None:
             progress_data['current_chapter'] = current_chapter
 
+        if current_batch is not None:
+            progress_data['current_batch'] = current_batch
+
         if progress > 0:
             progress_data['progress'] = progress
 
@@ -92,18 +92,68 @@ class WriterWorker:
         with open(self.progress_file, 'w', encoding='utf-8') as f:
             json.dump(progress_data, f, indent=2, ensure_ascii=False)
 
-    def call_api(self, prompt, user_message):
-        """调用API（使用http.client，参考你的代码）"""
+    def load_prompts(self):
+        """加载prompt文件夹（参考用户代码）"""
+        folder = Path(self.config['prompt_folder'])
+
+        data = {
+            'writing_prompt': '',
+            'title': '',
+            'category': '',
+            'chapters': {}
+        }
+
+        # 读取_writing_prompt.txt（必需）
+        with open(folder / '_writing_prompt.txt', 'r', encoding='utf-8') as f:
+            data['writing_prompt'] = f.read().strip()
+
+        print(f"✅ 加载: _writing_prompt.txt")
+
+        # 读取可选文件
+        title_file = folder / 'title.txt'
+        if title_file.exists():
+            with open(title_file, 'r', encoding='utf-8') as f:
+                data['title'] = f.read().strip()
+            print(f"✅ 加载: title.txt")
+
+        category_file = folder / 'category.txt'
+        if category_file.exists():
+            with open(category_file, 'r', encoding='utf-8') as f:
+                data['category'] = f.read().strip()
+            print(f"✅ 加载: category.txt")
+
+        # 读取所有章节prompts
+        chapter_files = sorted(folder.glob('chapter_*_prompt.txt'))
+        for chapter_file in chapter_files:
+            filename = chapter_file.name
+            try:
+                chapter_num = int(filename.split('_')[1])
+                with open(chapter_file, 'r', encoding='utf-8') as f:
+                    data['chapters'][chapter_num] = f.read().strip()
+                print(f"✅ 加载: {filename} (第{chapter_num}章)")
+            except (IndexError, ValueError):
+                print(f"⚠️ 跳过无效文件: {filename}")
+
+        print(f"\n📊 加载完成:")
+        print(f"   - 总章节数: {len(data['chapters'])}")
+        if data['title']:
+            print(f"   - 书名: {data['title']}")
+        if data['category']:
+            print(f"   - 类型: {data['category']}")
+
+        return data
+
+    def call_api(self, system_prompt, user_prompt):
+        """调用API（使用http.client）"""
         api_key = self.config['api_key']
         base_url = self.config['base_url']
         model = self.config['model']
         temperature = self.config.get('temperature', 0.85)
-        max_tokens = self.config.get('max_tokens', 32000)
+        max_tokens = self.config.get('max_tokens', 120000)
 
         # 解析base_url
         if base_url.startswith("https://"):
             host = base_url.replace("https://", "").rstrip("/")
-            # 检查是否已包含路径
             if "/v1" in host:
                 path = "/chat/completions"
                 host = host.split("/v1")[0]
@@ -120,8 +170,8 @@ class WriterWorker:
         payload = json.dumps({
             "model": model,
             "messages": [
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": user_message}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
             "temperature": temperature,
             "max_tokens": max_tokens
@@ -152,256 +202,298 @@ class WriterWorker:
         finally:
             conn.close()
 
-    def build_chapter_prompt(self, chapter_num, title, genre, outline, previous_context=None):
-        """构建章节提示词（参考你的代码）"""
-        prompt = f"""{SYSTEM_PROMPT}
+    def generate_batch(self, batch_num, chapter_nums, chapter_prompts, previous_context=""):
+        """生成一批章节（参考用户代码）"""
+        writing_prompt = self.prompt_data['writing_prompt']
 
-Write Chapter {chapter_num} of "{title}" ({genre}).
+        # 构建User Prompt
+        user_parts = []
 
-Chapter {chapter_num} Outline:
-{outline}
+        # 1. 加上_writing_prompt（每次都要）
+        user_parts.append("【写作要求】")
+        user_parts.append(writing_prompt)
+        user_parts.append("\n" + "="*60 + "\n")
 
-Requirements:
-- 8,000-12,000 characters
-- 3-5 爽点
-- Short-sharp-fast
-- Western names only
-- Cliffhanger ending
-"""
-
+        # 2. 如果有前文context，加上（第2批开始）
         if previous_context:
-            prompt += f"\n【Previous Context】\n{previous_context}\n"
+            user_parts.append("【前文结尾（保持连贯）】")
+            user_parts.append(previous_context)
+            user_parts.append("\n" + "="*60 + "\n")
 
-        prompt += f"\nWrite Chapter {chapter_num} now."
+        # 3. 加上本批次的章节prompts
+        user_parts.append("【本批次章节大纲】")
+        for ch_num, prompt in zip(chapter_nums, chapter_prompts):
+            user_parts.append(f"\n===== 第{ch_num}章 =====")
+            user_parts.append(prompt)
 
-        return prompt
+        user_parts.append("\n" + "="*60)
+        user_parts.append(f"\n现在写第{chapter_nums[0]}-{chapter_nums[-1]}章。")
+        user_parts.append(f"要求：每章15,000-20,000英文单词，只输出小说正文。")
+        user_parts.append("\n开始写作：")
+
+        user_prompt = "\n".join(user_parts)
+
+        # 调用API
+        result = self.call_api(SYSTEM_PROMPT, user_prompt)
+
+        return result
 
     def check_resume_point(self):
         """检查断点续写位置"""
         if not self.output_folder or not os.path.exists(self.output_folder):
-            return self.config['start_chapter']
+            return 1  # 从第1批开始
 
-        # 查找已完成的章节
-        max_chapter = 0
+        # 查找已完成的批次文件
+        max_batch = 0
         for f in os.listdir(self.output_folder):
-            if f.startswith('ch') and f.endswith('.txt'):
+            if f.startswith('batch_') and f.endswith('.txt'):
                 try:
-                    num_str = f.replace('ch', '').replace('.txt', '')
+                    # batch_1_ch1-3.txt -> 1
+                    num_str = f.split('_')[1]
                     num = int(num_str)
-                    max_chapter = max(max_chapter, num)
+                    max_batch = max(max_batch, num)
                 except:
                     continue
 
-        # 如果有已完成的章节，从下一章继续
-        if max_chapter > 0:
-            next_chapter = max_chapter + 1
-            print(f"✓ 检测到已完成章节: 第1-{max_chapter}章")
-            print(f"✓ 从第{next_chapter}章继续")
-            return next_chapter
+        if max_batch > 0:
+            next_batch = max_batch + 1
+            print(f"✓ 检测到已完成批次: 1-{max_batch}")
+            print(f"✓ 从批次{next_batch}继续")
+            return next_batch
 
-        return self.config['start_chapter']
+        return 1
 
-    def generate_chapter(self, chapter_num, outline_chapter):
-        """生成单个章节"""
-        outline = self.outline_data.get('outline', {})
-        title = outline.get('title', 'Untitled')
-        genre = outline.get('genre', 'Fiction')
+    def get_previous_context(self, batch_num):
+        """获取前一批次的结尾1500字符"""
+        if batch_num <= 1:
+            return ""
 
-        # 构建章节大纲文本
-        chapter_outline = f"""Chapter {chapter_num}: {outline_chapter.get('title', '')}
+        # 读取前一批次的文件
+        prev_batch = batch_num - 1
 
-Summary: {outline_chapter.get('summary', '')}
+        # 查找前一批次的文件
+        for f in os.listdir(self.output_folder):
+            if f.startswith(f'batch_{prev_batch}_') and f.endswith('.txt'):
+                filepath = os.path.join(self.output_folder, f)
+                with open(filepath, 'r', encoding='utf-8') as file:
+                    content = file.read()
+                    # 取最后1500个字符
+                    return content[-1500:] if len(content) > 1500 else content
 
-Key Events: {', '.join(outline_chapter.get('key_events', []))}
-
-Characters Involved: {', '.join(outline_chapter.get('characters_involved', []))}"""
-
-        # 获取前文上下文（可选，用于连贯性）
-        previous_context = self.get_previous_context(chapter_num)
-
-        # 构建prompt
-        prompt = self.build_chapter_prompt(
-            chapter_num, title, genre, chapter_outline, previous_context
-        )
-
-        # 调用API
-        result = self.call_api(prompt, chapter_outline)
-
-        return result
-
-    def get_previous_context(self, current_chapter):
-        """获取前文上下文（用于连贯性）"""
-        if current_chapter <= 1:
-            return None
-
-        # 读取前一章的部分内容作为上下文
-        prev_file = os.path.join(self.output_folder, f"ch{current_chapter - 1}.txt")
-        if os.path.exists(prev_file):
-            with open(prev_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-                # 取最后500个字符作为上下文
-                return content[-500:] if len(content) > 500 else content
-
-        return None
-
-    def save_chapter(self, chapter_num, content):
-        """保存章节"""
-        filename = f"ch{chapter_num}.txt"
-        filepath = os.path.join(self.output_folder, filename)
-
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(content)
-
-        return filepath
+        return ""
 
     def run(self):
         """运行小说生成"""
         try:
-            print(f"\n{'='*70}")
+            print(f"\n{'='*80}")
             print(f"小说生成任务 {self.task_id} 开始...")
-            print(f"{'='*70}\n")
+            print(f"{'='*80}\n")
 
             self.update_progress('initializing', '初始化中...')
 
-            # 加载大纲数据
-            outline_file = self.config['outline_file']
-            with open(outline_file, 'r', encoding='utf-8') as f:
-                self.outline_data = json.load(f)
+            # 加载prompts
+            print("📂 加载prompts...")
+            self.prompt_data = self.load_prompts()
 
-            outline = self.outline_data.get('outline', {})
-            title = outline.get('title', 'Untitled')
-            genre = outline.get('genre', 'Fiction')
-            chapter_outlines = outline.get('chapter_outlines', [])
+            total_chapters = len(self.prompt_data['chapters'])
+            batch_size = self.config['batch_size']
+            batches_needed = (total_chapters + batch_size - 1) // batch_size
 
-            print(f"✓ 大纲已加载")
-            print(f"  书名: {title}")
-            print(f"  类型: {genre}")
-            print(f"  总章节: {len(chapter_outlines)}章")
+            title = self.prompt_data.get('title', 'Untitled')
+            category = self.prompt_data.get('category', 'Fiction')
+
+            print(f"\n📊 生成计划:")
+            if title:
+                print(f"   - 书名: {title}")
+            if category:
+                print(f"   - 类型: {category}")
+            print(f"   - 总章节: {total_chapters}章")
+            print(f"   - 批次大小: {batch_size}章/批")
+            print(f"   - 预计批次: {batches_needed}批")
+            print(f"   - 预计耗时: {batches_needed * 3}分钟")
 
             # 创建输出文件夹
             safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_'))
-            safe_title = safe_title.replace(' ', '_')
+            safe_title = safe_title.replace(' ', '_') if safe_title else 'Untitled'
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.output_folder = f"projects/Project_{safe_title}_{genre}_{timestamp}"
+            self.output_folder = f"output/{safe_title}_{category}_{timestamp}"
             os.makedirs(self.output_folder, exist_ok=True)
 
             print(f"✓ 输出文件夹: {self.output_folder}")
 
-            # 保存元数据文件
-            self.save_metadata()
-
             # 检查断点续写
-            start_chapter = self.check_resume_point()
-            end_chapter = self.config['end_chapter']
+            start_batch = self.check_resume_point()
 
-            print(f"\n{'='*70}")
+            # 获取排序后的章节号列表
+            chapter_nums = sorted(self.prompt_data['chapters'].keys())
+
+            # 分批生成
+            all_content = []
+            previous_context = ""
+            total_tokens = 0
+            total_cost = 0
+
+            # 如果是续写，加载previous_context
+            if start_batch > 1:
+                previous_context = self.get_previous_context(start_batch)
+                print(f"✓ 加载前文context: {len(previous_context)}字符")
+
+            print(f"\n{'='*80}")
             print(f"开始生成章节...")
-            print(f"范围: 第{start_chapter}章 - 第{end_chapter}章")
-            print(f"{'='*70}\n")
+            print(f"从批次{start_batch}开始，共{batches_needed}批")
+            print(f"{'='*80}\n")
 
-            # 生成章节
-            for current_chapter in range(start_chapter, end_chapter + 1):
-                # 找到对应的章节大纲
-                outline_chapter = None
-                for ch in chapter_outlines:
-                    if ch.get('chapter_number') == current_chapter:
-                        outline_chapter = ch
-                        break
+            for i in range((start_batch - 1) * batch_size, len(chapter_nums), batch_size):
+                batch_num = (i // batch_size) + 1
 
-                if not outline_chapter:
-                    print(f"⚠️ 警告: 第{current_chapter}章的大纲不存在，跳过")
-                    continue
+                # 本批次的章节号
+                batch_chapter_nums = chapter_nums[i:i+batch_size]
+                start_ch = batch_chapter_nums[0]
+                end_ch = batch_chapter_nums[-1]
+
+                print(f"\n{'='*80}")
+                print(f"📝 批次 {batch_num}/{batches_needed}: 第{start_ch}-{end_ch}章")
+                print(f"{'='*80}")
+
+                # 获取本批次的章节prompts
+                batch_prompts = [self.prompt_data['chapters'][num] for num in batch_chapter_nums]
+
+                # 显示发送内容
+                print(f"📤 发送内容:")
+                print(f"   - System Prompt: ✅ (固定)")
+                print(f"   - Writing Prompt: ✅ (_writing_prompt.txt)")
+                if previous_context:
+                    print(f"   - 前文Context: ✅ (上批结尾1500字符)")
+                print(f"   - 章节Prompts: 第{start_ch}-{end_ch}章")
 
                 # 更新进度
-                total_chapters = end_chapter - start_chapter + 1
-                completed = current_chapter - start_chapter
-                progress_pct = int((completed / total_chapters) * 100)
+                completed_batches = batch_num - 1
+                progress_pct = int((completed_batches / batches_needed) * 100)
 
                 self.update_progress(
                     'generating',
-                    f'正在生成第{current_chapter}章...',
-                    current_chapter=current_chapter,
+                    f'正在生成批次{batch_num}/{batches_needed}...',
+                    current_chapter=start_ch,
+                    current_batch=batch_num,
                     progress=progress_pct,
                     output_folder=self.output_folder
                 )
 
-                print(f"📝 生成第{current_chapter}章: {outline_chapter.get('title', '')}...")
+                print(f"\n⏳ 正在生成第{start_ch}-{end_ch}章...\n")
                 start_time = time.time()
 
-                # 生成章节
-                result = self.generate_chapter(current_chapter, outline_chapter)
+                # 生成
+                result = self.generate_batch(
+                    batch_num,
+                    batch_chapter_nums,
+                    batch_prompts,
+                    previous_context
+                )
+
+                elapsed = time.time() - start_time
 
                 if result['success']:
                     content = result['content']
-                    char_count = len(content)
-                    elapsed = time.time() - start_time
+                    usage = result['usage']
 
-                    # 保存章节
-                    filepath = self.save_chapter(current_chapter, content)
+                    # 统计
+                    words = len(content.split())
+                    tokens = usage.get('total_tokens', 0)
+                    avg_words = words // len(batch_chapter_nums)
 
-                    print(f"   ✅ 完成 | {char_count:,} 字符 | {elapsed:.1f}秒")
+                    # 计算成本
+                    prompt_tokens = usage.get('prompt_tokens', 0)
+                    completion_tokens = usage.get('completion_tokens', 0)
+                    input_cost = (prompt_tokens / 1_000_000) * 0.15
+                    output_cost = (completion_tokens / 1_000_000) * 0.60
+                    cost = input_cost + output_cost
 
-                    # 检查字符数是否符合要求
-                    if 8000 <= char_count <= 12000:
-                        print(f"   ✓ 字符数符合要求")
-                    else:
-                        print(f"   ⚠️ 字符数不符合要求 (8000-12000)")
+                    total_tokens += tokens
+                    total_cost += cost
+
+                    print(f"✅ 第{start_ch}-{end_ch}章 生成完成！")
+                    print(f"   ⏱️  耗时: {elapsed:.1f}秒")
+                    print(f"   📊 总字数: {words:,} 词")
+                    print(f"   📏 平均每章: {avg_words:,} 词")
+                    print(f"   💰 Tokens: {tokens:,}")
+                    print(f"   💵 成本: ${cost:.4f}")
+
+                    # 检查字数
+                    if avg_words < 12000:
+                        print(f"   ⚠️  警告: 平均字数偏少 ({avg_words}/15,000)")
+
+                    # 保存本批次
+                    batch_filename = f"batch_{batch_num}_ch{start_ch}-{end_ch}.txt"
+                    batch_filepath = os.path.join(self.output_folder, batch_filename)
+                    with open(batch_filepath, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    print(f"   📁 已保存: {batch_filename}")
+
+                    # 添加到总内容
+                    all_content.append(content)
+
+                    # 提取结尾1500字符作为下一批的context
+                    if batch_num < batches_needed:
+                        previous_context = content[-1500:]
+                        print(f"   🔗 提取结尾1500字符作为下批context")
 
                 else:
-                    print(f"   ❌ 失败: {result['error']}")
-                    self.update_progress('failed', f"第{current_chapter}章生成失败: {result['error']}")
+                    print(f"❌ 生成失败: {result['error']}")
+                    self.update_progress('failed', f"批次{batch_num}生成失败: {result['error']}")
                     return
 
-                # 等待一秒避免API限流
-                time.sleep(1)
+                # 批次间延迟
+                if batch_num < batches_needed:
+                    print(f"\n⏸️  等待3秒...")
+                    time.sleep(3)
 
-            # 全部完成
-            self.update_progress(
-                'completed',
-                f'所有章节生成完成！',
-                current_chapter=end_chapter,
-                progress=100,
-                output_folder=self.output_folder
-            )
+            # 全部完成，合并保存
+            if all_content:
+                print(f"\n{'='*80}")
+                print("📦 合并所有批次...")
 
-            print(f"\n{'='*70}")
-            print(f"✅ 任务完成！")
-            print(f"   输出目录: {self.output_folder}")
-            print(f"   章节数: {end_chapter - start_chapter + 1}")
-            print(f"{'='*70}\n")
+                full_content = "\n\n".join(all_content)
+                full_words = len(full_content.split())
+
+                # 生成文件名
+                filename = f"{safe_title}_complete.txt"
+                final_path = os.path.join(self.output_folder, filename)
+
+                # 保存
+                with open(final_path, 'w', encoding='utf-8') as f:
+                    # 添加元信息
+                    if title:
+                        f.write(f"Title: {title}\n")
+                    if category:
+                        f.write(f"Category: {category}\n")
+                    f.write(f"\n{'='*80}\n\n")
+                    f.write(full_content)
+
+                print(f"\n✅ 全部完成！")
+                print(f"{'='*80}")
+                print(f"📊 最终统计:")
+                print(f"   - 总章节: {total_chapters}章")
+                print(f"   - 总字数: {full_words:,} 词")
+                print(f"   - 平均每章: {full_words//total_chapters:,} 词")
+                print(f"   - 总Tokens: {total_tokens:,}")
+                print(f"   - 总成本: ${total_cost:.4f}")
+                print(f"   - 完整版: {final_path}")
+                print(f"{'='*80}\n")
+
+                self.update_progress(
+                    'completed',
+                    f'所有章节生成完成！',
+                    current_chapter=total_chapters,
+                    current_batch=batches_needed,
+                    progress=100,
+                    output_folder=self.output_folder
+                )
 
         except Exception as e:
             print(f"\n❌ 错误: {str(e)}")
             import traceback
             traceback.print_exc()
             self.update_progress('failed', f'错误: {str(e)}')
-
-    def save_metadata(self):
-        """保存元数据文件"""
-        outline = self.outline_data.get('outline', {})
-
-        # title.txt
-        with open(os.path.join(self.output_folder, 'title.txt'), 'w', encoding='utf-8') as f:
-            f.write(outline.get('title', 'Untitled'))
-
-        # blurb.txt
-        with open(os.path.join(self.output_folder, 'blurb.txt'), 'w', encoding='utf-8') as f:
-            f.write(outline.get('blurb', ''))
-
-        # category.txt
-        with open(os.path.join(self.output_folder, 'category.txt'), 'w', encoding='utf-8') as f:
-            f.write(outline.get('genre', 'Fiction'))
-
-        # tags.txt
-        with open(os.path.join(self.output_folder, 'tags.txt'), 'w', encoding='utf-8') as f:
-            tags = outline.get('tags', [])
-            f.write('\n'.join(tags))
-
-        # age.txt
-        with open(os.path.join(self.output_folder, 'age.txt'), 'w', encoding='utf-8') as f:
-            f.write(outline.get('age_category', 'Adult'))
-
-        print(f"✓ 元数据文件已保存")
 
 
 def main():
