@@ -1,24 +1,77 @@
 """
 资源管理模块 - 负责分配风格和人名
+支持并发安全的资源分配
 """
 import json
 import os
+import sys
 import re
+import threading
+import time
 from datetime import datetime
 
 
-STYLES_FILE = 'data/styles.json'
-NAMES_FILE = 'data/names.json'
-SUMMARY_FILE = 'data/summary.json'
+def get_resource_path(relative_path):
+    """获取资源文件的绝对路径（支持PyInstaller打包）
+
+    如果是打包环境且本地没有data文件夹，会自动从打包资源复制到当前目录
+
+    Args:
+        relative_path: 相对路径，如 'data/styles.json'
+
+    Returns:
+        绝对路径
+    """
+    # 优先使用当前目录的文件（用于读写）
+    local_path = os.path.join(os.getcwd(), relative_path)
+
+    # 如果本地文件存在，直接使用
+    if os.path.exists(local_path):
+        return local_path
+
+    # 检查是否是打包环境
+    try:
+        # PyInstaller创建临时文件夹，路径存储在_MEIPASS中
+        base_path = sys._MEIPASS
+        bundled_path = os.path.join(base_path, relative_path)
+
+        # 如果是data目录下的文件，且打包资源存在，复制到本地
+        if relative_path.startswith('data/') and os.path.exists(bundled_path):
+            # 确保本地data目录存在
+            local_data_dir = os.path.join(os.getcwd(), 'data')
+            os.makedirs(local_data_dir, exist_ok=True)
+
+            # 复制文件到本地
+            import shutil
+            try:
+                shutil.copy2(bundled_path, local_path)
+                print(f"✓ 已复制资源文件: {relative_path}")
+            except Exception as e:
+                print(f"⚠ 复制资源文件失败: {e}")
+                # 复制失败，返回打包路径（只读）
+                return bundled_path
+
+        return local_path
+
+    except AttributeError:
+        # 开发环境，使用当前目录
+        return local_path
+
+
+STYLES_FILE = get_resource_path('data/styles.json')
+NAMES_FILE = get_resource_path('data/names_1.json')
+SUMMARY_FILE = get_resource_path('data/summary.json')
+LOCK_FILE = get_resource_path('data/.resource_lock')
 
 
 class ResourceManager:
-    """资源管理器"""
+    """资源管理器（并发安全）"""
 
     def __init__(self):
         self.styles = self.load_styles()
         self.names = self.load_names()
         self.summary = self.load_summary()
+        self._lock = threading.Lock()  # 内存锁
 
     def load_styles(self):
         """加载风格库"""
@@ -184,3 +237,76 @@ class ResourceManager:
     def get_available_genres(self):
         """获取所有可用的类型"""
         return list(self.styles.keys())
+
+    def select_names(self, male_count=10, female_count=10):
+        """从names_1.json中选择使用次数最少的人名（并发安全）
+
+        Args:
+            male_count: 需要的男性名字数量
+            female_count: 需要的女性名字数量
+
+        Returns:
+            包含选中人名的字典 {'male': [...], 'female': [...]}
+        """
+        with self._lock:
+            # 重新加载最新数据（防止其他进程修改）
+            self.names = self.load_names()
+
+            # 获取男性名字（按used排序）
+            male_names = sorted(self.names['male'], key=lambda x: x['used'])
+            selected_male = male_names[:male_count]
+
+            # 获取女性名字（按used排序）
+            female_names = sorted(self.names['female'], key=lambda x: x['used'])
+            selected_female = female_names[:female_count]
+
+            # 更新使用次数（标记为已预留）
+            for name in selected_male:
+                name['used'] += 1
+            for name in selected_female:
+                name['used'] += 1
+
+            # 立即保存更新（锁定这些人名）
+            self.save_names()
+
+            return {
+                'male': selected_male,
+                'female': selected_female
+            }
+
+    def format_names_for_prompt(self, selected_names):
+        """格式化人名列表为Prompt字符串
+
+        Args:
+            selected_names: select_names()的返回值
+
+        Returns:
+            格式化的字符串，例如 "Marcus Sterling, Alexander Cross, ..."
+        """
+        male_str = ", ".join([n['fullname'] for n in selected_names['male']])
+        female_str = ", ".join([n['fullname'] for n in selected_names['female']])
+
+        return {
+            'male_names': male_str,
+            'female_names': female_str
+        }
+
+    def select_style(self, genre):
+        """获取类型的focus说明（新版本不再选择作者风格）
+
+        Args:
+            genre: 类型名称，如 'Romance', 'Horror'
+
+        Returns:
+            包含 genre_focus 的字典
+            例如: {'genre_focus': 'Romantic chemistry drives everything...'}
+        """
+        if genre not in self.styles:
+            raise ValueError(f"类型 '{genre}' 不存在")
+
+        genre_data = self.styles[genre]
+
+        # 新版本直接返回focus字段
+        return {
+            'genre_focus': genre_data.get('focus', '')
+        }
