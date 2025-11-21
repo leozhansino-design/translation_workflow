@@ -640,7 +640,7 @@ class OutlineGeneratorWithQueue:
             # 构建Prompt变量
             prompt_vars = {
                 'genre': task.genre,
-                'style': selected_style['style'],
+                'genre_focus': selected_style['genre_focus'],
                 'male_names': names_formatted['male_names'],
                 'female_names': names_formatted['female_names'],
                 'end_chapter': task.config.get('chapter_count', 15),
@@ -671,8 +671,8 @@ Max Tokens: {task.config['max_tokens']}
 男性: {names_formatted['male_names']}
 女性: {names_formatted['female_names']}
 
-选择的风格:
-{selected_style['author']} - {selected_style['style'][:100]}...
+类型重点 ({task.genre}):
+{selected_style['genre_focus'][:200]}...
 """
 
             # 缓存Prompt
@@ -735,7 +735,7 @@ Max Tokens: {task.config['max_tokens']}
             # 构建Prompt
             prompt_vars = {
                 'genre': task.genre,
-                'style': selected_style['style'],
+                'genre_focus': selected_style['genre_focus'],
                 'male_names': names_formatted['male_names'],
                 'female_names': names_formatted['female_names'],
                 'end_chapter': task.config.get('chapter_count', 15),
