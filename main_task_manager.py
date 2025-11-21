@@ -412,6 +412,7 @@ class WritingToolWindow:
             'start_chapter': self.start_chapter_var.get(),
             'end_chapter': self.end_chapter_var.get(),
             'batch_size': self.batch_size_var.get(),
+            'outline_file': self.selected_outline_folder,  # 大纲文件夹
             'project_folder': self.selected_outline_folder  # 写作到大纲文件夹
         }
 
@@ -740,8 +741,23 @@ class WritingToolWindow:
                 os.makedirs(task_dir, exist_ok=True)
 
                 config_file = os.path.join(task_dir, 'config.json')
+
+                print(f"\n{'='*70}")
+                print(f"🚀 启动任务: {task.title}")
+                print(f"{'='*70}")
+                print(f"  任务ID: {task_id}")
+                print(f"  配置文件: {config_file}")
+                print(f"\n📝 配置内容:")
+                for key, value in task.config.items():
+                    if key == 'api_key':
+                        print(f"  {key}: {value[:10]}...{value[-5:]}")
+                    else:
+                        print(f"  {key}: {value}")
+
                 with open(config_file, 'w', encoding='utf-8') as f:
                     json.dump(task.config, f, indent=2, ensure_ascii=False)
+
+                print(f"\n✅ 配置文件已创建")
 
                 # 启动writer_worker_v2.py作为子进程
                 import subprocess
@@ -754,8 +770,8 @@ class WritingToolWindow:
                     '--task-id', task_id
                 ]
 
-                print(f"🚀 启动任务: {task.title}")
-                print(f"  命令: {' '.join(cmd)}")
+                print(f"\n🔧 执行命令: {' '.join(cmd)}\n")
+                print(f"{'='*70}\n")
 
                 # 运行子进程
                 process = subprocess.Popen(
@@ -774,18 +790,22 @@ class WritingToolWindow:
                 # 等待完成
                 process.wait()
 
+                print(f"\n{'='*70}")
                 if process.returncode == 0:
                     print(f"✅ 任务完成: {task.title}")
                     task.status = 'completed'
                 else:
                     print(f"❌ 任务失败: {task.title} (返回码: {process.returncode})")
                     task.status = 'failed'
+                print(f"{'='*70}\n")
 
                 # 更新UI
                 self.window.after(0, self.refresh_task_list)
 
             except Exception as e:
+                print(f"\n{'='*70}")
                 print(f"❌ 任务异常: {e}")
+                print(f"{'='*70}")
                 import traceback
                 traceback.print_exc()
                 task.status = 'failed'
