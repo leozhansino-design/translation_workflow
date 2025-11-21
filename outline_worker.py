@@ -124,15 +124,6 @@ class OutlineWorker:
 
             self.update_progress('generating', '正在调用AI生成大纲...')
 
-            # 初始化客户端
-            self.client = OpenAI(
-                api_key=self.config['api_key'],
-                base_url=self.config.get('base_url', 'https://api.openai.com/v1/')
-            )
-
-            print("✓ API客户端初始化完成")
-            print("正在调用AI...")
-
             # 检测模型类型，决定使用哪种API调用方式
             model = self.config.get('model', 'gpt-4-turbo-preview')
             use_http_client = 'gemini' in model.lower() or 'gpt-5' in model.lower()
@@ -157,8 +148,15 @@ class OutlineWorker:
 
                 result_text = result['content']
             else:
-                # 使用标准OpenAI客户端方式
+                # 使用标准OpenAI客户端方式（只在需要时才初始化）
                 print(f"使用标准OpenAI客户端调用模型 '{model}'...")
+
+                # 初始化OpenAI客户端
+                self.client = OpenAI(
+                    api_key=self.config['api_key'],
+                    base_url=self.config.get('base_url', 'https://api.openai.com/v1/')
+                )
+
                 response = self.client.chat.completions.create(
                     model=model,
                     messages=[

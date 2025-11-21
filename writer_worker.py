@@ -45,11 +45,12 @@ class WriterWorker:
         self.chapters_completed = 0
 
     def initialize_client(self):
-        """初始化OpenAI客户端"""
-        self.client = OpenAI(
-            api_key=self.config['api_key'],
-            base_url=self.config.get('base_url', 'https://api.openai.com/v1/')
-        )
+        """初始化OpenAI客户端（仅在需要时调用）"""
+        if self.client is None:
+            self.client = OpenAI(
+                api_key=self.config['api_key'],
+                base_url=self.config.get('base_url', 'https://api.openai.com/v1/')
+            )
 
     def update_progress(self, status, current_chapter=0, message=""):
         """更新进度文件"""
@@ -72,6 +73,7 @@ class WriterWorker:
     def load_outline(self):
         """加载大纲（从_writing_prompt.txt）"""
         outline_folder = self.config['outline_file']
+        self.outline_file = outline_folder  # 保存为实例变量，供后续使用
 
         # 读取 _writing_prompt.txt
         prompt_file = os.path.join(outline_folder, '_writing_prompt.txt')
@@ -376,8 +378,12 @@ class WriterWorker:
                 if prompt_tokens > 0 and completion_tokens > 0:
                     self.total_cost += self.calculate_cost_from_tokens(prompt_tokens, completion_tokens)
         else:
-            # 使用标准OpenAI客户端方式
+            # 使用标准OpenAI客户端方式（只在需要时才初始化）
             print(f"使用标准OpenAI客户端调用模型 '{model}'...")
+
+            # 初始化客户端（如果还没初始化）
+            self.initialize_client()
+
             response = self.client.chat.completions.create(
                 model=model,
                 messages=[
@@ -445,10 +451,6 @@ class WriterWorker:
 
             # 更新进度
             self.update_progress('initializing', message='初始化中...')
-
-            # 初始化客户端
-            self.initialize_client()
-            print("✓ API客户端初始化完成")
 
             # 加载大纲
             outline_data = self.load_outline()
