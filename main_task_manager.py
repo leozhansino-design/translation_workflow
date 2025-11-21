@@ -46,6 +46,10 @@ class WritingTask:
 
         chapters = []
         for file in os.listdir(project_folder):
+            # 排除大纲文件 chapter_X_prompt.txt
+            if '_prompt.txt' in file:
+                continue
+
             # 支持 chapter_1.txt 和 chapter_1_Title.txt 两种格式
             match = re.match(r'chapter_(\d+)(?:_.*)?\.txt$', file)
             if match:

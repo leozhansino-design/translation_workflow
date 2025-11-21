@@ -743,6 +743,9 @@ Max Tokens: {task.config['max_tokens']}
 
             system_prompt = self.prompt_mgr.render_outline_prompt(prompt_vars)
 
+            # 更新UI显示正在调用API
+            self.window.after(0, lambda: self._update_task_status(task, "🌐 正在调用API..."))
+
             # 检测模型类型，决定使用哪种API调用方式
             model = task.config['model']
             use_http_client = 'gemini' in model.lower() or 'gpt-5' in model.lower()
@@ -789,6 +792,9 @@ Max Tokens: {task.config['max_tokens']}
             # 检查返回内容是否为空
             if not result_text:
                 raise ValueError("API返回内容为空，请检查API配置或稍后重试")
+
+            # 更新UI显示正在处理
+            self.window.after(0, lambda: self._update_task_status(task, "📝 正在保存结果..."))
 
             # 保存结果（纯文本格式）
             output_folder = self._save_outline_text(task, result_text)
@@ -1038,6 +1044,12 @@ Max Tokens: {task.config['max_tokens']}
             "任务失败",
             f"任务执行失败\n文件: {os.path.basename(task.source_file)}\n错误: {error_msg}"
         )
+
+    def _update_task_status(self, task, status_text):
+        """更新任务状态显示"""
+        if task.task_id in self.task_frames:
+            frame = self.task_frames[task.task_id]
+            frame.status_label.config(text=status_text, fg="blue")
 
     def open_output_folder(self, task):
         """打开输出文件夹"""
