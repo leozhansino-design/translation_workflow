@@ -1491,6 +1491,7 @@ Max Tokens: {task.config['max_tokens']}
         def _generate():
             success_count = 0
             fail_count = 0
+            error_details = []  # 收集错误详情
 
             for i, folder in enumerate(self.cover_folders, 1):
                 folder_name = os.path.basename(folder)
@@ -1508,16 +1509,24 @@ Max Tokens: {task.config['max_tokens']}
                     outline_info = self._read_outline_info(folder)
 
                     # 生成封面
-                    success = self._generate_single_cover(folder, outline_info)
+                    success, error_msg = self._generate_single_cover(folder, outline_info)
 
                     if success:
                         success_count += 1
+                        print(f"✅ [{folder_name}] 封面生成成功")
                     else:
                         fail_count += 1
+                        error_info = f"{folder_name}: {error_msg}"
+                        error_details.append(error_info)
+                        print(f"❌ [{folder_name}] {error_msg}")
 
                 except Exception as e:
-                    print(f"❌ 生成封面失败 [{folder_name}]: {e}")
                     fail_count += 1
+                    error_info = f"{folder_name}: {str(e)}"
+                    error_details.append(error_info)
+                    print(f"❌ 生成封面失败 [{folder_name}]: {e}")
+                    import traceback
+                    traceback.print_exc()
 
             # 完成，更新状态
             result_msg = f"✅ 完成！成功: {success_count}, 失败: {fail_count}"
@@ -1525,7 +1534,15 @@ Max Tokens: {task.config['max_tokens']}
                 text=result_msg,
                 fg="green" if fail_count == 0 else "orange"
             ))
-            self.window.after(0, lambda: messagebox.showinfo("封面生成完成", result_msg))
+
+            # 显示结果（包含错误详情）
+            if fail_count > 0 and error_details:
+                detailed_msg = result_msg + "\n\n失败详情:\n" + "\n".join(f"- {err}" for err in error_details[:10])
+                if len(error_details) > 10:
+                    detailed_msg += f"\n... 还有{len(error_details)-10}个错误"
+                self.window.after(0, lambda: messagebox.showwarning("封面生成完成（有失败）", detailed_msg))
+            else:
+                self.window.after(0, lambda: messagebox.showinfo("封面生成完成", result_msg))
 
         thread = threading.Thread(target=_generate, daemon=True)
         thread.start()
@@ -1602,7 +1619,11 @@ The cover should evoke the mood and atmosphere of a {genre} novel, with professi
         return prompt
 
     def _generate_single_cover(self, folder, outline_info):
-        """生成单个封面"""
+        """生成单个封面
+
+        Returns:
+            (success: bool, error_msg: str): 成功返回(True, ""), 失败返回(False, 错误信息)
+        """
         try:
             # 构建prompt
             prompt = self._create_cover_prompt(outline_info)
@@ -1617,6 +1638,7 @@ The cover should evoke the mood and atmosphere of a {genre} novel, with professi
                 base_url="https://yunwuapi.com/v1/"
             )
 
+            print(f"🌐 调用API生成图片...")
             response = client.images.generate(
                 model="gpt-4o-image-vip",
                 prompt=prompt,
@@ -1634,6 +1656,7 @@ The cover should evoke the mood and atmosphere of a {genre} novel, with professi
 
             # 下载原图
             cover_path = os.path.join(folder, 'cover.png')
+            print(f"⬇️  下载图片到: {cover_path}")
             urllib.request.urlretrieve(image_url, cover_path)
             print(f"💾 封面已保存: {cover_path}")
 
@@ -1644,16 +1667,27 @@ The cover should evoke the mood and atmosphere of a {genre} novel, with professi
                 thumbnail_path = os.path.join(folder, 'cover_300x400.jpg')
                 img_resized.save(thumbnail_path, quality=95)
                 print(f"📐 缩略图已保存: {thumbnail_path}")
-            except:
-                pass  # 缩略图生成失败不影响主流程
+            except Exception as thumb_err:
+                print(f"⚠️  缩略图生成失败（不影响主流程）: {thumb_err}")
 
-            return True
+            return (True, "")
 
         except Exception as e:
-            print(f"❌ 生成封面错误: {e}")
+            error_msg = str(e)
+            print(f"❌ 生成封面错误: {error_msg}")
             import traceback
-            traceback.print_exc()
-            return False
+            full_trace = traceback.format_exc()
+            print(full_trace)
+
+            # 返回更详细的错误信息
+            if "API" in error_msg or "api" in error_msg.lower():
+                return (False, f"API调用失败: {error_msg}")
+            elif "url" in error_msg.lower() or "urlretrieve" in error_msg.lower():
+                return (False, f"图片下载失败: {error_msg}")
+            elif "PIL" in error_msg or "Image" in error_msg:
+                return (False, f"图片处理失败: {error_msg}")
+            else:
+                return (False, error_msg)
 
     def run(self):
         """运行应用"""
