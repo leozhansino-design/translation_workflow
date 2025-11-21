@@ -693,7 +693,7 @@ class WritingToolWindow:
             text=details_text,
             font=("Arial", 9),
             bg="#f5f5f5",
-            fg="gray"
+            fg=color  # 使用状态对应的颜色
         ).pack(anchor="w", pady=(5, 5))
 
         # 进度条
@@ -1064,7 +1064,7 @@ Now write Chapter {next_chapter} based on the outline above."""
     def _start_progress_monitoring(self, task):
         """监控任务进度并更新UI"""
         def _check_progress():
-            if task.status == 'in_progress' and hasattr(task, 'task_id'):
+            if hasattr(task, 'task_id'):
                 progress_file = f"tasks/{task.task_id}/progress.json"
 
                 if os.path.exists(progress_file):
@@ -1072,9 +1072,14 @@ Now write Chapter {next_chapter} based on the outline above."""
                         with open(progress_file, 'r', encoding='utf-8') as f:
                             progress = json.load(f)
 
-                        # 更新task对象
+                        # 更新task对象（从progress.json读取最新状态）
                         task.current_chapter = progress.get('current_chapter', 0)
                         task.progress = (task.current_chapter / task.total_chapters) * 100 if task.total_chapters > 0 else 0
+
+                        # 更新状态（如果worker已经完成）
+                        progress_status = progress.get('status', 'in_progress')
+                        if progress_status in ['completed', 'failed']:
+                            task.status = progress_status
 
                         # 刷新UI
                         self.window.after(0, self.refresh_task_list)
