@@ -813,24 +813,33 @@ Max Tokens: {task.config['max_tokens']}
         # 解析返回的文本
         parsed_data = self._parse_outline_response(result_text)
 
-        # 创建输出文件夹
-        os.makedirs('outlines', exist_ok=True)
+        # 创建基础文件夹 novels_for_translation（在当前工作目录下）
+        # 在Windows上可以配置工作目录为D:\，这样就会创建D:\novels_for_translation
+        base_folder = 'novels_for_translation'
+        os.makedirs(base_folder, exist_ok=True)
 
         title = parsed_data.get('title', 'Untitled') or 'Untitled'
         safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_'))
         safe_title = safe_title.replace(' ', '_') if safe_title else 'Untitled'
 
-        # 文件夹名：书名_类型
-        folder_name = f"{safe_title}_{task.genre}"
-        output_folder = os.path.join('outlines', folder_name)
+        # 文件夹名：书名_translation（新格式）
+        folder_name = f"{safe_title}_translation"
+        output_folder = os.path.join(base_folder, folder_name)
 
         # 如果文件夹已存在，添加时间戳
         if os.path.exists(output_folder):
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            folder_name = f"{safe_title}_{task.genre}_{timestamp}"
-            output_folder = os.path.join('outlines', folder_name)
+            folder_name = f"{safe_title}_translation_{timestamp}"
+            output_folder = os.path.join(base_folder, folder_name)
 
         os.makedirs(output_folder, exist_ok=True)
+
+        # 复制源文件到项目文件夹
+        if task.source_file and os.path.exists(task.source_file):
+            import shutil
+            source_filename = os.path.basename(task.source_file)
+            shutil.copy2(task.source_file, os.path.join(output_folder, source_filename))
+            print(f"  ✓ 源文件已复制: {source_filename}")
 
         # 1. 保存 title.txt
         with open(os.path.join(output_folder, 'title.txt'), 'w', encoding='utf-8') as f:

@@ -39,18 +39,17 @@ class WritingTask:
 
     def _scan_existing_chapters(self):
         """扫描项目文件夹中已有的章节"""
+        import re
         project_folder = self.config.get('project_folder', self.outline_folder)
         if not os.path.exists(project_folder):
             return []
 
         chapters = []
         for file in os.listdir(project_folder):
-            if file.startswith('chapter_') and file.endswith('.txt'):
-                try:
-                    ch_num = int(file.replace('chapter_', '').replace('.txt', ''))
-                    chapters.append(ch_num)
-                except:
-                    pass
+            # 支持 chapter_1.txt 和 chapter_1_Title.txt 两种格式
+            match = re.match(r'chapter_(\d+)(?:_.*)?\.txt$', file)
+            if match:
+                chapters.append(int(match.group(1)))
 
         return sorted(chapters)
 
@@ -560,7 +559,7 @@ class WritingToolWindow:
 
     def select_outline_folder(self):
         """选择大纲文件夹 - 自动检测章节数"""
-        folder = filedialog.askdirectory(title="选择大纲文件夹", initialdir="outlines")
+        folder = filedialog.askdirectory(title="选择大纲文件夹", initialdir="novels_for_translation")
         if folder:
             # 验证文件夹包含_writing_prompt.txt
             if not os.path.exists(os.path.join(folder, '_writing_prompt.txt')):
