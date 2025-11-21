@@ -835,11 +835,23 @@ class OutlineGeneratorWithQueue:
     def preview_cover_task_prompt(self, task):
         """预览封面任务的Prompt"""
         try:
+            # 从outline文件夹读取完整大纲
+            outline = ""
+            if task.outline_folder and os.path.exists(task.outline_folder):
+                full_outline_file = os.path.join(task.outline_folder, '_full_outline.txt')
+                if os.path.exists(full_outline_file):
+                    with open(full_outline_file, 'r', encoding='utf-8') as f:
+                        outline = f.read()
+                else:
+                    outline = "(未找到_full_outline.txt文件)"
+            else:
+                outline = "(outline文件夹不存在)"
+
             # 渲染封面prompt
             prompt_vars = {
                 'title': task.title,
                 'genre': task.genre,
-                'blurb': task.blurb[:500] if len(task.blurb) > 500 else task.blurb
+                'outline': outline
             }
             cover_prompt = self.prompt_mgr.render_cover_prompt(prompt_vars)
 
@@ -2328,33 +2340,16 @@ Max Tokens: {task.config['max_tokens']}
     def _create_cover_prompt(self, outline_info):
         """构建封面生成prompt（从prompt_mgr获取模板）"""
         title = outline_info['title']
-        genre = outline_info['genre'].lower()
+        genre = outline_info['genre']
         outline = outline_info['outline']  # 使用完整outline
-        tags = outline_info.get('tags', [])
-
-        # 根据genre定制style
-        genre_styles = {
-            'horror': 'dark, atmospheric horror with haunting elements, deep shadows, blood red accents',
-            'romance': 'romantic and dreamy atmosphere, soft lighting, warm colors, emotional depth',
-            'fantasy': 'epic fantasy with magical elements, mystical atmosphere, vibrant colors',
-            'mystery': 'mysterious and suspenseful mood, noir style, dramatic lighting',
-            'scifi': 'futuristic sci-fi aesthetic, high-tech elements, cool blue tones',
-            'thriller': 'intense and suspenseful, high contrast, dramatic composition',
-            'urban': 'modern urban setting, sleek and stylish, contemporary aesthetic',
-            'action': 'dynamic and energetic, explosive composition, high adrenaline'
-        }
-
-        genre_style = genre_styles.get(genre, 'professional and cinematic aesthetic, dramatic lighting')
 
         # 从prompt_mgr获取模板
         template = self.prompt_mgr.get_cover_prompt()
 
-        # 渲染变量
+        # 渲染变量 - 让AI自己决定风格
         prompt = template.format(
             title=title,
             genre=genre,
-            tags=', '.join(tags[:5]) if tags else 'N/A',
-            genre_style=genre_style,
             outline=outline
         )
 

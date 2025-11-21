@@ -58,6 +58,8 @@ DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件�
 
 4. **语言风格**：地道英语口语，避免中式英语
 
+5. **标题不要用The+xx这种形势太模板化的东西**
+
 【剧情扩展要求】⭐
 - 原文可能很短（如2章），你需要扩展到要求的章节数（如15章、50章、100章）
 - 保证剧情合理、连贯、有吸引力
@@ -115,17 +117,30 @@ Personality: [2-3个关键特点]
 Background: [1-2句]
 
 ===== CHAPTER_OUTLINES =====
-[每章格式：]
+[使用结构化大纲格式，每章包含：Opening, Development, Conflict, Climax, Hook, Key Scenes]
 
 Chapter 1: [章节标题]
-Summary: [100-150词剧情概要，简洁清晰]
-Key Events: [事件1], [事件2], [事件3]
-Characters: [角色名，逗号分隔]
+Opening: [开场场景，1-2句话描述如何吸引读者]
+Development: [情节发展，2-3句话]
+Conflict: [冲突点，1-2句话]
+Climax: [高潮时刻，1-2句话]
+Hook: [结尾钩子，让读者想继续看下一章，1句话]
+Key Scenes (expand each fully): [列出需要详细扩展的关键场景]
+1. [场景名] - [具体描述，包括对话、动作、情感]
+2. [场景名] - [具体描述]
+3. [场景名] - [具体描述]
+[根据需要添加更多场景，通常5-8个场景]
 
 Chapter 2: [标题]
-Summary: [100-150词]
-Key Events: [列表]
-Characters: [列表]
+Opening: [开场]
+Development: [发展]
+Conflict: [冲突]
+Climax: [高潮]
+Hook: [钩子]
+Key Scenes (expand each fully):
+1. [场景描述]
+2. [场景描述]
+3. [场景描述]
 
 [继续到第 {end_chapter} 章...]
 
@@ -133,9 +148,10 @@ Characters: [列表]
 
 【最后提醒】
 1. 必须是纯文本格式，严格按上述格式
-2. Summary保持简洁（100-150词），不要超出
-3. 用最少的语言说清楚关键情节
-4. 如果原文很短，合理扩展剧情满足章节数要求"""
+2. 每章的Key Scenes要具体，给出详细场景描述
+3. Opening/Development/Conflict/Climax/Hook要简洁有力
+4. Key Scenes帮助作者扩展章节，每个场景应包含对话、动作、情感等元素
+5. 如果原文很短，合理扩展剧情满足章节数要求"""
 
 
 DEFAULT_WRITER_PROMPT = """You are a web novel writer. Write addictive commercial fiction.
@@ -301,7 +317,7 @@ START WRITING.
 """
 
 
-DEFAULT_COVER_PROMPT = """Create a professional book cover image for a web novel.
+DEFAULT_COVER_PROMPT = """Create a distinctive 300x400 book cover image (PNG or JPG) for this web novel.
 
 【Title】
 {title}
@@ -309,31 +325,22 @@ DEFAULT_COVER_PROMPT = """Create a professional book cover image for a web novel
 【Genre】
 {genre}
 
-【Story Summary】
-{blurb}
+【Full Story Outline】
+{outline}
 
-【Visual Style Requirements】
-- Professional book cover quality
-- Photorealistic with cinematic lighting
-- High contrast and dramatic atmosphere
-- Genre-appropriate aesthetic ({genre} style)
-- Clear focal point with atmospheric background
-- Evocative and eye-catching
+【Your Creative Task】
+Based on the complete outline above, design a unique and eye-catching book cover that:
+- Captures the essence and mood of the story
+- Has a distinctive visual style (choose your own artistic direction)
+- Stands out and grabs attention
+- Fits the {genre} genre but in a creative way
 
-【Technical Specifications】
-- Vertical portrait orientation (ideal for e-book covers)
-- Leave space for title overlay at top or bottom
-- Sharp focus on main visual elements
-- Professional publishing-grade composition
+【Technical Requirements】
+- Image dimensions: 300 x 400 pixels
+- Format: PNG or JPG
+- Vertical portrait orientation
 
-【Design Goals】
-Create a visually striking cover that:
-1. Captures the essence and mood of this {genre} story
-2. Appeals to the target audience
-3. Stands out in thumbnail size
-4. Conveys the story's atmosphere and themes
-
-Design a cover that makes readers want to click and read."""
+Be creative and distinctive. Make readers stop scrolling and want to click."""
 
 
 class PromptManager:
