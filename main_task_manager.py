@@ -254,36 +254,17 @@ class WritingToolWindow:
                     'Authorization': f'Bearer {api_key}'
                 }
 
-                # 解析 base_url 获取主机名和路径
-                if base_url.startswith('https://'):
-                    url_without_protocol = base_url.replace('https://', '').rstrip('/')
-                elif base_url.startswith('http://'):
-                    url_without_protocol = base_url.replace('http://', '').rstrip('/')
-                else:
-                    url_without_protocol = base_url.rstrip('/')
+                # 简单解析URL - 去掉协议头（和成功的Gemini测试代码一样）
+                host = base_url.replace("https://", "").replace("http://", "").rstrip('/')
+                # 如果URL中包含路径，只取主机名
+                if '/' in host:
+                    host = host.split('/')[0]
 
-                # 分离主机名和路径
-                if '/' in url_without_protocol:
-                    parts = url_without_protocol.split('/', 1)
-                    host = parts[0]
-                    base_path = '/' + parts[1]
-                else:
-                    host = url_without_protocol
-                    base_path = '/v1'
-
-                # 构建完整路径
-                if base_path.endswith('/chat/completions'):
-                    path = base_path
-                elif base_path.endswith('/'):
-                    path = base_path + 'chat/completions'
-                else:
-                    path = base_path + '/chat/completions'
-
-                # 连接
-                conn = http.client.HTTPSConnection(host, timeout=30)
+                # 连接（不设置timeout，和成功的Gemini测试代码一样）
+                conn = http.client.HTTPSConnection(host)
 
                 # 发送请求
-                conn.request("POST", path, payload, headers)
+                conn.request("POST", "/v1/chat/completions", payload, headers)
                 response = conn.getresponse()
                 data = response.read().decode('utf-8')
 

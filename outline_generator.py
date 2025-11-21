@@ -1051,8 +1051,8 @@ Max Tokens: {task.config['max_tokens']}
                     'Authorization': f'Bearer {api_key}'
                 }
 
-                # 连接 (使用固定的yunwuapi.com)
-                conn = http.client.HTTPSConnection("yunwuapi.com", timeout=30)
+                # 连接 (完全按照成功的Gemini测试代码 - 不设置timeout)
+                conn = http.client.HTTPSConnection("yunwuapi.com")
 
                 # 发送请求
                 conn.request("POST", "/v1/chat/completions", payload, headers)
