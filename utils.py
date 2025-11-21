@@ -342,13 +342,13 @@ def load_project_metadata(project_folder):
 
 
 def call_api_with_http_client(api_key, base_url, model, messages, temperature=0.8, max_tokens=8000):
-    """使用http.client调用API（支持Gemini等模型）
+    """使用http.client调用API（支持Gemini和GPT模型）
 
-    这个方法适用于Gemini等需要特殊处理的API端点。
+    完全按照标准http.client方式调用，适用于所有兼容OpenAI格式的API。
 
     Args:
         api_key: API密钥
-        base_url: API基础URL（如 "https://yunwuapi.com/v1/"）
+        base_url: API基础URL（如 "https://yunwuapi.com" 或 "https://yunwuapi.com/v1/"）
         model: 模型名称
         messages: 消息列表 [{"role": "system/user", "content": "..."}]
         temperature: 温度参数
@@ -363,7 +363,7 @@ def call_api_with_http_client(api_key, base_url, model, messages, temperature=0.
             'details': 详细信息（失败时）
         }
     """
-    # 合并system和user消息为一条user消息（某些API要求这样）
+    # 合并system和user消息为一条user消息（Gemini等模型要求）
     combined_content = ""
     for msg in messages:
         if msg['role'] == 'system':
@@ -371,7 +371,7 @@ def call_api_with_http_client(api_key, base_url, model, messages, temperature=0.
         elif msg['role'] == 'user':
             combined_content += msg['content']
 
-    # 构建请求payload
+    # 准备请求数据
     payload = json.dumps({
         "model": model,
         "messages": [
@@ -390,42 +390,23 @@ def call_api_with_http_client(api_key, base_url, model, messages, temperature=0.
         'Authorization': f'Bearer {api_key}'
     }
 
-    # 解析URL - 提取主机名和路径
-    # 支持: "https://yunwuapi.com" 或 "https://yunwuapi.com/v1/" 等格式
-    if base_url.startswith('https://'):
-        url_without_protocol = base_url.replace('https://', '').rstrip('/')
-    elif base_url.startswith('http://'):
-        url_without_protocol = base_url.replace('http://', '').rstrip('/')
-    else:
-        url_without_protocol = base_url.rstrip('/')
-
-    # 分离主机名和路径
-    if '/' in url_without_protocol:
-        parts = url_without_protocol.split('/', 1)
-        host = parts[0]
-        base_path = '/' + parts[1]
-    else:
-        host = url_without_protocol
-        base_path = '/v1'  # 默认路径
-
-    # 构建完整路径
-    if base_path.endswith('/chat/completions'):
-        path = base_path
-    elif base_path.endswith('/'):
-        path = base_path + 'chat/completions'
-    else:
-        path = base_path + '/chat/completions'
+    # 解析URL - 去掉协议头
+    host = base_url.replace("https://", "").replace("http://", "").rstrip('/')
+    # 如果URL中包含路径，分离出来
+    if '/' in host:
+        host = host.split('/')[0]
 
     conn = None
     try:
-        # 使用HTTPS连接
+        # 设置连接
         conn = http.client.HTTPSConnection(host, timeout=300)
 
         # 发送请求
-        conn.request("POST", path, payload, headers)
+        conn.request("POST", "/v1/chat/completions", payload, headers)
         response = conn.getresponse()
         data = response.read().decode('utf-8')
 
+        # 解析并返回结果
         if response.status == 200:
             response_data = json.loads(data)
             content = response_data['choices'][0]['message']['content']
@@ -439,15 +420,15 @@ def call_api_with_http_client(api_key, base_url, model, messages, temperature=0.
         else:
             return {
                 'success': False,
-                'error': f"API返回状态码: {response.status}",
+                'error': f"请求失败，状态码：{response.status}",
                 'details': data
             }
 
     except Exception as e:
         return {
             'success': False,
-            'error': str(e),
-            'details': f"连接失败: {type(e).__name__}"
+            'error': f'发生错误：{e}',
+            'details': str(type(e).__name__)
         }
 
     finally:
