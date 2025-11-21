@@ -503,6 +503,72 @@ class PromptManager:
         self.prompts['writer']['active_version'] = 'Default'
         self.save_prompts()
 
+    def get_cover_versions(self):
+        """获取所有封面Prompt版本列表"""
+        if 'cover' not in self.prompts:
+            return ['Default']
+        return [v['name'] for v in self.prompts['cover']['versions']]
+
+    def set_active_cover_version(self, version_name):
+        """设置当前使用的封面Prompt版本"""
+        if 'cover' not in self.prompts:
+            self.prompts['cover'] = {
+                'default': DEFAULT_COVER_PROMPT,
+                'versions': [
+                    {
+                        'name': 'Default',
+                        'content': DEFAULT_COVER_PROMPT,
+                        'created_at': datetime.now().isoformat()
+                    }
+                ],
+                'active_version': 'Default'
+            }
+        self.prompts['cover']['active_version'] = version_name
+        self.save_prompts()
+
+    def save_custom_cover_prompt(self, name, content):
+        """保存自定义封面Prompt"""
+        if 'cover' not in self.prompts:
+            self.prompts['cover'] = {
+                'default': DEFAULT_COVER_PROMPT,
+                'versions': [],
+                'active_version': 'Default'
+            }
+
+        # 检查是否已存在
+        for v in self.prompts['cover']['versions']:
+            if v['name'] == name:
+                v['content'] = content
+                v['updated_at'] = datetime.now().isoformat()
+                self.save_prompts()
+                return
+
+        # 添加新版本
+        self.prompts['cover']['versions'].append({
+            'name': name,
+            'content': content,
+            'created_at': datetime.now().isoformat()
+        })
+        self.save_prompts()
+
+    def restore_default_cover(self):
+        """恢复默认封面Prompt"""
+        if 'cover' not in self.prompts:
+            self.prompts['cover'] = {
+                'default': DEFAULT_COVER_PROMPT,
+                'versions': [
+                    {
+                        'name': 'Default',
+                        'content': DEFAULT_COVER_PROMPT,
+                        'created_at': datetime.now().isoformat()
+                    }
+                ],
+                'active_version': 'Default'
+            }
+        else:
+            self.prompts['cover']['active_version'] = 'Default'
+        self.save_prompts()
+
     def render_outline_prompt(self, variables):
         """渲染大纲Prompt（替换变量）"""
         prompt = self.get_outline_prompt()

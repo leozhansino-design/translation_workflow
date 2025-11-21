@@ -904,33 +904,65 @@ class OutlineGeneratorWithQueue:
         # 在后台线程中生成封面
         def generate_thread():
             try:
-                # TODO: 调用实际的封面生成逻辑
-                # 这里应该调用DALL-E或其他图片生成API
-                messagebox.showinfo("提示", "封面生成功能正在开发中\n请使用批量封面生成功能")
+                # 读取outline信息
+                outline_info = self._read_outline_info(task.outline_folder)
 
-                # 暂时标记为完成
-                task.status = 'completed'
-                task.completed_at = datetime.now()
+                # 调用实际的封面生成逻辑
+                success, error_msg = self._generate_single_cover(task.outline_folder, outline_info)
 
-                # 更新UI
-                if task.task_id in self.cover_task_frames:
-                    container = self.cover_task_frames[task.task_id]
-                    if hasattr(container, 'status_label'):
-                        container.status_label.config(text="✅ completed", fg="green")
-                    if hasattr(container, 'view_btn'):
-                        container.view_btn.config(state=tk.NORMAL)
-                    if hasattr(container, 'start_btn'):
-                        container.start_btn.config(state=tk.NORMAL)
+                if success:
+                    # 标记为完成
+                    task.status = 'completed'
+                    task.completed_at = datetime.now()
+
+                    # 保存封面路径
+                    cover_path = os.path.join(task.outline_folder, 'cover.png')
+                    task.cover_path = cover_path
+
+                    # 更新UI（线程安全）
+                    def update_ui_success():
+                        if task.task_id in self.cover_task_frames:
+                            container = self.cover_task_frames[task.task_id]
+                            if hasattr(container, 'status_label'):
+                                container.status_label.config(text="✅ completed", fg="green")
+                            if hasattr(container, 'view_btn'):
+                                container.view_btn.config(state=tk.NORMAL)
+                            if hasattr(container, 'start_btn'):
+                                container.start_btn.config(state=tk.NORMAL)
+                        messagebox.showinfo("成功", f"封面生成成功！\n{task.title}")
+
+                    self.window.after(0, update_ui_success)
+
+                else:
+                    # 标记为失败
+                    task.status = 'failed'
+
+                    # 更新UI（线程安全）
+                    def update_ui_failed():
+                        if task.task_id in self.cover_task_frames:
+                            container = self.cover_task_frames[task.task_id]
+                            if hasattr(container, 'status_label'):
+                                container.status_label.config(text="❌ failed", fg="red")
+                            if hasattr(container, 'start_btn'):
+                                container.start_btn.config(state=tk.NORMAL)
+                        messagebox.showerror("失败", f"封面生成失败:\n{error_msg}")
+
+                    self.window.after(0, update_ui_failed)
 
             except Exception as e:
                 task.status = 'failed'
-                messagebox.showerror("错误", f"封面生成失败: {str(e)}")
-                if task.task_id in self.cover_task_frames:
-                    container = self.cover_task_frames[task.task_id]
-                    if hasattr(container, 'status_label'):
-                        container.status_label.config(text="❌ failed", fg="red")
-                    if hasattr(container, 'start_btn'):
-                        container.start_btn.config(state=tk.NORMAL)
+
+                # 更新UI（线程安全）
+                def update_ui_error():
+                    if task.task_id in self.cover_task_frames:
+                        container = self.cover_task_frames[task.task_id]
+                        if hasattr(container, 'status_label'):
+                            container.status_label.config(text="❌ failed", fg="red")
+                        if hasattr(container, 'start_btn'):
+                            container.start_btn.config(state=tk.NORMAL)
+                    messagebox.showerror("错误", f"封面生成失败:\n{str(e)}")
+
+                self.window.after(0, update_ui_error)
 
         threading.Thread(target=generate_thread, daemon=True).start()
 
@@ -1902,7 +1934,7 @@ Max Tokens: {task.config['max_tokens']}
         # 说明
         info_text = tk.Label(
             main_frame,
-            text="支持变量: {title}, {genre}, {tags}, {genre_style}, {outline}",
+            text="支持变量: {title}, {genre}, {outline}",
             font=("Arial", 9),
             fg="gray",
             anchor="w"
@@ -2219,7 +2251,7 @@ Max Tokens: {task.config['max_tokens']}
             self.cover_folders_label.config(text=display_text, fg="blue")
 
     def generate_covers(self):
-        """生成封面（支持批量）"""
+        """创建封面生成任务（支持批量）"""
         if not self.cover_folders:
             messagebox.showwarning("警告", "请先选择Outline文件夹")
             return
@@ -2228,73 +2260,63 @@ Max Tokens: {task.config['max_tokens']}
             messagebox.showwarning("警告", "请先配置API Key")
             return
 
-        # 确认生成
-        if not messagebox.askyesno("确认", f"将为 {len(self.cover_folders)} 个文件夹生成封面，确认继续？"):
+        # 确认创建任务
+        if not messagebox.askyesno("确认", f"将为 {len(self.cover_folders)} 个文件夹创建封面生成任务，确认继续？"):
             return
 
-        # 更新状态
-        self.cover_status_label.config(text="🔄 生成中...", fg="blue")
-        self.window.update()
+        # 创建任务
+        created_count = 0
+        skipped_count = 0
 
-        # 在新线程中生成，避免阻塞UI
-        def _generate():
-            success_count = 0
-            fail_count = 0
-            error_details = []  # 收集错误详情
+        for folder in self.cover_folders:
+            try:
+                # 读取outline信息
+                outline_info = self._read_outline_info(folder)
 
-            for i, folder in enumerate(self.cover_folders, 1):
-                folder_name = os.path.basename(folder)
+                # 检查是否已存在相同任务
+                folder_basename = os.path.basename(folder)
+                existing = any(t.outline_folder == folder for t in self.cover_tasks)
+                if existing:
+                    print(f"⚠️ 跳过重复任务: {folder_basename}")
+                    skipped_count += 1
+                    continue
 
-                # 更新进度
-                self.window.after(0, lambda i=i, total=len(self.cover_folders), name=folder_name:
-                    self.cover_status_label.config(
-                        text=f"🔄 [{i}/{total}] 生成 {name}...",
-                        fg="blue"
-                    )
+                # 创建任务
+                task_id = str(uuid.uuid4())
+                task = CoverTask(
+                    task_id=task_id,
+                    outline_folder=folder,
+                    title=outline_info['title'],
+                    genre=outline_info['genre'],
+                    blurb='',  # 不再使用blurb
+                    config_params={
+                        'model': 'dall-e-3',
+                        'api_key': self.api_key_var.get(),
+                        'base_url': self.base_url_var.get()
+                    }
                 )
 
-                try:
-                    # 读取outline信息
-                    outline_info = self._read_outline_info(folder)
+                # 添加到任务列表
+                self.cover_tasks.append(task)
 
-                    # 生成封面
-                    success, error_msg = self._generate_single_cover(folder, outline_info)
+                # 添加到UI
+                self.add_cover_task_to_ui(task)
 
-                    if success:
-                        success_count += 1
-                        print(f"✅ [{folder_name}] 封面生成成功")
-                    else:
-                        fail_count += 1
-                        error_info = f"{folder_name}: {error_msg}"
-                        error_details.append(error_info)
-                        print(f"❌ [{folder_name}] {error_msg}")
+                created_count += 1
+                print(f"✅ 创建封面任务: {folder_basename}")
 
-                except Exception as e:
-                    fail_count += 1
-                    error_info = f"{folder_name}: {str(e)}"
-                    error_details.append(error_info)
-                    print(f"❌ 生成封面失败 [{folder_name}]: {e}")
-                    import traceback
-                    traceback.print_exc()
+            except Exception as e:
+                print(f"❌ 创建任务失败 [{os.path.basename(folder)}]: {e}")
+                import traceback
+                traceback.print_exc()
 
-            # 完成，更新状态
-            result_msg = f"✅ 完成！成功: {success_count}, 失败: {fail_count}"
-            self.window.after(0, lambda: self.cover_status_label.config(
-                text=result_msg,
-                fg="green" if fail_count == 0 else "orange"
-            ))
+        # 显示结果
+        result_msg = f"已创建 {created_count} 个封面任务"
+        if skipped_count > 0:
+            result_msg += f"，跳过 {skipped_count} 个重复任务"
 
-            # 显示结果（包含错误详情）
-            if fail_count > 0 and error_details:
-                detailed_msg = result_msg + "\n\n失败详情:\n" + "\n".join(f"- {err}" for err in error_details[:10])
-                if len(error_details) > 10:
-                    detailed_msg += f"\n... 还有{len(error_details)-10}个错误"
-                self.window.after(0, lambda: messagebox.showwarning("封面生成完成（有失败）", detailed_msg))
-            else:
-                self.window.after(0, lambda: messagebox.showinfo("封面生成完成", result_msg))
-
-        thread = threading.Thread(target=_generate, daemon=True)
-        thread.start()
+        self.cover_status_label.config(text=f"✅ {result_msg}", fg="green")
+        messagebox.showinfo("任务创建完成", result_msg + "\n\n点击任务卡片的'开始'按钮来生成封面")
 
     def _read_outline_info(self, folder):
         """读取outline文件夹信息"""
