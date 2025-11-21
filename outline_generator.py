@@ -54,6 +54,39 @@ class OutlineTask:
         }
 
 
+class CoverTask:
+    """封面生成任务"""
+
+    def __init__(self, task_id, outline_folder, title, genre, blurb, config_params):
+        self.task_id = task_id
+        self.outline_folder = outline_folder
+        self.title = title
+        self.genre = genre
+        self.blurb = blurb
+        self.config = config_params
+        self.status = 'pending'  # pending, running, completed, failed
+        self.created_at = datetime.now()
+        self.started_at = None
+        self.completed_at = None
+        self.cover_path = None
+        self.prompt_cache = None  # 缓存生成的prompt
+
+    def to_dict(self):
+        return {
+            'task_id': self.task_id,
+            'outline_folder': self.outline_folder,
+            'title': self.title,
+            'genre': self.genre,
+            'blurb': self.blurb,
+            'config': self.config,
+            'status': self.status,
+            'created_at': self.created_at.isoformat(),
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'cover_path': self.cover_path
+        }
+
+
 class OutlineGeneratorWithQueue:
     """大纲生成器（带任务队列）"""
 
@@ -67,8 +100,12 @@ class OutlineGeneratorWithQueue:
         self.prompt_mgr = PromptManager()
 
         # 任务队列
-        self.tasks = []  # 任务列表
+        self.tasks = []  # 大纲任务列表
         self.task_frames = {}  # task_id -> frame widget
+
+        # 封面任务队列
+        self.cover_tasks = []  # 封面任务列表
+        self.cover_task_frames = {}  # cover_task_id -> frame widget
 
         # 当前配置
         self.current_source_file = None
@@ -326,7 +363,7 @@ class OutlineGeneratorWithQueue:
         # 初始化封面生成变量
         self.cover_folders = []
 
-        # === 下半部分：任务队列 ===
+        # === 下半部分：任务队列（双列布局）===
         queue_container = tk.LabelFrame(
             self.window,
             text="📋 任务队列",
@@ -336,46 +373,117 @@ class OutlineGeneratorWithQueue:
         )
         queue_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # 队列工具栏
-        queue_toolbar = tk.Frame(queue_container)
-        queue_toolbar.pack(fill=tk.X, pady=(0, 10))
+        # 创建双列容器
+        columns_frame = tk.Frame(queue_container)
+        columns_frame.pack(fill=tk.BOTH, expand=True)
+
+        # === 左列：大纲生成任务 ===
+        outline_column = tk.Frame(columns_frame, bg="#f0f0f0", relief=tk.RIDGE, borderwidth=1)
+        outline_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+
+        # 左列标题和工具栏
+        outline_header = tk.Frame(outline_column, bg="#2196F3")
+        outline_header.pack(fill=tk.X)
+
+        tk.Label(
+            outline_header,
+            text="📝 大纲生成",
+            font=("Arial", 11, "bold"),
+            bg="#2196F3",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=10, pady=5)
 
         tk.Button(
-            queue_toolbar,
-            text="🗑️ 清空队列",
-            command=self.clear_all_tasks,
+            outline_header,
+            text="🗑️ 清空",
+            command=self.clear_outline_tasks,
             bg="#f44336",
             fg="white",
-            width=12
-        ).pack(side=tk.RIGHT, padx=5)
+            width=8,
+            font=("Arial", 8)
+        ).pack(side=tk.RIGHT, padx=5, pady=5)
 
-        # 创建滚动区域
-        canvas = tk.Canvas(queue_container, bg="white")
-        scrollbar = ttk.Scrollbar(queue_container, orient="vertical", command=canvas.yview)
+        # 左列滚动区域
+        outline_canvas = tk.Canvas(outline_column, bg="white")
+        outline_scrollbar = ttk.Scrollbar(outline_column, orient="vertical", command=outline_canvas.yview)
 
-        self.queue_frame = tk.Frame(canvas, bg="white")
+        self.queue_frame = tk.Frame(outline_canvas, bg="white")
 
         self.queue_frame.bind(
             "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            lambda e: outline_canvas.configure(scrollregion=outline_canvas.bbox("all"))
         )
 
-        canvas.create_window((0, 0), window=self.queue_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        outline_canvas.create_window((0, 0), window=self.queue_frame, anchor="nw")
+        outline_canvas.configure(yscrollcommand=outline_scrollbar.set)
 
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        outline_canvas.pack(side="left", fill="both", expand=True)
+        outline_scrollbar.pack(side="right", fill="y")
 
-        # 空队列提示
+        # 左列空队列提示
         self.empty_label = tk.Label(
             self.queue_frame,
-            text="暂无任务\n点击上方「添加到任务队列」按钮添加任务",
-            font=("Arial", 12),
+            text="暂无大纲任务\n点击上方「添加到任务队列」",
+            font=("Arial", 10),
             fg="gray",
             bg="white",
-            pady=50
+            pady=30
         )
         self.empty_label.pack()
+
+        # === 右列：封面生成任务 ===
+        cover_column = tk.Frame(columns_frame, bg="#f0f0f0", relief=tk.RIDGE, borderwidth=1)
+        cover_column.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
+
+        # 右列标题和工具栏
+        cover_header = tk.Frame(cover_column, bg="#9C27B0")
+        cover_header.pack(fill=tk.X)
+
+        tk.Label(
+            cover_header,
+            text="🎨 封面生成",
+            font=("Arial", 11, "bold"),
+            bg="#9C27B0",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=10, pady=5)
+
+        tk.Button(
+            cover_header,
+            text="🗑️ 清空",
+            command=self.clear_cover_tasks,
+            bg="#f44336",
+            fg="white",
+            width=8,
+            font=("Arial", 8)
+        ).pack(side=tk.RIGHT, padx=5, pady=5)
+
+        # 右列滚动区域
+        cover_canvas = tk.Canvas(cover_column, bg="white")
+        cover_scrollbar = ttk.Scrollbar(cover_column, orient="vertical", command=cover_canvas.yview)
+
+        self.cover_queue_frame = tk.Frame(cover_canvas, bg="white")
+
+        self.cover_queue_frame.bind(
+            "<Configure>",
+            lambda e: cover_canvas.configure(scrollregion=cover_canvas.bbox("all"))
+        )
+
+        cover_canvas.create_window((0, 0), window=self.cover_queue_frame, anchor="nw")
+        cover_canvas.configure(yscrollcommand=cover_scrollbar.set)
+
+        cover_canvas.pack(side="left", fill="both", expand=True)
+        cover_scrollbar.pack(side="right", fill="y")
+
+        # 右列空队列提示
+        self.cover_empty_label = tk.Label(
+            self.cover_queue_frame,
+            text="暂无封面任务\n从大纲任务中生成",
+            font=("Arial", 10),
+            fg="gray",
+            bg="white",
+            pady=30
+        )
+        self.cover_empty_label.pack()
 
     def select_file(self):
         """选择源文件"""
@@ -612,6 +720,112 @@ class OutlineGeneratorWithQueue:
             button_frame,
             text="🗑️",
             command=lambda: self.remove_task(task),
+            width=4,
+            bg="#f44336",
+            fg="white",
+            font=("Arial", 8)
+        ).pack(side=tk.LEFT, padx=2)
+
+    def add_cover_task_to_ui(self, task):
+        """添加封面任务到UI"""
+        # 隐藏空提示
+        if hasattr(self, 'cover_empty_label'):
+            self.cover_empty_label.pack_forget()
+
+        # 创建任务框架 - 紧凑设计
+        task_container = tk.Frame(self.cover_queue_frame, relief=tk.RIDGE, borderwidth=1, bg="#f5f5f5")
+        task_container.pack(fill=tk.X, padx=5, pady=3)
+
+        self.cover_task_frames[task.task_id] = task_container
+
+        # 左侧：任务信息
+        info_frame = tk.Frame(task_container, bg="#f5f5f5")
+        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=8, pady=6)
+
+        # 标题行
+        title_frame = tk.Frame(info_frame, bg="#f5f5f5")
+        title_frame.pack(fill=tk.X)
+
+        tk.Label(
+            title_frame,
+            text=f"🎨 {task.title[:30]}{'...' if len(task.title) > 30 else ''}",
+            font=("Arial", 10, "bold"),
+            bg="#f5f5f5",
+            anchor="w"
+        ).pack(side=tk.LEFT)
+
+        status_label = tk.Label(
+            title_frame,
+            text=f"⏸ {task.status}",
+            font=("Arial", 9),
+            bg="#f5f5f5",
+            fg="orange"
+        )
+        status_label.pack(side=tk.LEFT, padx=8)
+        task_container.status_label = status_label  # 保存引用
+
+        # 详情行 - 显示类型、模型和开始时间
+        details_frame = tk.Frame(info_frame, bg="#f5f5f5")
+        details_frame.pack(fill=tk.X, pady=(3, 0))
+
+        # 初始详情文本（不显示开始时间）
+        details_text = f"类型: {task.genre}  |  模型: {task.config.get('model', 'dall-e-3')}"
+
+        details_label = tk.Label(
+            details_frame,
+            text=details_text,
+            font=("Arial", 8),
+            bg="#f5f5f5",
+            fg="gray"
+        )
+        details_label.pack(side=tk.LEFT)
+        task_container.details_label = details_label  # 保存引用
+
+        # 右侧：操作按钮 - 紧凑设计
+        button_frame = tk.Frame(task_container, bg="#f5f5f5")
+        button_frame.pack(side=tk.RIGHT, padx=8, pady=6)
+
+        # 预览Prompt按钮
+        tk.Button(
+            button_frame,
+            text="👁️ Prompt",
+            command=lambda: self.preview_cover_task_prompt(task),
+            width=10,
+            bg="#FF9800",
+            fg="white",
+            font=("Arial", 8)
+        ).pack(side=tk.LEFT, padx=2)
+
+        # 开始按钮
+        start_btn = tk.Button(
+            button_frame,
+            text="▶️ 开始",
+            command=lambda: self.start_cover_task(task),
+            width=8,
+            bg="#9C27B0",
+            fg="white",
+            font=("Arial", 8)
+        )
+        start_btn.pack(side=tk.LEFT, padx=2)
+        task_container.start_btn = start_btn  # 保存引用
+
+        # 查看封面按钮
+        view_btn = tk.Button(
+            button_frame,
+            text="📷 查看",
+            command=lambda: self.view_cover(task),
+            width=8,
+            state=tk.DISABLED,
+            font=("Arial", 8)
+        )
+        view_btn.pack(side=tk.LEFT, padx=2)
+        task_container.view_btn = view_btn  # 保存引用
+
+        # 删除按钮
+        tk.Button(
+            button_frame,
+            text="🗑️",
+            command=lambda: self.remove_cover_task(task),
             width=4,
             bg="#f44336",
             fg="white",
@@ -1115,6 +1329,39 @@ Max Tokens: {task.config['max_tokens']}
 
             # 显示空提示
             self.empty_label.pack()
+
+    def clear_outline_tasks(self):
+        """清空大纲任务"""
+        running_tasks = [t for t in self.tasks if t.status == 'running']
+        if running_tasks:
+            messagebox.showwarning("警告", "有大纲任务正在运行中")
+            return
+
+        if not self.tasks:
+            messagebox.showinfo("提示", "大纲队列已经是空的")
+            return
+
+        if messagebox.askyesno("确认", f"确定要清空所有 {len(self.tasks)} 个大纲任务吗？"):
+            for task in self.tasks[:]:
+                if task.task_id in self.task_frames:
+                    self.task_frames[task.task_id].destroy()
+                    del self.task_frames[task.task_id]
+            self.tasks.clear()
+            self.empty_label.pack()
+
+    def clear_cover_tasks(self):
+        """清空封面任务"""
+        if not self.cover_tasks:
+            messagebox.showinfo("提示", "封面队列已经是空的")
+            return
+
+        if messagebox.askyesno("确认", f"确定要清空所有 {len(self.cover_tasks)} 个封面任务吗？"):
+            for task in self.cover_tasks[:]:
+                if task['task_id'] in self.cover_task_frames:
+                    self.cover_task_frames[task['task_id']].destroy()
+                    del self.cover_task_frames[task['task_id']]
+            self.cover_tasks.clear()
+            self.cover_empty_label.pack()
 
     def test_api_connection(self):
         """测试API连接"""

@@ -301,6 +301,41 @@ START WRITING.
 """
 
 
+DEFAULT_COVER_PROMPT = """Create a professional book cover image for a web novel.
+
+【Title】
+{title}
+
+【Genre】
+{genre}
+
+【Story Summary】
+{blurb}
+
+【Visual Style Requirements】
+- Professional book cover quality
+- Photorealistic with cinematic lighting
+- High contrast and dramatic atmosphere
+- Genre-appropriate aesthetic ({genre} style)
+- Clear focal point with atmospheric background
+- Evocative and eye-catching
+
+【Technical Specifications】
+- Vertical portrait orientation (ideal for e-book covers)
+- Leave space for title overlay at top or bottom
+- Sharp focus on main visual elements
+- Professional publishing-grade composition
+
+【Design Goals】
+Create a visually striking cover that:
+1. Captures the essence and mood of this {genre} story
+2. Appeals to the target audience
+3. Stands out in thumbnail size
+4. Conveys the story's atmosphere and themes
+
+Design a cover that makes readers want to click and read."""
+
+
 class PromptManager:
     """Prompt管理器"""
 
@@ -332,6 +367,17 @@ class PromptManager:
                         {
                             'name': 'Default',
                             'content': DEFAULT_WRITER_PROMPT,
+                            'created_at': datetime.now().isoformat()
+                        }
+                    ],
+                    'active_version': 'Default'
+                },
+                'cover': {
+                    'default': DEFAULT_COVER_PROMPT,
+                    'versions': [
+                        {
+                            'name': 'Default',
+                            'content': DEFAULT_COVER_PROMPT,
                             'created_at': datetime.now().isoformat()
                         }
                     ],
@@ -372,6 +418,21 @@ class PromptManager:
                 return v['content']
 
         return self.prompts['writer']['default']
+
+    def get_cover_prompt(self, version=None):
+        """获取封面生成Prompt"""
+        if version is None:
+            if 'cover' not in self.prompts:
+                return DEFAULT_COVER_PROMPT
+            version = self.prompts.get('cover', {}).get('active_version', 'Default')
+
+        if 'cover' in self.prompts and 'versions' in self.prompts['cover']:
+            for v in self.prompts['cover']['versions']:
+                if v['name'] == version:
+                    return v['content']
+
+        # 如果找不到，返回默认
+        return self.prompts.get('cover', {}).get('default', DEFAULT_COVER_PROMPT)
 
     def save_custom_outline_prompt(self, name, content):
         """保存自定义大纲Prompt"""
@@ -445,6 +506,13 @@ class PromptManager:
     def render_writer_prompt(self, variables):
         """渲染写作Prompt（替换变量）"""
         prompt = self.get_writer_prompt()
+        for key, value in variables.items():
+            prompt = prompt.replace(f'{{{key}}}', str(value))
+        return prompt
+
+    def render_cover_prompt(self, variables):
+        """渲染封面Prompt（替换变量）"""
+        prompt = self.get_cover_prompt()
         for key, value in variables.items():
             prompt = prompt.replace(f'{{{key}}}', str(value))
         return prompt
