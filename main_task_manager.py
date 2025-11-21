@@ -92,23 +92,36 @@ class WritingToolWindow:
         config_frame = tk.LabelFrame(self.window, text="⚙️ API配置", padx=15, pady=10)
         config_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        # API Key
+        # 第一行：API Key + 测试按钮
         tk.Label(config_frame, text="API Key:", width=12, anchor='w').grid(row=0, column=0, sticky=tk.W, pady=5)
         self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
-        tk.Entry(config_frame, textvariable=self.api_key_var, show="*", width=50).grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
+        tk.Entry(config_frame, textvariable=self.api_key_var, show="*", width=40).grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
 
-        # Base URL
+        tk.Button(
+            config_frame,
+            text="🔧 测试API",
+            command=self.test_api_connection,
+            width=12,
+            bg="#4CAF50",
+            fg="white"
+        ).grid(row=0, column=2, pady=5, padx=5)
+
+        self.api_status_label = tk.Label(config_frame, text="", fg="gray")
+        self.api_status_label.grid(row=0, column=3, pady=5, padx=5)
+
+        # 第二行：Base URL
         tk.Label(config_frame, text="Base URL:", width=12, anchor='w').grid(row=1, column=0, sticky=tk.W, pady=5)
         self.base_url_var = tk.StringVar(value="https://yunwuapi.com/v1/")
-        tk.Entry(config_frame, textvariable=self.base_url_var, width=50).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
+        tk.Entry(config_frame, textvariable=self.base_url_var, width=40).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
 
-        # Model
+        # 第三行：Model（支持自定义输入）
         tk.Label(config_frame, text="Model:", width=12, anchor='w').grid(row=2, column=0, sticky=tk.W, pady=5)
         self.model_var = tk.StringVar(value="gpt-5.1")
-        model_combo = ttk.Combobox(config_frame, textvariable=self.model_var, width=47)
-        model_combo['values'] = ["gpt-5.1", "gemini-2.5-pro", "gpt-5", "gemini-3-pro-preview"]
+        model_combo = ttk.Combobox(config_frame, textvariable=self.model_var, width=37, state='normal')
+        model_combo['values'] = ["gpt-5.1", "gemini-2.5-pro", "gpt-5", "gemini-3-pro-preview", "gpt-4-turbo-preview"]
         model_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
-        model_combo['state'] = 'normal'  # 允许手动输入
+
+        tk.Label(config_frame, text="💡 可自定义输入模型名", fg="gray", font=("Arial", 8)).grid(row=2, column=2, columnspan=2, sticky=tk.W, padx=5)
 
         # Temperature
         tk.Label(config_frame, text="Temperature:", width=12, anchor='w').grid(row=3, column=0, sticky=tk.W, pady=5)
@@ -365,6 +378,60 @@ class WritingToolWindow:
         if messagebox.askyesno("确认", "确定要删除这个任务吗？\n注意：不会删除已生成的文件"):
             del self.tasks[index]
             self.refresh_task_list()
+
+    def test_api_connection(self):
+        """测试API连接"""
+        api_key = self.api_key_var.get()
+        base_url = self.base_url_var.get()
+        model = self.model_var.get()
+
+        if not api_key:
+            self.api_status_label.config(text="❌ 请输入API Key", fg="red")
+            return
+
+        # 更新状态
+        self.api_status_label.config(text="🔄 测试中...", fg="blue")
+        self.window.update()
+
+        # 在新线程中测试，避免阻塞UI
+        def _test():
+            try:
+                from openai import OpenAI
+
+                client = OpenAI(
+                    api_key=api_key,
+                    base_url=base_url
+                )
+
+                # 发送一个简单的测试请求
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "user", "content": "Hello"}
+                    ],
+                    max_tokens=10
+                )
+
+                # 检查响应
+                if response and response.choices:
+                    self.window.after(0, lambda: self.api_status_label.config(
+                        text="✅ API连接成功", fg="green"
+                    ))
+                else:
+                    self.window.after(0, lambda: self.api_status_label.config(
+                        text="❌ API响应异常", fg="red"
+                    ))
+
+            except Exception as e:
+                error_msg = str(e)
+                if len(error_msg) > 50:
+                    error_msg = error_msg[:50] + "..."
+                self.window.after(0, lambda: self.api_status_label.config(
+                    text=f"❌ 失败: {error_msg}", fg="red"
+                ))
+
+        # 启动测试线程
+        threading.Thread(target=_test, daemon=True).start()
 
     def run(self):
         """运行应用"""

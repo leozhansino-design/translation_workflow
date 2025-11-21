@@ -129,9 +129,12 @@ class OutlineGeneratorWithQueue:
             api_frame,
             textvariable=self.model_var,
             values=models,
-            width=20
+            width=20,
+            state='normal'  # 明确允许自定义输入
         )
         model_combo.grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
+
+        tk.Label(api_frame, text="💡 可自定义", fg="gray", font=("Arial", 8)).grid(row=1, column=3, sticky=tk.W, padx=5)
 
         tk.Button(
             api_frame,
