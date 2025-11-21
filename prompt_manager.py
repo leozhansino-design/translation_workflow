@@ -40,7 +40,14 @@ PROMPTS_FILE = get_resource_path('data/prompts.json')
 
 
 # 默认Prompt模板
-DEFAULT_OUTLINE_PROMPT = """你是英语网文作者，将附件改编成{end_chapter}章英文小说大纲。
+DEFAULT_OUTLINE_PROMPT = """你是英语网文作者，将附件改编成英文小说大纲。
+
+【⚠️ CRITICAL REQUIREMENT - 章节数量要求 ⚠️】
+你必须生成 **准确的 {end_chapter} 章** 大纲。
+- 不能多，不能少，必须正好 {end_chapter} 章
+- 从 Chapter 1 开始，到 Chapter {end_chapter} 结束
+- 每一章都必须有完整的 Summary, Opening, Development, Conflict, Climax, Hook, Key Scenes
+- 如果你生成的章节数量不是 {end_chapter} 章，这个大纲将被拒绝
 
 本土化要求：
 - 西方背景（美国/英国/欧洲），禁用中文名/地名/文化
@@ -50,7 +57,7 @@ DEFAULT_OUTLINE_PROMPT = """你是英语网文作者，将附件改编成{end_ch
 - 语言：地道英语
 
 剧情要求：
-- 从原文扩展到{end_chapter}章
+- 从原文扩展到{end_chapter}章（必须准确）
 - 节奏快、有反转、够爽
 - 每章3-5个爽点
 
@@ -94,6 +101,8 @@ Background: [背景]
 
 ===== CHAPTER_OUTLINES =====
 
+⚠️ 你必须生成从 Chapter 1 到 Chapter {end_chapter} 的完整大纲，总共 {end_chapter} 章。
+
 Chapter 1: [标题]
 
 Summary (≈120 words): [核心剧情]
@@ -121,6 +130,12 @@ Key Scenes (expand each fully):
 1-5. [...]
 
 [继续到第{end_chapter}章]
+
+【⚠️ 最终检查 ⚠️】
+在提交大纲之前，请确认：
+✓ 总共生成了 {end_chapter} 章（Chapter 1 到 Chapter {end_chapter}）
+✓ 每一章都有完整的结构（Summary, Opening, Development, Conflict, Climax, Hook, Key Scenes）
+✓ 没有多余的章节，也没有遗漏的章节
 
 ===== END ====="""
 
@@ -208,6 +223,8 @@ class PromptManager:
 
     def __init__(self):
         self.prompts = self.load_prompts()
+        # 自动更新默认prompts（确保用户总是使用最新版本）
+        self._update_default_prompts()
 
     def load_prompts(self):
         """加载Prompt配置"""
@@ -262,6 +279,37 @@ class PromptManager:
             prompts = self.prompts
         with open(PROMPTS_FILE, 'w', encoding='utf-8') as f:
             json.dump(prompts, f, indent=2, ensure_ascii=False)
+
+    def _update_default_prompts(self):
+        """自动更新Default版本的prompts为代码中的最新版本"""
+        updated = False
+
+        # 更新outline的Default版本
+        if 'outline' in self.prompts and 'versions' in self.prompts['outline']:
+            for version in self.prompts['outline']['versions']:
+                if version['name'] == 'Default':
+                    if version['content'] != DEFAULT_OUTLINE_PROMPT:
+                        print("  🔄 检测到大纲Prompt更新，自动升级到最新版本")
+                        version['content'] = DEFAULT_OUTLINE_PROMPT
+                        version['updated_at'] = datetime.now().isoformat()
+                        updated = True
+                    break
+
+        # 更新writer的Default版本
+        if 'writer' in self.prompts and 'versions' in self.prompts['writer']:
+            for version in self.prompts['writer']['versions']:
+                if version['name'] == 'Default':
+                    if version['content'] != DEFAULT_WRITER_PROMPT:
+                        print("  🔄 检测到写作Prompt更新，自动升级到最新版本")
+                        version['content'] = DEFAULT_WRITER_PROMPT
+                        version['updated_at'] = datetime.now().isoformat()
+                        updated = True
+                    break
+
+        # 如果有更新，保存到文件
+        if updated:
+            self.save_prompts()
+            print("  ✅ Prompt已更新并保存")
 
     def get_outline_prompt(self, version=None):
         """获取大纲生成Prompt"""
