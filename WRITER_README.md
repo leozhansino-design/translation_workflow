@@ -2,19 +2,60 @@
 
 ## 📝 概述
 
-这是一个全新的小说生成器工具，完全重写，参考了`outline_generator`的架构。支持：
+这是一个全新的小说生成器工具，**完全参考你的工作代码重写**。支持：
 
-- ✅ **多模型选择**：支持gpt-5-mini, gpt-5.1, gemini-2.5-pro等
-- ✅ **API测试**：测试API连接是否正常
-- ✅ **文件夹选择**：自动查找大纲JSON文件
-- ✅ **并行任务**：支持多个任务同时运行
-- ✅ **任务管理**：开始、预览Prompt、打开输出目录
-- ✅ **断点续写**：任务中断后可以继续
-- ✅ **智能Prompt**：基于你提供的爽文生成器prompt
+- ✅ **从文件夹自动抓取**：_writing_prompt.txt + chapter_X_prompt.txt
+- ✅ **批次生成**：可配置每批生成1-5章
+- ✅ **断点续写**：自动检测已完成批次，从下一批继续
+- ✅ **前文context**：每批带上上一批结尾1500字符，保持连贯性
+- ✅ **任务队列**：所有任务显示在底部任务栏
+- ✅ **预览Prompt**：查看第一批次完整prompt
+- ✅ **打开输出目录**：快速访问生成的文件
+- ✅ **API测试**：测试API连接
+- ✅ **多模型支持**：gpt-5-mini, gpt-5.1, gemini-2.5-pro等
 
 ## 🚀 快速开始
 
-### 1. 启动工具
+### 1. 准备Prompt文件夹
+
+你的文件夹需要包含以下文件：
+
+```
+your_folder/
+├── _writing_prompt.txt      # 必需：写作要求
+├── chapter_1_prompt.txt      # 必需：第1章大纲
+├── chapter_2_prompt.txt      # 必需：第2章大纲
+├── chapter_3_prompt.txt      # 第3章大纲
+├── ...
+├── title.txt                 # 可选：书名
+└── category.txt              # 可选：类型
+```
+
+**_writing_prompt.txt 示例：**
+```
+Genre: Urban Romance
+Setting: Modern Manhattan
+Style: Fast-paced, emotional, addictive
+
+Key Requirements:
+- Short paragraphs (1-3 sentences)
+- Punchy dialogue
+- Cliffhanger endings
+- 3-5 爽点 per chapter
+```
+
+**chapter_1_prompt.txt 示例：**
+```
+Chapter 1: The Proposal Gone Wrong
+
+Emma catches her boyfriend cheating at their engagement party.
+爽点1: She dumps champagne on him in front of everyone
+爽点2: His rich boss offers to help her
+爽点3: She discovers she's the heir to a fortune
+Hook: Mysterious text from unknown number
+```
+
+### 2. 启动工具
 
 **Windows:**
 ```bash
@@ -26,61 +67,76 @@ run_writer.bat
 python writer_app.py
 ```
 
-### 2. 配置API
+### 3. 配置API
 
 在界面上配置：
-- **API Key**: 你的API密钥 (默认已填写)
+- **API Key**: 你的API密钥
 - **Base URL**: https://yunwuapi.com/v1/
 - **模型**: 选择模型（默认gpt-5-mini）
-- **并发章节数**: 同时生成的章节数（默认3）
 
 点击**"测试API"**确保连接正常。
 
-### 3. 选择大纲文件
+### 4. 选择Prompt文件夹
 
-两种方式：
-1. **选择大纲** - 直接选择JSON文件
-2. **选择文件夹** - 自动查找文件夹中的JSON文件
+点击**"选择文件夹"**，选择包含prompt文件的文件夹。
 
-系统会自动显示：
-- 书名
-- 类型
-- 章节数
+系统会自动：
+- 检测_writing_prompt.txt
+- 检测所有chapter_X_prompt.txt文件
+- 读取title.txt和category.txt（如果存在）
+- 显示总章节数
 
-### 4. 配置任务
+### 5. 配置任务参数
 
-- **章节范围**: 从第X章到第Y章
-- **每次生成**: 每批生成几章（建议1-3章）
-- **Temperature**: 0.85（默认，控制创意度）
-- **Max Tokens**: 32000（默认，控制输出长度）
+- **每批章节数**: 每次生成几章（建议3章）
+  - 1章/批：最安全，最连贯
+  - 2-3章/批：**推荐**，平衡速度和质量
+  - 4-5章/批：最快，但可能影响连贯性
 
-### 5. 添加到队列
+- **Temperature**: 0.85（默认）
+  - 0.7: 更保守
+  - 0.85: 平衡
+  - 1.0: 更有创意
 
-点击**"➕ 添加到队列"**，任务会被添加到下方的队列中。
+- **Max Tokens**: 120000（默认）
 
-### 6. 启动任务
+### 6. 添加到队列
 
-对于单个任务：
+点击**"➕ 添加到队列"**，任务会被添加到下方的任务队列中。
+
+你可以添加多个任务！
+
+### 7. 启动任务
+
+**单个任务**：
 - 点击任务卡片上的**"▶️ 开始"**按钮
 
-对于所有任务：
+**所有任务**：
 - 点击**"🚀 启动所有任务"**按钮
 
-### 7. 监控进度
+### 8. 监控进度
 
-任务会显示：
-- 🔄 **运行中** - 正在生成
+任务卡片显示：
+- 🔄 **运行中** - 正在生成（批次X/总批次）
 - ✅ **完成** - 生成成功
 - ❌ **失败** - 生成失败
 
-进度条实时更新。
+实时更新：
+- 批次进度
+- 章节进度
+- 百分比进度条
 
-### 8. 管理任务
+### 9. 管理任务
 
 每个任务卡片有以下按钮：
 
-- **👁️ 预览Prompt** - 查看将要发送给AI的完整prompt
+- **👁️ 预览Prompt** - 查看第一批次的完整prompt
+  - System Prompt（固定）
+  - Writing Prompt（_writing_prompt.txt）
+  - 章节Prompts（第一批）
+
 - **📂 打开目录** - 打开输出文件夹（任务开始后可用）
+
 - **🗑️ 删除** - 删除任务
 
 ## 📂 输出结构
@@ -88,100 +144,193 @@ python writer_app.py
 生成的文件夹结构：
 
 ```
-projects/Project_[Title]_[Genre]_[Timestamp]/
-├── title.txt           # 书名
-├── blurb.txt           # 简介
-├── age.txt             # 年龄分类
-├── tags.txt            # 标签
-├── category.txt        # 分类
-├── ch1.txt             # 第1章
-├── ch2.txt             # 第2章
-├── ch3.txt             # 第3章
-└── ...
+output/[Title]_[Category]_[Timestamp]/
+├── batch_1_ch1-3.txt      # 第1批次（第1-3章）
+├── batch_2_ch4-6.txt      # 第2批次（第4-6章）
+├── batch_3_ch7-9.txt      # 第3批次（第7-9章）
+├── ...
+└── [Title]_complete.txt   # 完整版（所有章节合并）
+```
+
+**批次文件内容**：
+- 只包含本批次的章节内容
+
+**完整版文件内容**：
+```
+Title: [书名]
+Category: [类型]
+
+================================================================================
+
+[所有章节内容...]
 ```
 
 ## 🔄 断点续写
 
-如果任务中断（关闭程序、断网等）：
+如果任务中断（关闭程序、断网、错误等）：
 
-1. 重新打开Writer工具
-2. 选择**相同的大纲文件**
-3. 设置**相同的章节范围**（或更大）
-4. 添加到队列并启动
+1. **重新打开Writer工具**
+2. **选择相同的Prompt文件夹**
+3. **使用相同的配置添加任务**
+4. **启动任务**
 
-系统会：
-- 自动检测已完成的章节
-- 从下一章继续生成
-- 不会重复生成已有的章节
+系统会自动：
+- 检测output文件夹中已生成的batch_X文件
+- 找到最大的批次号（例如batch_3）
+- 从下一批次继续（例如batch_4）
+- 加载上一批次的结尾1500字符作为context
 
-## 📝 Prompt管理
+**示例**：
+```
+已有文件：
+- batch_1_ch1-3.txt
+- batch_2_ch4-6.txt
+- batch_3_ch7-9.txt
 
-点击**"📝 Prompt管理"**可以：
-- 查看当前使用的Prompt模板
-- 编辑Prompt内容
-- 保存自定义版本
-- 恢复默认Prompt
+重新启动后：
+✓ 检测到已完成批次: 1-3
+✓ 从批次4继续
+✓ 加载前文context: 1500字符（来自batch_3）
+📝 开始生成批次4: 第10-12章
+```
 
-当前使用的是你提供的爽文生成器Prompt：
-- 每章8,000-12,000字符
-- 包含3-5个"爽点"
-- 短平快风格
-- 西方名字和地点
-- Cliffhanger结尾
+## 🎯 核心特性详解
 
-## 🎯 核心特性
+### 1. 批次生成系统
 
-### 1. 多模型支持
+每批次生成过程：
 
-支持的模型：
-- gpt-5-mini（快速、便宜）
-- gpt-5.1（高质量）
-- gemini-2.5-pro（谷歌模型）
-- gpt-5（GPT-5）
-- gemini-3-pro-preview（最新谷歌模型）
+```
+批次1（第1-3章）:
+├── System Prompt（固定）
+├── Writing Prompt
+├── 第1章prompt
+├── 第2章prompt
+└── 第3章prompt
+    ↓
+生成 → batch_1_ch1-3.txt
+提取结尾1500字符 → context
 
-### 2. 并行任务
+批次2（第4-6章）:
+├── System Prompt（固定）
+├── Writing Prompt
+├── Context（批次1的结尾1500字符）← 保持连贯
+├── 第4章prompt
+├── 第5章prompt
+└── 第6章prompt
+    ↓
+生成 → batch_2_ch4-6.txt
+```
 
-可以同时运行多个任务，每个任务独立进程：
-- 不同的书可以同时生成
-- 互不干扰
-- 实时监控每个任务的进度
+### 2. 前文Context管理
 
-### 3. 智能Prompt
+- **第1批**: 无context（全新开始）
+- **第2批起**: 带上上一批结尾1500字符
+  - 保持情节连贯性
+  - 保持角色一致性
+  - 避免突兀的衔接
 
-根据选择的章节自动构建Prompt：
-- 包含章节大纲
-- 包含角色信息
-- 包含世界观设定
-- 包含前文上下文（用于连贯性）
+### 3. 智能Prompt构建
 
-### 4. 断点续写
+每次发送给API的完整Prompt：
 
-自动检测已完成的章节：
-- 从最后一章继续
-- 不会重复生成
-- 节省时间和费用
+```
+【System Message】
+[固定的SYSTEM_PROMPT]
+
+【User Message】
+【写作要求】
+[_writing_prompt.txt的内容]
+
+============================================================
+
+【前文结尾（保持连贯）】← 第2批起
+[上一批的结尾1500字符]
+
+============================================================
+
+【本批次章节大纲】
+
+===== 第X章 =====
+[chapter_X_prompt.txt的内容]
+
+===== 第Y章 =====
+[chapter_Y_prompt.txt的内容]
+
+===== 第Z章 =====
+[chapter_Z_prompt.txt的内容]
+
+============================================================
+
+现在写第X-Z章。
+要求：每章15,000-20,000英文单词，只输出小说正文。
+
+开始写作：
+```
+
+### 4. 任务队列管理
+
+- 可以添加多个任务
+- 每个任务独立运行（独立进程）
+- 实时监控所有任务进度
+- 支持同时运行多个任务
+
+### 5. 预览Prompt功能
+
+点击**"👁️ 预览Prompt"**可以看到：
+- 第一批次的完整prompt
+- System Prompt
+- Writing Prompt
+- 章节Prompts（第一批）
+
+**用途**：
+- 检查prompt是否正确
+- 调试生成质量问题
+- 了解发送给API的内容
 
 ## 💡 使用技巧
 
-### 每次生成章节数
+### 每批章节数建议
 
-- **1章/次** - 最安全，适合长章节
-- **2-3章/次** - 平衡速度和质量
-- **4-5章/次** - 最快，但可能影响连贯性
+| 每批章节数 | 速度 | 连贯性 | 适用场景 |
+|-----------|------|--------|---------|
+| 1章 | 慢 | ⭐⭐⭐⭐⭐ | 高质量、长篇巨作 |
+| 2章 | 适中 | ⭐⭐⭐⭐ | 短篇、中篇 |
+| **3章** | **快** | **⭐⭐⭐⭐** | **推荐！平衡** |
+| 4章 | 很快 | ⭐⭐⭐ | 快速生成、简单剧情 |
+| 5章 | 最快 | ⭐⭐ | 大批量生产 |
 
 ### Temperature设置
 
-- **0.7** - 更保守，遵循大纲
-- **0.85** - 默认值，平衡创意和一致性
+- **0.7** - 更保守，严格遵循大纲
+- **0.85** - **推荐**，平衡创意和一致性
 - **1.0** - 更有创意，可能偏离大纲
 
-### 并发任务数
+### 文件夹组织建议
 
-建议同时运行3-5个任务：
-- 充分利用API配额
-- 避免过度并发导致限流
-- 保持良好的监控体验
+```
+projects/
+├── Book1_Romance/
+│   ├── _writing_prompt.txt
+│   ├── chapter_1_prompt.txt
+│   ├── ...
+│   └── title.txt
+│
+├── Book2_Fantasy/
+│   ├── _writing_prompt.txt
+│   ├── chapter_1_prompt.txt
+│   └── ...
+│
+└── Book3_Urban/
+    ├── _writing_prompt.txt
+    └── chapter_1_prompt.txt
+```
+
+### 并行任务建议
+
+- **1-2个任务**: 保守，逐个完成
+- **3-5个任务**: **推荐**，充分利用API
+- **6+个任务**: 可能触发API限流
 
 ## 🐛 故障排除
 
@@ -189,46 +338,118 @@ projects/Project_[Title]_[Genre]_[Timestamp]/
 
 1. 检查API Key是否正确
 2. 检查Base URL格式（需要包含https://）
-3. 尝试点击"测试API"
+3. 点击"测试API"
 4. 检查网络连接
+
+### 找不到_writing_prompt.txt
+
+- 确保文件名完全一致（包括下划线）
+- 确保文件在选择的文件夹中
+- 确保文件编码为UTF-8
+
+### 章节文件格式错误
+
+正确格式：
+- ✅ `chapter_1_prompt.txt`
+- ✅ `chapter_10_prompt.txt`
+- ✅ `chapter_100_prompt.txt`
+
+错误格式：
+- ❌ `chapter1_prompt.txt`（缺少下划线）
+- ❌ `chapter_01_prompt.txt`（有前导零）
+- ❌ `ch1_prompt.txt`（缺少"chapter"）
 
 ### 任务卡在"运行中"
 
 1. 查看任务目录：`tasks/[task_id]/`
 2. 检查`progress.json`文件
-3. 检查网络连接
-4. 重启任务
+3. 检查输出目录是否有文件
+4. 检查API是否响应
 
-### 字符数不符合要求
+### 断点续写不工作
 
-- 正常现象，AI可能生成8000-12000以外的内容
-- 可以在Prompt中强调字符数要求
-- 或者手动调整Temperature
+确保：
+- 选择的是**相同的Prompt文件夹**
+- Output文件夹存在且包含batch_X文件
+- 批次文件命名格式正确
 
-### 章节不连贯
+### 字数偏少
 
-- 减少每次生成的章节数
-- 降低Temperature
-- 确保大纲质量良好
+如果平均字数低于12000：
+- 在_writing_prompt.txt中强调字数要求
+- 降低Temperature（0.7）
+- 减少每批章节数（例如改为2章/批）
+- 增加章节prompt的详细程度
 
 ## 📊 与原版本的区别
 
 | 功能 | 原writer.py | 新writer_app.py |
 |------|-------------|-----------------|
+| 文件加载 | 单个JSON | 文件夹（自动抓取） |
 | GUI界面 | ❌ 无 | ✅ 完整GUI |
 | 模型选择 | ❌ 硬编码 | ✅ 可选择 |
 | API测试 | ❌ 无 | ✅ 支持 |
-| 文件夹选择 | ❌ 无 | ✅ 支持 |
+| 批次生成 | ❌ 无 | ✅ 支持 |
+| 断点续写 | ✅ 基本 | ✅ 完整支持 |
+| 前文context | ❌ 无 | ✅ 支持 |
+| 任务队列 | ❌ 无 | ✅ 支持 |
 | 并行任务 | ❌ 无 | ✅ 支持 |
-| 任务管理 | ❌ 无 | ✅ 完整功能 |
-| 断点续写 | ✅ 支持 | ✅ 改进 |
 | Prompt预览 | ❌ 无 | ✅ 支持 |
 | 进度监控 | ❌ 命令行 | ✅ 实时GUI |
 
-## 🔗 相关工具
+## 🎓 完整工作流示例
 
-- **outline_generator.py** - 生成大纲
-- **writer_app.py** - 生成小说内容（本工具）
+### 示例1：从零开始
+
+```bash
+# 1. 准备文件夹
+mkdir Urban_Romance
+cd Urban_Romance
+
+# 2. 创建_writing_prompt.txt
+echo "Genre: Urban Romance
+Style: Fast-paced, emotional
+Requirements: 15,000-20,000 words per chapter" > _writing_prompt.txt
+
+# 3. 创建章节prompts
+echo "Chapter 1: Emma discovers betrayal..." > chapter_1_prompt.txt
+echo "Chapter 2: She meets her mysterious boss..." > chapter_2_prompt.txt
+echo "Chapter 3: A shocking revelation..." > chapter_3_prompt.txt
+
+# 4. 启动工具
+python writer_app.py
+
+# 5. 在GUI中：
+#    - 测试API
+#    - 选择文件夹
+#    - 设置每批3章
+#    - 添加到队列
+#    - 点击开始
+```
+
+### 示例2：断点续写
+
+```bash
+# 已有批次：
+output/My_Novel_Romance_20251121/
+├── batch_1_ch1-3.txt
+├── batch_2_ch4-6.txt
+└── batch_3_ch7-9.txt  ← 到这里中断了
+
+# 重新启动：
+python writer_app.py
+
+# 在GUI中：
+#    - 选择相同的prompt文件夹
+#    - 添加任务
+#    - 点击开始
+#
+# 系统自动：
+#    ✓ 检测到批次1-3已完成
+#    ✓ 从批次4继续
+#    ✓ 加载batch_3的结尾1500字符
+#    📝 生成batch_4_ch10-12.txt
+```
 
 ## 📄 技术架构
 
@@ -236,28 +457,50 @@ projects/Project_[Title]_[Genre]_[Timestamp]/
 writer_app.py          # 主GUI应用
 ├── WriterTask         # 任务数据类
 ├── NovelWriterApp     # 主窗口类
+│   ├── 文件夹加载
+│   ├── 任务队列管理
+│   ├── 进度轮询
+│   └── UI更新
 └── 启动独立进程 ──────> writer_worker.py
 
 writer_worker.py       # 独立工作进程
 ├── WriterWorker       # 工作进程类
-├── 调用API
-├── 生成章节
-└── 保存输出
+│   ├── 加载prompts
+│   ├── 批次生成
+│   ├── 断点检测
+│   ├── Context管理
+│   └── API调用
+└── 输出文件
 ```
 
 ## 📝 更新日志
 
-### v2.0.0 (2025-11-21)
-- ✅ 完全重写，参考outline_generator架构
-- ✅ 多模型选择
-- ✅ API测试功能
-- ✅ 文件夹选择
-- ✅ 并行任务支持
-- ✅ 任务管理（开始/预览/打开目录）
-- ✅ 断点续写改进
-- ✅ 智能Prompt构建
+### v2.1.0 (2025-11-21) - 完全重写
+- ✅ 完全参考用户工作代码重写
+- ✅ 从文件夹自动抓取prompts
+- ✅ 批次生成系统
+- ✅ 断点续写功能
+- ✅ 前文context管理
+- ✅ 任务队列管理
+- ✅ Prompt预览功能
 - ✅ 实时进度监控
+- ✅ API测试功能
+
+### v2.0.0 (2025-11-21) - 初始版本
+- ✅ 基础GUI界面
+- ✅ 多模型选择
+- ✅ 基本任务管理
 
 ---
 
-**享受高效的小说生成流程！** ✍️
+**参考你的工作代码重写，功能完全一致！** ✍️
+
+## 🙏 致谢
+
+本工具的核心逻辑完全参考用户提供的工作代码：
+- 批次生成机制
+- 断点续写逻辑
+- 前文context管理
+- Prompt构建方式
+
+特别感谢提供了清晰、高效、可工作的代码示例！
