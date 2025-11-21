@@ -17,7 +17,6 @@ from openai import OpenAI
 from config import config
 from resource_mgr import ResourceManager
 from prompt_manager import PromptManager
-from prompt_preview import PromptPreviewWindow
 from utils import (
     extract_genre_from_filename,
     extract_title_from_filename,
@@ -595,8 +594,12 @@ Max Tokens: {task.config['max_tokens']}
             # 缓存Prompt
             task.prompt_cache = full_prompt
 
-            # 显示预览窗口
-            PromptPreviewWindow(self.window, full_prompt, f"Prompt预览 - {os.path.basename(task.source_file)}")
+            # 显示Prompt预览（简化版）
+            preview = full_prompt[:1000] + "..." if len(full_prompt) > 1000 else full_prompt
+            messagebox.showinfo(
+                f"Prompt预览 - {os.path.basename(task.source_file)}",
+                f"Prompt已生成（共{len(full_prompt)}字符）\n\n前1000字符预览：\n\n{preview}"
+            )
 
         except Exception as e:
             messagebox.showerror("错误", f"预览Prompt失败: {str(e)}")
