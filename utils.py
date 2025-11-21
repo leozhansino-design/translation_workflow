@@ -390,25 +390,31 @@ def call_api_with_http_client(api_key, base_url, model, messages, temperature=0.
         'Authorization': f'Bearer {api_key}'
     }
 
-    # 解析URL
+    # 解析URL - 提取主机名和路径
+    # 支持: "https://yunwuapi.com" 或 "https://yunwuapi.com/v1/" 等格式
     if base_url.startswith('https://'):
-        host = base_url.replace('https://', '').rstrip('/')
-        # 提取path
-        parts = host.split('/', 1)
-        host = parts[0]
-        path = '/' + parts[1] if len(parts) > 1 else ''
+        url_without_protocol = base_url.replace('https://', '').rstrip('/')
     elif base_url.startswith('http://'):
-        host = base_url.replace('http://', '').rstrip('/')
-        parts = host.split('/', 1)
-        host = parts[0]
-        path = '/' + parts[1] if len(parts) > 1 else ''
+        url_without_protocol = base_url.replace('http://', '').rstrip('/')
     else:
-        host = base_url.rstrip('/')
-        path = ''
+        url_without_protocol = base_url.rstrip('/')
 
-    # 添加/chat/completions端点
-    if not path.endswith('/chat/completions'):
-        path = path.rstrip('/') + '/chat/completions'
+    # 分离主机名和路径
+    if '/' in url_without_protocol:
+        parts = url_without_protocol.split('/', 1)
+        host = parts[0]
+        base_path = '/' + parts[1]
+    else:
+        host = url_without_protocol
+        base_path = '/v1'  # 默认路径
+
+    # 构建完整路径
+    if base_path.endswith('/chat/completions'):
+        path = base_path
+    elif base_path.endswith('/'):
+        path = base_path + 'chat/completions'
+    else:
+        path = base_path + '/chat/completions'
 
     conn = None
     try:
