@@ -123,7 +123,12 @@ def scan_chapter_files(project_folder):
     chapter_numbers = []
 
     # 查找所有chapter_*.txt文件（支持 chapter_1.txt 和 chapter_1_Title.txt 格式）
+    # 但排除大纲文件 chapter_X_prompt.txt
     for filename in os.listdir(project_folder):
+        # 排除大纲文件
+        if '_prompt.txt' in filename:
+            continue
+
         match = re.match(r'chapter_(\d+)(?:_.*)?\.txt$', filename)
         if match:
             chapter_num = int(match.group(1))
