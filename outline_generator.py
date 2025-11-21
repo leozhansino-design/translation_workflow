@@ -821,6 +821,15 @@ class OutlineGeneratorWithQueue:
         view_btn.pack(side=tk.LEFT, padx=2)
         task_container.view_btn = view_btn  # 保存引用
 
+        # 打开文件夹按钮
+        tk.Button(
+            button_frame,
+            text="📂 文件夹",
+            command=lambda: self.open_cover_folder(task),
+            width=9,
+            font=("Arial", 8)
+        ).pack(side=tk.LEFT, padx=2)
+
         # 删除按钮
         tk.Button(
             button_frame,
@@ -984,6 +993,22 @@ class OutlineGeneratorWithQueue:
                 os.system(f'xdg-open "{task.cover_path}"')
         except Exception as e:
             messagebox.showerror("错误", f"打开封面失败: {str(e)}")
+
+    def open_cover_folder(self, task):
+        """打开封面任务的outline文件夹"""
+        if not task.outline_folder or not os.path.exists(task.outline_folder):
+            messagebox.showwarning("警告", "文件夹不存在")
+            return
+
+        try:
+            if sys.platform == 'win32':
+                os.startfile(task.outline_folder)
+            elif sys.platform == 'darwin':
+                subprocess.Popen(['open', task.outline_folder])
+            else:
+                subprocess.Popen(['xdg-open', task.outline_folder])
+        except Exception as e:
+            messagebox.showerror("错误", f"打开文件夹失败: {str(e)}")
 
     def remove_cover_task(self, task):
         """删除封面任务"""

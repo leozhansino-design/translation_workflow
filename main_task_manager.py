@@ -6,6 +6,8 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import os
+import sys
+import subprocess
 import json
 import time
 import traceback
@@ -1105,20 +1107,21 @@ Now write Chapter {next_chapter} based on the outline above."""
 
     def open_folder(self, task):
         """打开文件夹"""
-        import platform
-        folder = task.config.get('project_folder', task.outline_folder)
+        folder = task.outline_folder
 
-        if not os.path.exists(folder):
+        if not folder or not os.path.exists(folder):
             messagebox.showwarning("警告", "项目文件夹不存在")
             return
 
-        system = platform.system()
-        if system == 'Darwin':
-            os.system(f'open "{folder}"')
-        elif system == 'Windows':
-            os.system(f'explorer "{folder}"')
-        else:
-            os.system(f'xdg-open "{folder}"')
+        try:
+            if sys.platform == 'win32':
+                os.startfile(folder)
+            elif sys.platform == 'darwin':
+                subprocess.Popen(['open', folder])
+            else:
+                subprocess.Popen(['xdg-open', folder])
+        except Exception as e:
+            messagebox.showerror("错误", f"打开文件夹失败: {str(e)}")
 
     def delete_task(self, index):
         """删除任务"""
