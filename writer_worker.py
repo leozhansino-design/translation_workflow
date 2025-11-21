@@ -398,8 +398,10 @@ class WriterWorker:
             self.total_tokens += response.usage.total_tokens
             self.total_cost += self.calculate_cost(response.usage)
 
-            # 解析章节
+            # 获取响应内容
             result_text = response.choices[0].message.content
+
+        # 解析章节（两种API调用方式都需要）
         chapters = self.parse_chapters_from_response(result_text, batch_start, batch_end)
 
         return chapters
