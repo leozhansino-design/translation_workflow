@@ -60,7 +60,7 @@ class OutlineGeneratorWithQueue:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("大纲生成器 - 多任务队列")
-        self.window.geometry("1200x900")
+        self.window.geometry("1400x1000")
 
         # 初始化管理器
         self.resource_mgr = ResourceManager()
@@ -520,15 +520,15 @@ class OutlineGeneratorWithQueue:
 
     def add_task_to_ui(self, task):
         """添加任务到UI"""
-        # 创建任务框架
-        task_container = tk.Frame(self.queue_frame, relief=tk.RIDGE, borderwidth=2, bg="#f5f5f5")
-        task_container.pack(fill=tk.X, padx=5, pady=5)
+        # 创建任务框架 - 更紧凑
+        task_container = tk.Frame(self.queue_frame, relief=tk.RIDGE, borderwidth=1, bg="#f5f5f5")
+        task_container.pack(fill=tk.X, padx=5, pady=3)
 
         self.task_frames[task.task_id] = task_container
 
         # 左侧：任务信息
         info_frame = tk.Frame(task_container, bg="#f5f5f5")
-        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=8, pady=6)
 
         # 标题行
         title_frame = tk.Frame(info_frame, bg="#f5f5f5")
@@ -537,7 +537,7 @@ class OutlineGeneratorWithQueue:
         tk.Label(
             title_frame,
             text=f"📄 {os.path.basename(task.source_file)}",
-            font=("Arial", 11, "bold"),
+            font=("Arial", 10, "bold"),
             bg="#f5f5f5",
             anchor="w"
         ).pack(side=tk.LEFT)
@@ -545,74 +545,78 @@ class OutlineGeneratorWithQueue:
         status_label = tk.Label(
             title_frame,
             text=f"⏸ {task.status}",
-            font=("Arial", 10),
+            font=("Arial", 9),
             bg="#f5f5f5",
             fg="orange"
         )
-        status_label.pack(side=tk.LEFT, padx=10)
+        status_label.pack(side=tk.LEFT, padx=8)
         task_container.status_label = status_label  # 保存引用
 
-        # 详情行
+        # 详情行 - 显示更多信息
         details_frame = tk.Frame(info_frame, bg="#f5f5f5")
-        details_frame.pack(fill=tk.X, pady=(5, 0))
+        details_frame.pack(fill=tk.X, pady=(3, 0))
 
         # 动态显示的详情标签
         details_label = tk.Label(
             details_frame,
             text=f"类型: {task.genre}  |  模型: {task.config['model']}",
-            font=("Arial", 9),
+            font=("Arial", 8),
             bg="#f5f5f5",
             fg="gray"
         )
         details_label.pack(side=tk.LEFT)
         task_container.details_label = details_label  # 保存引用
 
-        # 右侧：操作按钮
+        # 右侧：操作按钮 - 更紧凑
         button_frame = tk.Frame(task_container, bg="#f5f5f5")
-        button_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+        button_frame.pack(side=tk.RIGHT, padx=8, pady=6)
 
         # 预览Prompt按钮
         tk.Button(
             button_frame,
-            text="👁️ 预览Prompt",
+            text="👁️ Prompt",
             command=lambda: self.preview_task_prompt(task),
-            width=15,
+            width=10,
             bg="#FF9800",
-            fg="white"
-        ).pack(side=tk.LEFT, padx=3)
+            fg="white",
+            font=("Arial", 8)
+        ).pack(side=tk.LEFT, padx=2)
 
         # 开始按钮
         start_btn = tk.Button(
             button_frame,
-            text="▶️ 开始生成",
+            text="▶️ 开始",
             command=lambda: self.start_task(task),
-            width=15,
+            width=8,
             bg="#4CAF50",
-            fg="white"
+            fg="white",
+            font=("Arial", 8)
         )
-        start_btn.pack(side=tk.LEFT, padx=3)
+        start_btn.pack(side=tk.LEFT, padx=2)
         task_container.start_btn = start_btn  # 保存引用
 
         # 打开文件夹按钮
         folder_btn = tk.Button(
             button_frame,
-            text="📂 打开文件夹",
+            text="📂 文件夹",
             command=lambda: self.open_output_folder(task),
-            width=15,
-            state=tk.DISABLED
+            width=10,
+            state=tk.DISABLED,
+            font=("Arial", 8)
         )
-        folder_btn.pack(side=tk.LEFT, padx=3)
+        folder_btn.pack(side=tk.LEFT, padx=2)
         task_container.folder_btn = folder_btn  # 保存引用
 
         # 删除按钮
         tk.Button(
             button_frame,
-            text="🗑️ 删除",
+            text="🗑️",
             command=lambda: self.remove_task(task),
-            width=10,
+            width=4,
             bg="#f44336",
-            fg="white"
-        ).pack(side=tk.LEFT, padx=3)
+            fg="white",
+            font=("Arial", 8)
+        ).pack(side=tk.LEFT, padx=2)
 
     def preview_task_prompt(self, task):
         """预览任务的Prompt"""

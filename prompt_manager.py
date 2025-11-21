@@ -40,244 +40,265 @@ PROMPTS_FILE = get_resource_path('data/prompts.json')
 
 
 # 默认Prompt模板
-DEFAULT_OUTLINE_PROMPT = """你是英语爽文作者，将附件改编成{end_chapter}章{genre}风格小说大纲。
+DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件中的故事改编成一篇爆款本土化英文小说大纲。
 
-【⚠️ CRITICAL REQUIREMENT - 章节数量要求 ⚠️】
-你必须生成 **准确的 {end_chapter} 章** 大纲。
-- 不能多，不能少，必须正好 {end_chapter} 章
-- 从 Chapter 1 开始，到 Chapter {end_chapter} 结束
-- 每一章都必须有完整的 Summary, Opening, Development, Conflict, Climax, Hook, Key Scenes
-- 如果你生成的章节数量不是 {end_chapter} 章，这个大纲将被拒绝
+【核心任务】
+起一个 Wattpad 网文标题，写 blurb（简介，少于 3000 characters），选择类型和 tags（最多 20 个），构建完整的世界观、角色表和详细的章节大纲。
 
-【核心目标】
-生成快节奏、高爽点密度、强钩子的商业爽文大纲
+【翻译本土化要求】
+1. **地理/文化背景**：改为非亚洲国家背景
+2. **人名**：
+   - 优先使用提供的英文名作为主要角色
+   - 如需更多角色可自由创造英文名
+   - 避免中文和拼音
+   - 典型女反派角色建议：Angela（适合傲慢、嫉妒、背后捅刀子类型）
 
-【本土化要求】
-- 西方背景（美国/英国/欧洲），完全西化
-- 人名：{male_names}（男）/ {female_names}（女）
-- 典型反派：Angela（傲慢/嫉妒/背后捅刀型）
-- 日常细节：西方食物/货币/社交/职场文化
-- 语言：地道口语英语
+3. **日常细节本土化**：
+   - 食物/饮品、货币单位、计量单位、网络平台等
 
-【剧情设计原则】
-扩展策略：
-- 从原文扩展到{end_chapter}章，保持核心冲突
-- 每3-5章一个大反转
-- 主线清晰，支线服务爽点
+4. **语言风格**：地道英语口语，避免中式英语
 
-爽点密度（每章必须）：
-- 打脸时刻：主角反击/真相揭露/敌人崩溃
-- 能力展示：主角智商在线/技能爆发/资源到位
-- 情感满足：浪漫进展/亲情回归/友情深化
-- 正义伸张：恶人受罚/冤情昭雪/地位逆转
-- 意外惊喜：隐藏身份曝光/援军出现/关键信息
+【剧情扩展要求】⭐
+- 原文可能很短（如2章），你需要扩展到要求的章节数（如15章、50章、100章）
+- 保证剧情合理、连贯、有吸引力
+- 节奏快、有反转、让读者感觉爽
 
-节奏控制：
-- 前3章：快速建立冲突，第一个小高潮
-- 中间章节：爽点+反转交替，不拖沓
-- 最后3章：连续高潮，大决战
+【重要：简洁性要求】🎯
+- 用最少的语言解释清楚
+- 章节大纲Summary控制在100-150词
+- 不要啰嗦，不要重复
+- 关键信息点到即止
 
-【类型】{genre}
-【类型重点】{genre_focus}
+【类型】
+{genre}
 
-【输出格式】纯文本，严格遵循：
+【建议人名】（可使用或自创）
+男性: {male_names}
+女性: {female_names}
+
+【作者风格】
+{style}
+
+【要求章节数】
+第 1 章到第 {end_chapter} 章（共 {end_chapter} 章）
+
+【输出格式】
+请按以下格式输出（纯文本，不要JSON）：
 
 ===== TITLE =====
-[爽文标题，直击核心矛盾，避免The XX]
+[英文标题]
 
 ===== BLURB =====
-[简介，<3000字符]
-必须包含：
-1. 主角困境（1-2句）
-2. 核心冲突（2-3句）
-3. 反转预告（1句）
-4. 爽点承诺（1-2句）
+[简介，少于3000字符]
 
 ===== CATEGORY =====
 {genre}
 
 ===== TAGS =====
-[最多20个，必须包含爽文标签]
+[用逗号分隔，例如: #SlowBurn, #ForcedProximity, #AlphaMale]
 
 ===== AGE_CATEGORY =====
 [Young Adult / New Adult / Adult]
 
 ===== WORLD_SETTING =====
-[150-200词，聚焦冲突背景]
-- 社会阶层/权力结构
-- 关键规则/系统
-- 主要场景
+[世界观，150-200词，简洁描述背景设定]
 
 ===== MAIN_CHARACTERS =====
+[每个角色简洁描述，格式：]
 
-主角:
-[名] - [性别] - protagonist
-核心特质：[2-3个]
-起点状态：[困境，1句]
-隐藏优势：[秘密优势，1句]
-目标：[具体目标，1句]
+Character 1: [Name] - [Gender] - [protagonist/antagonist/supporting]
+Personality: [2-3个关键性格特点]
+Background: [1-2句背景]
 
-反派:
-[名] - [性别] - main antagonist
-核心特质：[2-3个负面]
-恶行：[具体坏事，1-2句]
-弱点：[如何被打败，1句]
-
-配角1-4:
-[名] - [性别] - [角色定位]
-作用：[功能，1句]
+Character 2: [Name] - [Gender] - [Role]
+Personality: [2-3个关键特点]
+Background: [1-2句]
 
 ===== CHAPTER_OUTLINES =====
+[每章格式：]
 
-⚠️ 你必须生成从 Chapter 1 到 Chapter {end_chapter} 的完整大纲，总共 {end_chapter} 章。
-
-Chapter 1: [标题]
-
-Summary (≈120 words):
-爽点：[列出2-3个]
-剧情：[简述]
-
-Opening: [冲突/震惊开场，1-2句]
-Development: [3个场景简述]
-Conflict: [核心对抗，1-2句]
-Climax: [最爽时刻，1-2句]
-Hook: [悬念，1句]
-
-Key Scenes:
-1. [场景名]
-- 地点+人物：[...]
-- 冲突触发：[...]
-- 对话示例：[2轮+]
-- 爽点时刻：[...]
-- 情绪变化：[...]
-
-2-6. [继续5-8个场景]
+Chapter 1: [章节标题]
+Summary: [100-150词剧情概要，简洁清晰]
+Key Events: [事件1], [事件2], [事件3]
+Characters: [角色名，逗号分隔]
 
 Chapter 2: [标题]
-[同样格式]
+Summary: [100-150词]
+Key Events: [列表]
+Characters: [列表]
 
-[继续到第{end_chapter}章]
+[继续到第 {end_chapter} 章...]
 
-【⚠️ 最终检查 ⚠️】
-在提交大纲之前，请确认：
-✓ 总共生成了 {end_chapter} 章（Chapter 1 到 Chapter {end_chapter}）
-✓ 每一章都有完整的结构（Summary, Opening, Development, Conflict, Climax, Hook, Key Scenes）
-✓ 没有多余的章节，也没有遗漏的章节
+===== END =====
 
-===== END ====="""
+【最后提醒】
+1. 必须是纯文本格式，严格按上述格式
+2. Summary保持简洁（100-150词），不要超出
+3. 用最少的语言说清楚关键情节
+4. 如果原文很短，合理扩展剧情满足章节数要求"""
 
 
-DEFAULT_WRITER_PROMPT = """You are a professional web novelist. Write addictive fiction that feels human-written.
+DEFAULT_WRITER_PROMPT = """You are a web novel writer. Write addictive commercial fiction.
 
-Requirements:
+【MISSION】
+Make every chapter impossible to put down. Readers should NEED to click "next chapter."
+
+【REQUIREMENTS】
 - English only
-- Target: 10,000+ characters per chapter (not words)
-- Western settings only (no Asian cultural elements)
+- 10,000+ characters per chapter
+- Western settings (US/UK/Europe)
 
-Core principles:
-1. Fast pacing: major event every 300-500 words
-2. Multiple payoffs per chapter: victories, reveals, romance, confrontations
-3. Strong hook endings
+【CORE RULE: Follow the Outline】
+You have a detailed outline with scenes and beats.
+FOLLOW IT. But make it entertaining as hell.
 
-Style variations to avoid AI patterns:
-- Mix sentence lengths: some 5 words, some 20 words, some fragments
-- Vary paragraph structure: occasional 1-liner, occasional 4-5 sentences
-- Inconsistent rhythm: speed up action, slow down emotion
-- Strategic imperfections: occasional colloquialisms, casual grammar
-- Natural dialogue: interruptions, trailing off, overlapping speech
-- Sensory details: specific smells, textures, sounds (not just visual)
+The outline tells you WHAT happens.
+You decide HOW to make it addictive.
 
-Dialogue rules:
-- Keep natural and messy
-- Use contractions heavily (I'm, don't, won't)
-- Include filler words occasionally (well, uh, like)
-- Show interruptions with em-dashes
-- Vary speech patterns per character
+【WHAT MAKES READERS BINGE】
 
-Examples of natural dialogue:
-"Look, I don't—" She stopped. "Forget it."
-"You really think I'd—wait, what?"
-He laughed. Not the nice kind. "Yeah. Sure."
+Every chapter needs:
+✅ Things actually HAPPEN (not just thinking/describing)
+✅ Readers feel SATISFIED (victories, reveals, justice, progress)
+✅ Ending makes them NEED more (cliffhanger/question/threat)
 
-Avoid these AI tells:
-- Every paragraph same length
-- Overuse of "like" or "as" comparisons
-- Too-perfect sentence structure
-- Repetitive transition words (however, moreover, furthermore)
-- Generic descriptions (piercing eyes, dazzling smile)
-- Explaining emotions after showing them
+Don't overthink. Just:
+- Make protagonist DO things (not just observe)
+- Give readers emotional payoffs (make them feel good/shocked/excited)
+- Keep it moving (something happens every 300-500 words)
 
-Instead:
-- Let actions speak (show trembling hands, don't say "nervous")
-- Use specific details (chipped mug, not beautiful cup)
-- Break grammar rules occasionally for voice
-- Include mundane details mixed with dramatic ones
-- Let some moments breathe without commentary
+【PACING】
+Fast when: action, confrontation, revelations
+Slow when: brief emotional moments (then speed back up)
+Never: long descriptions, internal monologue, filler
 
-Pacing variety:
-- Action scenes: rapid-fire short sentences
-- Emotional scenes: longer, flowing sentences
-- Tension: sentence fragments
-- Relief: casual, conversational tone
+Ask: "Would I keep reading?" If no → cut or add punch.
 
-Structure per chapter:
-Opening: hook immediately (conflict/question/action)
-Body: 3-5 major scenes with rising tension
-Climax: biggest moment of chapter
-Ending: cliffhanger or burning question
+【DIALOGUE】
+Keep it real:
+- Short exchanges (people don't lecture)
+- Use contractions: I'm, don't, won't
+- Add interruptions: "Look, I don't—"
+- Show power: who talks more = who's weaker
 
-Vary your opening hooks:
-- Dialogue first
-- Action mid-scene
-- Internal thought
-- Unexpected statement
-- Sensory detail
+Good:
+"You're lying."
+"Prove it."
+She held up her phone.
 
-Character voice consistency:
-- Track each character's speech patterns
-- Maintain their vocabulary level
-- Keep their emotional baseline
-- Remember their backstory details
+Bad:
+"I believe that you are being dishonest with me, and I think we should discuss this."
 
-World-building subtlety:
-- Drop details through action, not exposition
-- Show culture through behavior
-- Let readers infer setting
-- No information dumps
+【STYLE: Don't Sound Like AI】
 
-Format:
-Chapter [X]: [Title]
+Mix it up:
+- Short sentences. Hit hard.
+- Medium sentences work for most things.
+- Longer sentences build emotion or set up big moments.
 
-[Content starting immediately, no preamble]
+Paragraphs:
+- One sentence paragraphs for impact.
+- 2-3 sentences = normal
+- 4-5 sentences = emotional beats
 
-Write like a human who sometimes makes interesting choices, not a machine following perfect patterns. Prioritize readability and addiction over technical perfection.
+DON'T:
+- Make every paragraph same length
+- Use "like/as" comparisons every paragraph (limit to 1 per 500 words)
+- Write perfect sentences always (break grammar for voice)
+- Use fancy words (say "ran" not "hastened")
+- Explain emotions ("she was nervous" → show trembling hands)
 
-START WRITING."""
+DO:
+- Vary rhythm (fast then slow then fast)
+- Use specific details ("Tesla Model S" not "nice car")
+- Let actions speak (show, don't tell)
+- Mix mundane with dramatic ("She checked her emails. Then saw the body.")
 
+【AVOID AI TELLS】
+Red flags:
+- "However, moreover, furthermore" → Say: But. And. So.
+- "Piercing eyes, dazzling smile" → Never use generic clichés
+- Everything too perfect → Break some rules
+- No contractions → People say "don't" not "do not"
 
-DEFAULT_COVER_PROMPT_TEMPLATE = """Create a professional book cover image for "{title}".
+【SATISFACTION】
+Readers want to FEEL something every chapter:
+- Protagonist wins something (even small)
+- Antagonist loses something (even small)
+- Truth revealed
+- Status changed
+- Problem solved (or gets worse in interesting way)
 
+Give them that hit. Every chapter.
+
+【CHAPTER STRUCTURE】
+Your outline gives you scenes.
+
+Opening: Start with the first scene. Jump right in.
+Middle: Follow the outline scenes. Keep them punchy.
+Ending: Follow the outline hook. Make it hurt (in a good way).
+
+Each scene needs:
+1. Clear action (character DOES something)
+2. Consequence (what happens because of action)
+3. Push forward (connects to next scene)
+
+【WRITING CHECKLIST】
+After each scene, ask:
+- Did something HAPPEN? (Not just talking about things)
+- Would I keep reading?
+- Is this scene necessary or filler?
+- Did I show it or just tell it?
+
+After each chapter, ask:
+- Would I click "next chapter"?
+- Did readers get satisfaction moments?
+- Does it feel natural or robotic?
+
+【LOCALIZATION】
+Make it Western:
+- Names: Emma, Marcus, Sofia (not Asian names)
+- Money: dollars, euros (not yuan)
+- Tech: Instagram, texting (not WeChat)
+- Food: coffee, pizza (not baozi)
+
+【CONTEXT】
 Genre: {genre}
-Tags: {tags}
+Style: {style}
 
-Visual Style Requirements:
-- {genre_style}
-- Photorealistic with cinematic quality
-- High contrast dramatic lighting
-- Professional publishing-grade composition
-- Clear focal point with atmospheric background
+World Setting:
+{world_setting}
 
-Story Context (use this to inform the visual design):
-{outline}
+Main Characters:
+{characters}
 
-Technical Specifications:
-- Vertical portrait orientation (1024x1792)
-- Composition leaves space for title overlay
-- Sharp focus on main visual elements
-- Evocative of {genre} genre atmosphere
-- Professional book cover quality
+Previous Context (for continuity):
+{previous_context}
 
-Design a visually striking cover that captures the essence and mood of this {genre} story."""
+【YOUR TASK】
+Write Chapter {start_chapter} to {end_chapter} following the outline below.
+
+Chapter Outline:
+{chapter_outlines}
+
+【FORMAT】
+Chapter {n}: [Title]
+
+[Content - 10,000+ characters]
+
+---
+Character Count: XXXX
+
+【YOUR JOB】
+The outline is your map. Follow it.
+But make every sentence pull readers forward.
+
+Not fancy. Not literary. Just: can't stop reading.
+
+Make them binge.
+
+START WRITING.
+"""
 
 
 class PromptManager:
@@ -285,8 +306,6 @@ class PromptManager:
 
     def __init__(self):
         self.prompts = self.load_prompts()
-        # 自动更新默认prompts（确保用户总是使用最新版本）
-        self._update_default_prompts()
 
     def load_prompts(self):
         """加载Prompt配置"""
@@ -318,17 +337,6 @@ class PromptManager:
                     ],
                     'active_version': 'Default'
                 },
-                'cover': {
-                    'default': DEFAULT_COVER_PROMPT_TEMPLATE,
-                    'versions': [
-                        {
-                            'name': 'Default',
-                            'content': DEFAULT_COVER_PROMPT_TEMPLATE,
-                            'created_at': datetime.now().isoformat()
-                        }
-                    ],
-                    'active_version': 'Default'
-                },
                 'character_prompts': {}
             }
             self.save_prompts(default_prompts)
@@ -341,37 +349,6 @@ class PromptManager:
             prompts = self.prompts
         with open(PROMPTS_FILE, 'w', encoding='utf-8') as f:
             json.dump(prompts, f, indent=2, ensure_ascii=False)
-
-    def _update_default_prompts(self):
-        """自动更新Default版本的prompts为代码中的最新版本"""
-        updated = False
-
-        # 更新outline的Default版本
-        if 'outline' in self.prompts and 'versions' in self.prompts['outline']:
-            for version in self.prompts['outline']['versions']:
-                if version['name'] == 'Default':
-                    if version['content'] != DEFAULT_OUTLINE_PROMPT:
-                        print("  🔄 检测到大纲Prompt更新，自动升级到最新版本")
-                        version['content'] = DEFAULT_OUTLINE_PROMPT
-                        version['updated_at'] = datetime.now().isoformat()
-                        updated = True
-                    break
-
-        # 更新writer的Default版本
-        if 'writer' in self.prompts and 'versions' in self.prompts['writer']:
-            for version in self.prompts['writer']['versions']:
-                if version['name'] == 'Default':
-                    if version['content'] != DEFAULT_WRITER_PROMPT:
-                        print("  🔄 检测到写作Prompt更新，自动升级到最新版本")
-                        version['content'] = DEFAULT_WRITER_PROMPT
-                        version['updated_at'] = datetime.now().isoformat()
-                        updated = True
-                    break
-
-        # 如果有更新，保存到文件
-        if updated:
-            self.save_prompts()
-            print("  ✅ Prompt已更新并保存")
 
     def get_outline_prompt(self, version=None):
         """获取大纲生成Prompt"""
@@ -504,83 +481,3 @@ class PromptManager:
     def reset_to_default(self):
         """重置为默认Prompt（简化方法）"""
         self.restore_default_outline()
-
-    # === Cover Prompt 管理方法 ===
-    def get_cover_prompt(self, version=None):
-        """获取封面生成Prompt模板"""
-        # 确保cover字段存在（向后兼容）
-        if 'cover' not in self.prompts:
-            self.prompts['cover'] = {
-                'default': DEFAULT_COVER_PROMPT_TEMPLATE,
-                'versions': [
-                    {
-                        'name': 'Default',
-                        'content': DEFAULT_COVER_PROMPT_TEMPLATE,
-                        'created_at': datetime.now().isoformat()
-                    }
-                ],
-                'active_version': 'Default'
-            }
-            self.save_prompts()
-
-        if version is None:
-            version = self.prompts['cover'].get('active_version', 'Default')
-
-        for v in self.prompts['cover']['versions']:
-            if v['name'] == version:
-                return v['content']
-
-        return self.prompts['cover']['default']
-
-    def save_custom_cover_prompt(self, name, content):
-        """保存自定义封面Prompt"""
-        # 确保cover字段存在
-        if 'cover' not in self.prompts:
-            self.prompts['cover'] = {
-                'default': DEFAULT_COVER_PROMPT_TEMPLATE,
-                'versions': [],
-                'active_version': 'Default'
-            }
-
-        for v in self.prompts['cover']['versions']:
-            if v['name'] == name:
-                v['content'] = content
-                v['updated_at'] = datetime.now().isoformat()
-                self.save_prompts()
-                return
-
-        self.prompts['cover']['versions'].append({
-            'name': name,
-            'content': content,
-            'created_at': datetime.now().isoformat()
-        })
-        self.save_prompts()
-
-    def set_active_cover_version(self, version_name):
-        """设置当前使用的封面Prompt版本"""
-        if 'cover' not in self.prompts:
-            self.prompts['cover'] = {
-                'default': DEFAULT_COVER_PROMPT_TEMPLATE,
-                'versions': [{'name': 'Default', 'content': DEFAULT_COVER_PROMPT_TEMPLATE, 'created_at': datetime.now().isoformat()}],
-                'active_version': 'Default'
-            }
-        self.prompts['cover']['active_version'] = version_name
-        self.save_prompts()
-
-    def get_cover_versions(self):
-        """获取所有封面Prompt版本列表"""
-        if 'cover' not in self.prompts:
-            return ['Default']
-        return [v['name'] for v in self.prompts['cover']['versions']]
-
-    def restore_default_cover(self):
-        """恢复默认封面Prompt"""
-        if 'cover' not in self.prompts:
-            self.prompts['cover'] = {
-                'default': DEFAULT_COVER_PROMPT_TEMPLATE,
-                'versions': [{'name': 'Default', 'content': DEFAULT_COVER_PROMPT_TEMPLATE, 'created_at': datetime.now().isoformat()}],
-                'active_version': 'Default'
-            }
-        else:
-            self.prompts['cover']['active_version'] = 'Default'
-        self.save_prompts()

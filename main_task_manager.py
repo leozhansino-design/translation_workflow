@@ -64,7 +64,7 @@ class WritingToolWindow:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("小说写作工具")
-        self.window.geometry("1200x800")
+        self.window.geometry("1400x1000")
 
         self.tasks = []  # 任务列表
         self.task_containers = {}  # 任务卡片引用
@@ -663,19 +663,19 @@ class WritingToolWindow:
 
     def _create_task_card(self, task, index):
         """创建任务卡片"""
-        # 任务容器
+        # 任务容器 - 更紧凑
         container = tk.Frame(self.tasks_frame, bg="#f5f5f5", relief=tk.RAISED, borderwidth=1)
-        container.pack(fill=tk.X, padx=5, pady=5)
+        container.pack(fill=tk.X, padx=5, pady=3)
 
         # 左侧信息
         info_frame = tk.Frame(container, bg="#f5f5f5")
-        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=8, pady=6)
 
         # 标题
         tk.Label(
             info_frame,
             text=f"📖 {task.title}",
-            font=("Arial", 12, "bold"),
+            font=("Arial", 10, "bold"),
             bg="#f5f5f5"
         ).pack(anchor="w")
 
@@ -691,36 +691,36 @@ class WritingToolWindow:
         tk.Label(
             info_frame,
             text=details_text,
-            font=("Arial", 9),
+            font=("Arial", 8),
             bg="#f5f5f5",
             fg=color  # 使用状态对应的颜色
-        ).pack(anchor="w", pady=(5, 5))
+        ).pack(anchor="w", pady=(3, 3))
 
         # 进度条
         progress_frame = tk.Frame(info_frame, bg="#f5f5f5")
-        progress_frame.pack(fill=tk.X, pady=(5, 0))
+        progress_frame.pack(fill=tk.X, pady=(3, 0))
 
         progress_bar = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, mode='determinate', value=task.progress)
         progress_bar.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         progress_text = tk.Label(progress_frame, text=f"{task.progress:.1f}% | ${task.cost:.2f}",
-                                font=("Arial", 9), bg="#f5f5f5", fg="gray")
-        progress_text.pack(side=tk.LEFT, padx=(10, 0))
+                                font=("Arial", 8), bg="#f5f5f5", fg="gray")
+        progress_text.pack(side=tk.LEFT, padx=(8, 0))
 
-        # 右侧按钮
+        # 右侧按钮 - 更紧凑
         button_frame = tk.Frame(container, bg="#f5f5f5")
-        button_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+        button_frame.pack(side=tk.RIGHT, padx=8, pady=6)
 
-        tk.Button(button_frame, text="👁️ 预览", command=lambda: self.preview_prompt(task),
-                  width=10, bg="#FF9800", fg="white").pack(side=tk.LEFT, padx=2)
+        tk.Button(button_frame, text="👁️ Prompt", command=lambda: self.preview_prompt(task),
+                  width=9, bg="#FF9800", fg="white", font=("Arial", 8)).pack(side=tk.LEFT, padx=2)
         tk.Button(button_frame, text="▶️ 开始", command=lambda: self.start_task(task),
-                  width=10, bg="#4CAF50", fg="white").pack(side=tk.LEFT, padx=2)
-        tk.Button(button_frame, text="🔄 重新生成", command=lambda: self.restart_task(task),
-                  width=12).pack(side=tk.LEFT, padx=2)
+                  width=8, bg="#4CAF50", fg="white", font=("Arial", 8)).pack(side=tk.LEFT, padx=2)
+        tk.Button(button_frame, text="🔄 重启", command=lambda: self.restart_task(task),
+                  width=8, font=("Arial", 8)).pack(side=tk.LEFT, padx=2)
         tk.Button(button_frame, text="📂 文件夹", command=lambda: self.open_folder(task),
-                  width=10).pack(side=tk.LEFT, padx=2)
-        tk.Button(button_frame, text="🗑️ 删除", command=lambda: self.delete_task(index),
-                  width=8, bg="#f44336", fg="white").pack(side=tk.LEFT, padx=2)
+                  width=9, font=("Arial", 8)).pack(side=tk.LEFT, padx=2)
+        tk.Button(button_frame, text="🗑️", command=lambda: self.delete_task(index),
+                  width=4, bg="#f44336", fg="white", font=("Arial", 8)).pack(side=tk.LEFT, padx=2)
 
         # 保存引用
         self.task_containers[index] = {
