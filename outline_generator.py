@@ -2248,11 +2248,14 @@ Max Tokens: {task.config['max_tokens']}
 
     def add_cover_folder(self):
         """添加outline文件夹"""
-        folder = filedialog.askdirectory(title="选择Outline文件夹", initialdir="outlines")
+        folder = filedialog.askdirectory(title="选择Outline文件夹", initialdir="novels_for_translation")
         if folder:
-            # 验证文件夹包含必要文件
-            if not os.path.exists(os.path.join(folder, '_writing_prompt.txt')):
-                messagebox.showwarning("警告", "所选文件夹不包含 _writing_prompt.txt 文件")
+            # 验证文件夹包含必要文件（_full_outline.txt 或 _writing_prompt.txt）
+            full_outline = os.path.join(folder, '_full_outline.txt')
+            writing_prompt = os.path.join(folder, '_writing_prompt.txt')
+
+            if not os.path.exists(full_outline) and not os.path.exists(writing_prompt):
+                messagebox.showwarning("警告", "所选文件夹不包含 _full_outline.txt 或 _writing_prompt.txt 文件")
                 return
 
             if folder not in self.cover_folders:
