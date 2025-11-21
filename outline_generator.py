@@ -954,28 +954,51 @@ Max Tokens: {task.config['max_tokens']}
         # 在新线程中测试，避免阻塞UI
         def _test():
             try:
-                client = OpenAI(
-                    api_key=api_key,
-                    base_url='https://yunwuapi.com/v1/'
-                )
+                # 使用 http.client 方式（完全按照成功脚本的方式）
+                import http.client
+                import json
 
-                # 发送一个简单的测试请求
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "user", "content": "Hello"}
+                # 准备请求数据
+                payload = json.dumps({
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "Hello"
+                        }
                     ],
-                    max_tokens=10
-                )
+                    "temperature": 0.7,
+                    "max_tokens": 10,
+                    "stream": False
+                })
+
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Bearer {api_key}'
+                }
+
+                # 连接 (使用固定的yunwuapi.com)
+                conn = http.client.HTTPSConnection("yunwuapi.com", timeout=30)
+
+                # 发送请求
+                conn.request("POST", "/v1/chat/completions", payload, headers)
+                response = conn.getresponse()
+                data = response.read().decode('utf-8')
+
+                conn.close()
 
                 # 检查响应
-                if response and response.choices and len(response.choices) > 0:
-                    # 成功
-                    self.window.after(0, lambda: self.api_status_label.config(
-                        text="✅ 连接成功", fg="green"
-                    ))
+                if response.status == 200:
+                    response_data = json.loads(data)
+                    if response_data.get('choices') and len(response_data['choices']) > 0:
+                        # 成功
+                        self.window.after(0, lambda: self.api_status_label.config(
+                            text="✅ 连接成功", fg="green"
+                        ))
+                    else:
+                        raise ValueError("API响应格式异常")
                 else:
-                    raise ValueError("API响应格式异常")
+                    raise ValueError(f"API返回状态码 {response.status}: {data[:100]}")
 
             except Exception as e:
                 error_msg = str(e) if e else "未知错误"
