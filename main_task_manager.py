@@ -135,6 +135,15 @@ class WritingToolWindow:
             width=12
         ).pack(side=tk.LEFT, padx=5)
 
+        tk.Button(
+            test_frame,
+            text="测试Gemini",
+            command=self.test_gemini_simple,
+            bg="#FF9800",
+            fg="white",
+            width=12
+        ).pack(side=tk.LEFT, padx=5)
+
         self.api_status_label = tk.Label(test_frame, text="", fg="gray")
         self.api_status_label.pack(side=tk.LEFT, padx=10)
 
@@ -300,6 +309,89 @@ class WritingToolWindow:
 
                 self.window.after(0, lambda: self.api_status_label.config(
                     text=f"❌ {error_msg}", fg="red"
+                ))
+
+        thread = threading.Thread(target=_test, daemon=True)
+        thread.start()
+
+    def test_gemini_simple(self):
+        """使用用户提供的完全相同的代码测试Gemini连接"""
+        api_key = self.api_key_var.get()
+
+        if not api_key:
+            messagebox.showerror("错误", "请输入API Key")
+            return
+
+        # 更新状态
+        self.api_status_label.config(text="🔄 测试Gemini...", fg="blue")
+        self.window.update()
+
+        # 在新线程中测试
+        def _test():
+            try:
+                # === 完全按照用户提供的代码 ===
+                import http.client
+                import json
+
+                # 配置信息
+                API_BASE_URL = "https://yunwuapi.com"
+                API_KEY = api_key
+                MODEL_NAME = "gemini-2.5-pro"
+
+                # 设置连接
+                conn = http.client.HTTPSConnection(API_BASE_URL.replace("https://", ""))  # 去掉协议头
+
+                # 准备请求数据
+                payload = json.dumps({
+                    "model": MODEL_NAME,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "你好，你是谁。"
+                        }
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 25000,
+                    "stream": False
+                })
+
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Bearer {API_KEY}'
+                }
+
+                # 发送请求
+                conn.request("POST", "/v1/chat/completions", payload, headers)
+                response = conn.getresponse()
+                data = response.read().decode('utf-8')
+
+                # 解析并显示结果
+                if response.status == 200:
+                    response_data = json.loads(data)
+                    assistant_reply = response_data['choices'][0]['message']['content']
+
+                    # 成功
+                    self.window.after(0, lambda: messagebox.showinfo(
+                        "Gemini测试成功",
+                        f"模型回复：{assistant_reply}"
+                    ))
+                    self.window.after(0, lambda: self.api_status_label.config(
+                        text="✅ Gemini连接成功", fg="green"
+                    ))
+                else:
+                    error_msg = f"请求失败，状态码：{response.status}\n错误信息：{data[:200]}"
+                    self.window.after(0, lambda: messagebox.showerror("Gemini测试失败", error_msg))
+                    self.window.after(0, lambda: self.api_status_label.config(
+                        text=f"❌ 状态码{response.status}", fg="red"
+                    ))
+
+                conn.close()
+
+            except Exception as e:
+                error_msg = f"发生错误：{e}"
+                self.window.after(0, lambda: messagebox.showerror("Gemini测试失败", error_msg))
+                self.window.after(0, lambda: self.api_status_label.config(
+                    text=f"❌ {str(e)[:30]}", fg="red"
                 ))
 
         thread = threading.Thread(target=_test, daemon=True)
