@@ -2335,9 +2335,9 @@ Max Tokens: {task.config['max_tokens']}
                     genre=outline_info['genre'],
                     blurb='',  # 不再使用blurb
                     config_params={
-                        'model': 'dall-e-3',
+                        'model': 'gpt-4o-image-vip',
                         'api_key': self.api_key_var.get(),
-                        'base_url': self.base_url_var.get()
+                        'base_url': 'https://yunwuapi.com/v1/'
                     }
                 )
 
