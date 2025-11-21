@@ -656,23 +656,48 @@ Max Tokens: {task.config['max_tokens']}
 
             system_prompt = self.prompt_mgr.render_outline_prompt(prompt_vars)
 
-            # 调用API
-            client = OpenAI(
-                api_key=task.config['api_key'],
-                base_url=task.config.get('base_url', 'https://yunwuapi.com/v1/')
-            )
+            # 检测模型类型，决定使用哪种API调用方式
+            model = task.config['model']
+            use_http_client = 'gemini' in model.lower() or 'gpt-5' in model.lower()
 
-            response = client.chat.completions.create(
-                model=task.config['model'],
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": content}
-                ],
-                temperature=0.8,
-                max_tokens=task.config['max_tokens']
-            )
+            if use_http_client:
+                # 使用http.client方式（适合Gemini等模型）
+                from utils import call_api_with_http_client
 
-            result_text = response.choices[0].message.content
+                result = call_api_with_http_client(
+                    api_key=task.config['api_key'],
+                    base_url=task.config.get('base_url', 'https://yunwuapi.com/v1/'),
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": content}
+                    ],
+                    temperature=0.8,
+                    max_tokens=task.config['max_tokens']
+                )
+
+                if not result['success']:
+                    raise Exception(f"API调用失败: {result['error']}\n详情: {result.get('details', 'N/A')}")
+
+                result_text = result['content']
+            else:
+                # 使用标准OpenAI客户端方式
+                client = OpenAI(
+                    api_key=task.config['api_key'],
+                    base_url=task.config.get('base_url', 'https://yunwuapi.com/v1/')
+                )
+
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": content}
+                    ],
+                    temperature=0.8,
+                    max_tokens=task.config['max_tokens']
+                )
+
+                result_text = response.choices[0].message.content
 
             # 检查返回内容是否为空
             if not result_text:
