@@ -217,7 +217,7 @@ class WritingToolWindow:
         empty_label.pack(pady=50)
 
     def test_api_connection(self):
-        """测试API连接"""
+        """测试API连接 - 使用OpenAI SDK（Jupyter稳定版方式）"""
         api_key = self.api_key_var.get()
         base_url = self.base_url_var.get()
         model = self.model_var.get()
@@ -233,57 +233,37 @@ class WritingToolWindow:
         # 在新线程中测试，避免阻塞UI
         def _test():
             try:
-                # 使用 http.client 方式（完全按照成功脚本的方式）
-                import http.client
-                import json
+                # 使用OpenAI SDK（Jupyter稳定版方式）
+                from openai import OpenAI
 
-                # 准备请求数据
-                payload = json.dumps({
-                    "model": model,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": "Hello"
-                        }
+                # 确保base_url以/v1/结尾
+                test_base_url = base_url
+                if not test_base_url.endswith('/v1/'):
+                    if not test_base_url.endswith('/'):
+                        test_base_url += '/'
+                    if not test_base_url.endswith('v1/'):
+                        test_base_url += 'v1/'
+
+                # 初始化客户端
+                client = OpenAI(api_key=api_key, base_url=test_base_url)
+
+                # 测试调用
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "user", "content": "Hello"}
                     ],
-                    "temperature": 0.7,
-                    "max_tokens": 10,
-                    "stream": False
-                })
+                    temperature=0.7,
+                    max_tokens=10
+                )
 
-                headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': f'Bearer {api_key}'
-                }
-
-                # 简单解析URL - 去掉协议头（和成功的Gemini测试代码一样）
-                host = base_url.replace("https://", "").replace("http://", "").rstrip('/')
-                # 如果URL中包含路径，只取主机名
-                if '/' in host:
-                    host = host.split('/')[0]
-
-                # 连接（不设置timeout，和成功的Gemini测试代码一样）
-                conn = http.client.HTTPSConnection(host)
-
-                # 发送请求
-                conn.request("POST", "/v1/chat/completions", payload, headers)
-                response = conn.getresponse()
-                data = response.read().decode('utf-8')
-
-                conn.close()
-
-                # 检查响应
-                if response.status == 200:
-                    response_data = json.loads(data)
-                    if response_data.get('choices') and len(response_data['choices']) > 0:
-                        # 成功
-                        self.window.after(0, lambda: self.api_status_label.config(
-                            text="✅ 连接成功", fg="green"
-                        ))
-                    else:
-                        raise ValueError("API响应格式异常")
+                # 成功
+                if response.choices and len(response.choices) > 0:
+                    self.window.after(0, lambda: self.api_status_label.config(
+                        text="✅ 连接成功", fg="green"
+                    ))
                 else:
-                    raise ValueError(f"API返回状态码 {response.status}: {data[:100]}")
+                    raise ValueError("API响应格式异常")
 
             except Exception as e:
                 error_msg = str(e) if e else "未知错误"
@@ -298,7 +278,7 @@ class WritingToolWindow:
         thread.start()
 
     def test_gemini_simple(self):
-        """使用用户提供的完全相同的代码测试Gemini连接"""
+        """测试Gemini连接 - 使用OpenAI SDK（Jupyter稳定版方式）"""
         api_key = self.api_key_var.get()
 
         if not api_key:
@@ -312,63 +292,33 @@ class WritingToolWindow:
         # 在新线程中测试
         def _test():
             try:
-                # === 完全按照用户提供的代码 ===
-                import http.client
-                import json
+                # 使用OpenAI SDK（Jupyter稳定版方式）
+                from openai import OpenAI
 
-                # 配置信息
-                API_BASE_URL = "https://yunwuapi.com"
-                API_KEY = api_key
-                MODEL_NAME = "gemini-2.5-pro"
+                # 初始化客户端
+                client = OpenAI(api_key=api_key, base_url="https://yunwuapi.com/v1/")
 
-                # 设置连接
-                conn = http.client.HTTPSConnection(API_BASE_URL.replace("https://", ""))  # 去掉协议头
-
-                # 准备请求数据
-                payload = json.dumps({
-                    "model": MODEL_NAME,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": "你好，你是谁。"
-                        }
+                # 测试调用
+                response = client.chat.completions.create(
+                    model="gemini-2.5-pro",
+                    messages=[
+                        {"role": "user", "content": "你好，你是谁。"}
                     ],
-                    "temperature": 0.7,
-                    "max_tokens": 25000,
-                    "stream": False
-                })
+                    temperature=0.7,
+                    max_tokens=100
+                )
 
-                headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': f'Bearer {API_KEY}'
-                }
+                # 获取回复
+                assistant_reply = response.choices[0].message.content
 
-                # 发送请求
-                conn.request("POST", "/v1/chat/completions", payload, headers)
-                response = conn.getresponse()
-                data = response.read().decode('utf-8')
-
-                # 解析并显示结果
-                if response.status == 200:
-                    response_data = json.loads(data)
-                    assistant_reply = response_data['choices'][0]['message']['content']
-
-                    # 成功
-                    self.window.after(0, lambda: messagebox.showinfo(
-                        "Gemini测试成功",
-                        f"模型回复：{assistant_reply}"
-                    ))
-                    self.window.after(0, lambda: self.api_status_label.config(
-                        text="✅ Gemini连接成功", fg="green"
-                    ))
-                else:
-                    error_msg = f"请求失败，状态码：{response.status}\n错误信息：{data[:200]}"
-                    self.window.after(0, lambda: messagebox.showerror("Gemini测试失败", error_msg))
-                    self.window.after(0, lambda: self.api_status_label.config(
-                        text=f"❌ 状态码{response.status}", fg="red"
-                    ))
-
-                conn.close()
+                # 成功
+                self.window.after(0, lambda: messagebox.showinfo(
+                    "Gemini测试成功",
+                    f"模型回复：{assistant_reply}"
+                ))
+                self.window.after(0, lambda: self.api_status_label.config(
+                    text="✅ Gemini连接成功", fg="green"
+                ))
 
             except Exception as e:
                 error_msg = f"发生错误：{e}"

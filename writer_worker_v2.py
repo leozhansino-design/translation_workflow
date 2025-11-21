@@ -7,8 +7,8 @@ import os
 import sys
 import time
 import re
-import http.client
 from datetime import datetime
+from openai import OpenAI
 
 from utils import (
     scan_chapter_files,
@@ -234,12 +234,27 @@ class WriterWorkerV2:
         self.total_cost = 0.0
         self.chapters_completed = 0
 
+        # 初始化OpenAI客户端（使用Jupyter稳定版的方式）
+        print(f"\n🔧 初始化OpenAI客户端...")
+        api_key = self.config.get('api_key')
+        base_url = self.config.get('base_url', 'https://yunwuapi.com')
+
+        # 确保base_url以/v1/结尾（OpenAI SDK需要）
+        if not base_url.endswith('/v1/'):
+            if not base_url.endswith('/'):
+                base_url += '/'
+            if not base_url.endswith('v1/'):
+                base_url += 'v1/'
+
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        print(f"✅ OpenAI客户端初始化完成")
+
         print(f"\n{'='*70}")
         print(f"📚 Writer Worker V2 初始化完成")
         print(f"{'='*70}")
         print(f"  任务ID: {task_id}")
         print(f"  模型: {self.config.get('model', 'N/A')}")
-        print(f"  Base URL: {self.config.get('base_url', 'N/A')}")
+        print(f"  Base URL: {base_url}")
         print(f"  Temperature: {self.config.get('temperature', 0.8)}")
         print(f"  Max Tokens: {self.config.get('max_tokens', 20000)}")
         print(f"  outline_file: {self.config.get('outline_file', 'NOT SET')}")
@@ -265,102 +280,74 @@ class WriterWorkerV2:
 
     def call_api(self, system_prompt, user_prompt):
         """
-        API调用 - 完全按照用户成功脚本的方式
+        API调用 - 使用OpenAI SDK（Jupyter稳定版方式）
+        保持system和user消息分离，不合并！
         """
         print(f"\n{'='*70}")
-        print(f"🌐 API调用")
+        print(f"🌐 API调用 (OpenAI SDK)")
         print(f"{'='*70}")
         print(f"  System Prompt: {len(system_prompt):,} 字符")
         print(f"  User Prompt: {len(user_prompt):,} 字符")
 
-        # 合并system和user为单个user消息（完全按照用户的代码）
-        combined_content = f"{system_prompt}\n\n{user_prompt}"
-
         model = self.config.get('model', 'gpt-5-mini')
         temperature = self.config.get('temperature', 0.85)
-        max_tokens = self.config.get('max_tokens', 120000)
+        max_tokens = self.config.get('max_tokens', 35000)
 
-        payload = json.dumps({
-            "model": model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": combined_content
-                }
-            ],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": False
-        })
-
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {self.config["api_key"]}'
-        }
-
-        # 解析URL（按照用户的代码）
-        base_url = self.config.get('base_url', 'https://yunwuapi.com')
-        host = base_url.replace("https://", "").replace("http://", "")
-
-        print(f"  Host: {host}")
         print(f"  Model: {model}")
         print(f"  Temperature: {temperature}")
         print(f"  Max Tokens: {max_tokens:,}")
         print(f"\n⏳ 发送请求...")
 
-        conn = http.client.HTTPSConnection(host)
-
         try:
             start_time = time.time()
 
-            # 发送请求
-            conn.request("POST", "/v1/chat/completions", payload, headers)
-            response = conn.getresponse()
-            data = response.read().decode('utf-8')
+            # 使用OpenAI SDK调用（完全按照Jupyter稳定版）
+            # 关键：保持system和user分离，不合并！
+            response = self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
 
             elapsed = time.time() - start_time
 
-            if response.status == 200:
-                response_data = json.loads(data)
-                content = response_data['choices'][0]['message']['content']
-                usage = response_data.get('usage', {})
+            # 获取结果
+            content = response.choices[0].message.content
+            usage = response.usage
 
-                chars = len(content)
-                words = len(content.split())
+            chars = len(content)
+            words = len(content.split())
 
-                print(f"\n✅ API调用成功")
-                print(f"  耗时: {elapsed:.1f}秒")
-                print(f"  生成字符: {chars:,}")
-                print(f"  生成单词: {words:,}")
-                if usage:
-                    print(f"  Tokens: {usage.get('total_tokens', 'N/A'):,}")
+            print(f"\n✅ API调用成功")
+            print(f"  耗时: {elapsed:.1f}秒")
+            print(f"  生成字符: {chars:,}")
+            print(f"  生成单词: {words:,}")
+            print(f"  Tokens: {usage.total_tokens:,}")
+            print(f"    - Prompt: {usage.prompt_tokens:,}")
+            print(f"    - Completion: {usage.completion_tokens:,}")
 
-                return {
-                    'success': True,
-                    'content': content,
-                    'usage': usage
+            return {
+                'success': True,
+                'content': content,
+                'usage': {
+                    'total_tokens': usage.total_tokens,
+                    'prompt_tokens': usage.prompt_tokens,
+                    'completion_tokens': usage.completion_tokens
                 }
-            else:
-                error_msg = f"状态码: {response.status}"
-                print(f"\n❌ API调用失败: {error_msg}")
-                print(f"  响应: {data[:500]}")
-                return {
-                    'success': False,
-                    'error': error_msg,
-                    'details': data
-                }
+            }
 
         except Exception as e:
-            print(f"\n❌ 异常: {e}")
+            print(f"\n❌ API调用异常: {e}")
             import traceback
             traceback.print_exc()
             return {
                 'success': False,
                 'error': str(e)
             }
-
-        finally:
-            conn.close()
 
     def load_outline(self):
         """加载大纲信息"""
