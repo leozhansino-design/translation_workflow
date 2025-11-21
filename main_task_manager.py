@@ -122,6 +122,22 @@ class WritingToolWindow:
         tk.Spinbox(config_frame, from_=5000, to=200000, increment=1000,
                    textvariable=self.max_tokens_var, width=15).grid(row=4, column=1, sticky=tk.W, pady=5, padx=5)
 
+        # 测试API按钮
+        test_frame = tk.Frame(config_frame)
+        test_frame.grid(row=5, column=0, columnspan=2, pady=10)
+
+        tk.Button(
+            test_frame,
+            text="测试API连接",
+            command=self.test_api_connection,
+            bg="#2196F3",
+            fg="white",
+            width=12
+        ).pack(side=tk.LEFT, padx=5)
+
+        self.api_status_label = tk.Label(test_frame, text="", fg="gray")
+        self.api_status_label.pack(side=tk.LEFT, padx=10)
+
         # 添加任务区
         add_task_frame = tk.LabelFrame(self.window, text="➕ 添加任务", padx=15, pady=10)
         add_task_frame.pack(fill=tk.X, padx=10, pady=10)
@@ -188,6 +204,60 @@ class WritingToolWindow:
             bg="white"
         )
         empty_label.pack(pady=50)
+
+    def test_api_connection(self):
+        """测试API连接"""
+        api_key = self.api_key_var.get()
+        base_url = self.base_url_var.get()
+        model = self.model_var.get()
+
+        if not api_key:
+            self.api_status_label.config(text="❌ 请输入API Key", fg="red")
+            return
+
+        # 更新状态
+        self.api_status_label.config(text="🔄 测试中...", fg="blue")
+        self.window.update()
+
+        # 在新线程中测试，避免阻塞UI
+        def _test():
+            try:
+                from openai import OpenAI
+
+                client = OpenAI(
+                    api_key=api_key,
+                    base_url=base_url
+                )
+
+                # 发送一个简单的测试请求
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "user", "content": "Hello"}
+                    ],
+                    max_tokens=10
+                )
+
+                # 检查响应
+                if response and response.choices and len(response.choices) > 0:
+                    # 成功
+                    self.window.after(0, lambda: self.api_status_label.config(
+                        text="✅ 连接成功", fg="green"
+                    ))
+                else:
+                    raise ValueError("API响应格式异常")
+
+            except Exception as e:
+                error_msg = str(e) if e else "未知错误"
+                if error_msg and len(error_msg) > 50:
+                    error_msg = error_msg[:50] + "..."
+
+                self.window.after(0, lambda: self.api_status_label.config(
+                    text=f"❌ {error_msg}", fg="red"
+                ))
+
+        thread = threading.Thread(target=_test, daemon=True)
+        thread.start()
 
     def select_outline_folder(self):
         """选择大纲文件夹"""
