@@ -331,12 +331,52 @@ class WritingToolWindow:
         thread.start()
 
     def select_outline_folder(self):
-        """选择大纲文件夹"""
+        """选择大纲文件夹 - 自动检测章节数"""
         folder = filedialog.askdirectory(title="选择大纲文件夹", initialdir="outlines")
         if folder:
             # 验证文件夹包含_writing_prompt.txt
             if not os.path.exists(os.path.join(folder, '_writing_prompt.txt')):
                 messagebox.showwarning("警告", "所选文件夹不包含 _writing_prompt.txt 文件")
+                return
+
+            # 自动检测章节数（扫描chapter_*_prompt.txt文件）
+            import glob
+            chapter_files = glob.glob(os.path.join(folder, 'chapter_*_prompt.txt'))
+
+            if chapter_files:
+                # 提取章节号
+                chapter_nums = []
+                for file in chapter_files:
+                    filename = os.path.basename(file)
+                    try:
+                        # 提取章节号: chapter_1_prompt.txt -> 1
+                        num = int(filename.split('_')[1])
+                        chapter_nums.append(num)
+                    except (IndexError, ValueError):
+                        continue
+
+                if chapter_nums:
+                    max_chapter = max(chapter_nums)
+                    total_chapters = len(chapter_nums)
+
+                    # 自动设置章节范围
+                    self.start_chapter_var.set(1)
+                    self.end_chapter_var.set(max_chapter)
+
+                    print(f"✅ 自动检测到 {total_chapters} 个章节 (1-{max_chapter})")
+                    messagebox.showinfo(
+                        "章节自动检测",
+                        f"检测到 {total_chapters} 个章节大纲\n\n"
+                        f"已自动设置:\n"
+                        f"  起始章节: 1\n"
+                        f"  结束章节: {max_chapter}\n\n"
+                        f"可以在下方修改后再添加任务"
+                    )
+                else:
+                    messagebox.showwarning("警告", "未找到有效的章节大纲文件")
+                    return
+            else:
+                messagebox.showwarning("警告", "文件夹中没有chapter_*_prompt.txt文件")
                 return
 
             self.outline_folder_var.set(os.path.basename(folder))
@@ -694,6 +734,7 @@ class WritingToolWindow:
 
                 # 创建临时配置（不需要文件）
                 task_id = f"writing_{int(time.time()*1000)}"
+                task.task_id = task_id  # 保存task_id用于进度跟踪
 
                 print(f"  任务ID: {task_id}")
                 print(f"\n📝 配置内容:")
@@ -741,8 +782,39 @@ class WritingToolWindow:
         thread = threading.Thread(target=_run_task, daemon=True)
         thread.start()
 
-        messagebox.showinfo("成功", f"任务已启动：{task.title}\n查看控制台输出了解进度")
+        # 启动进度监控（每2秒更新一次UI）
+        self._start_progress_monitoring(task)
+
+        messagebox.showinfo("成功", f"任务已启动：{task.title}\n\n所有任务都在此窗口中显示\n可以同时添加多个任务")
         self.refresh_task_list()
+
+    def _start_progress_monitoring(self, task):
+        """监控任务进度并更新UI"""
+        def _check_progress():
+            if task.status == 'in_progress' and hasattr(task, 'task_id'):
+                progress_file = f"tasks/{task.task_id}/progress.json"
+
+                if os.path.exists(progress_file):
+                    try:
+                        with open(progress_file, 'r', encoding='utf-8') as f:
+                            progress = json.load(f)
+
+                        # 更新task对象
+                        task.current_chapter = progress.get('current_chapter', 0)
+                        task.progress = (task.current_chapter / task.total_chapters) * 100 if task.total_chapters > 0 else 0
+
+                        # 刷新UI
+                        self.window.after(0, self.refresh_task_list)
+
+                    except:
+                        pass
+
+                # 如果任务还在进行，2秒后再次检查
+                if task.status == 'in_progress':
+                    self.window.after(2000, _check_progress)
+
+        # 1秒后开始第一次检查
+        self.window.after(1000, _check_progress)
 
     def restart_task(self, task):
         """重新生成（从头开始）"""
