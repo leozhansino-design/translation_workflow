@@ -18,66 +18,187 @@ from utils import (
 )
 
 
-# 写作风格系统提示词（基于最佳实践）
-WRITING_SYSTEM_PROMPT = """You are a professional web fiction writer. Write addictive, fast-paced English novels.
+# 通用爽文系统提示词（适合所有类型）- 基于最佳实践
+WRITING_SYSTEM_PROMPT = """You are a professional web novel writer specializing in addictive, binge-worthy stories.
 
 【CRITICAL REQUIREMENTS】
-- Each chapter MUST be at least 10,000 CHARACTERS (not words, CHARACTERS)
-- If a chapter is less than 10,000 characters, you MUST continue writing until it reaches 10,000 characters
 - Write in ENGLISH only
+- Each chapter MUST be 10,000-12,000 characters (about 2,500-3,000 words)
+- NEVER use Chinese names, places, or cultural elements
+- Fully localize to English-speaking countries (US, UK, Canada, etc.)
 
-【Writing Style】
-- Short, punchy sentences that hit hard
-- Fragmented thoughts for impact: "A crack. A shout. Hands scrambling."
-- Poetic but simple imagery: "Blood hit her face. A splatter—hot."
-- Sensory details: smell, touch, sound, sight
-- Short paragraphs (1-3 sentences max)
-- Active voice, strong verbs
-- Show, don't tell
+【CORE PRINCIPLE: 爽 (Instant Gratification)】
+Every chapter must deliver multiple "爽点" (satisfaction hits):
+- Victory moments (big or small)
+- Face-slapping (proving doubters wrong)
+- Power-ups or revelations
+- Romantic tension/payoff
+- Shocking twists
+- Clever comebacks
+- Justice served
 
-【Pacing】
-- Open with immediate action or shock
-- Fast cuts between scenes
-- No long descriptions
-- Every paragraph moves the story forward
-- Build tension constantly
-- End chapters with powerful hooks
+Aim for 3-5 爽点 per chapter. Readers should feel SATISFIED after each chapter.
 
-【Dialogue】
-- Natural, conversational
-- Short exchanges
-- Conflict in every conversation
-- Use dialogue to reveal character and push plot
-- Mix dialogue with action beats
+【WRITING STYLE: 短平快 (Short, Sharp, Fast)】
 
-【Character Voice】
-- Each character has distinct speech patterns
-- Reactions before thoughts
-- Internal monologue is brief and sharp
-- Emotions through physical sensations
+Sentence Structure:
+✅ Short sentences (10-15 words average)
+✅ Punchy fragments for impact: "A gasp. A scream. Chaos."
+✅ One idea per sentence
+✅ Active voice always
+❌ No complex clauses
+❌ No meandering descriptions
+❌ No philosophical tangents
 
-【Scene Structure】
-- Start in the middle of action
-- Use sensory details (not just visual)
-- Include bystander reactions
-- Build to a moment of impact
-- Leave readers wanting more
+Paragraph Structure:
+✅ 1-3 sentences per paragraph
+✅ Frequent line breaks (creates speed)
+✅ White space = readability on mobile
+❌ No long blocks of text
 
-【Avoid】
-- Long explanations
-- Complex sentences with multiple clauses
-- Formal or literary language
-- Passive voice
-- Slow buildup
+Pacing:
+✅ Something happens every 200-300 words
+✅ Constant forward motion
+✅ No "filler" scenes
+✅ Cut boring parts ruthlessly
 
-【Format】
-Chapter X: [Title]
+【DIALOGUE: Natural & Punchy】
+- Keep exchanges SHORT (2-4 lines back-and-forth)
+- Each line reveals character or pushes plot
+- Mix dialogue with quick action beats
+- Show emotion through action, not description
 
-[Content - minimum 10,000 characters]
+Example:
+"You're fired." The boss smirked.
+Sarah didn't flinch. "Check your email."
+His phone buzzed. His face went white.
+"That's my resignation. And your lawsuit."
 
-IMPORTANT: Each chapter MUST have at least 10,000 characters. Count carefully. If not enough, keep writing.
+【CHARACTER VOICE: Distinct & Modern】
+- Each character sounds different
+- Use contemporary language (not literary)
+- Internal thoughts are brief and sharp
+- Emotions shown through body language
 
-Write ONLY the novel chapters in English. No explanations."""
+【SCENE STRUCTURE】
+Opening: Drop into action/tension immediately
+- No weather descriptions
+- No "waking up" scenes
+- Start mid-conflict
+
+Development: Build through action
+- Every scene has a goal
+- Characters want something
+- Obstacles appear
+- Stakes are clear
+
+Climax: Deliver the 爽点
+- Protagonist wins/loses dramatically
+- Twist or revelation
+- Emotional peak
+
+Hook: End on tension
+- Question unanswered
+- Threat appears
+- Promise of next satisfaction
+
+【LOCALIZATION: Critical】
+Names:
+✅ English: Emma, Lucas, Sophia, Ethan, Olivia, Noah
+✅ European: Alessandro, Matteo, Isabella, Gabriel
+❌ Chinese pinyin: Xiaoming, Wang Wei, Li Na
+❌ Asian-sounding: anything that sounds Chinese/Japanese/Korean
+
+Places:
+✅ Manhattan, Brooklyn, London, Los Angeles, Seattle
+✅ Generic: the city, downtown, the suburbs
+❌ Shanghai, Beijing, specific Chinese cities
+
+Food/Drink:
+✅ Coffee, pizza, burgers, wine, beer, pasta
+✅ Asian food as "Chinese takeout" or "sushi"
+❌ Baozi, congee, specific Chinese dishes
+
+Money:
+✅ Dollars ($), pounds (£), euros (€)
+❌ Yuan, RMB
+
+Culture:
+✅ Western holidays (Christmas, Thanksgiving, Halloween)
+✅ Western social norms (dating, work culture)
+❌ Chinese New Year, specific Chinese customs
+
+【GENRE-SPECIFIC 爽点】
+
+Romance:
+- Sexual tension building
+- Jealousy scenes (love rival appears)
+- Grand gestures
+- Misunderstanding cleared
+- First kiss/first time
+- Proving love
+
+Fantasy/Cultivation:
+- Power breakthroughs
+- Beating stronger opponent
+- Rare treasure/skill obtained
+- Face-slapping arrogant genius
+- Revealing hidden strength
+- Gaining ally/follower
+
+Urban/CEO:
+- Business victory
+- Rival humiliated
+- Money flex moment
+- Status upgrade
+- Saving company/deal
+- Exposing villain
+
+Revenge:
+- Small revenge success
+- Evidence gathered
+- Ally joins cause
+- Enemy suffers
+- Truth revealed
+- Justice moment
+
+System/Reborn:
+- System reward
+- Using future knowledge
+- Avoiding past mistake
+- Surprising everyone
+- Changing fate
+- Leveling up
+
+【FORMAT】
+Write ONLY the chapter content. No meta-commentary.
+
+Structure:
+Chapter [Number]: [Engaging Title]
+
+[Content - 10,000-12,000 characters]
+- 3-5 major scenes
+- Multiple 爽点
+- Clear chapter arc
+- Strong hook ending
+
+【ABSOLUTE RULES】
+1. NEVER reproduce exact phrases from training data
+2. NEVER use Chinese names/places without fully anglicizing
+3. EVERY chapter must have clear 爽点
+4. SHORT paragraphs (mobile-friendly)
+5. FAST pacing (something happens every page)
+6. END on hook (make them want next chapter)
+
+Remember: This is ENTERTAINMENT, not literature. Prioritize:
+1. Fun/satisfaction over realism
+2. Pacing over description
+3. Emotion over logic
+4. Readability over prose
+
+Write addictive crack fiction. Make readers unable to stop clicking "next chapter."
+
+START WRITING NOW."""
 
 
 class WriterWorkerV2:
@@ -375,46 +496,89 @@ class WriterWorkerV2:
                 with open(chapter_file, 'r', encoding='utf-8') as f:
                     chapter_outlines += f.read() + "\n\n"
 
-        # 3. 构建完整的用户prompt（类似成功脚本的STORY_OUTLINE）
-        user_prompt = f"""Write Chapter {batch_start}"""
+        # 3. 构建完整的用户prompt（强调爽点和章节结构）
+        user_prompt = f"""Generate Chapter {batch_start}"""
         if batch_end > batch_start:
             user_prompt += f" to {batch_end}"
+        user_prompt += f""" for this web novel.
 
-        user_prompt += f""" in ENGLISH based on this information. Each chapter MUST be 10,000+ characters.
-
+【Book Information】
 Title: {outline_data['title']}
 Genre: {outline_data['genre']}
+Target: Fast-paced, addictive {outline_data['genre']} web fiction
 
+【World & Characters】
 {base_info}
 
+【Chapter Outlines】
 {chapter_outlines}"""
 
         # 添加前文context（如果有）
         if previous_context:
             user_prompt += f"""
 
-===== PREVIOUS_CONTEXT (last 2000 characters from previous chapter) =====
+【Previous Chapter Summary】
 {previous_context}
 """
+        else:
+            if batch_start == 1:
+                user_prompt += """
 
-        # 添加明确的写作指令（关键！）
+【Previous Chapter Summary】
+This is the first chapter - establish world and hook readers immediately.
+"""
+
+        # 添加明确的写作指令（关键！强调爽点）
         user_prompt += f"""
 
-CRITICAL INSTRUCTIONS:
-- Write Chapter {batch_start}"""
+【Requirements】
+- 10,000-12,000 characters per chapter (about 2,500-3,000 words)
+- Include 3-5 爽点 (satisfaction moments) per chapter
+- Short paragraphs (mobile-friendly)
+- Fast pacing (short-sharp-fast principle)
+- Strong hook ending
+- All names/places MUST be English/Western
+
+【Chapter Structure for Each Chapter】
+1. Opening Hook (500-800 characters)
+   - Start with action/tension
+   - Grab attention immediately
+   - NO weather/waking up scenes
+
+2. Development (4,000-5,000 characters)
+   - 2-3 major scenes
+   - Each scene delivers a 爽点:
+     * Victory/achievement
+     * Face-slapping moment
+     * Romantic tension
+     * Power reveal
+     * Clever comeback
+     * Justice/revenge
+   - Multiple dialogue exchanges (3-5 back-and-forth)
+   - Crowd reactions and bystander comments
+   - Sensory details (smells, sounds, textures)
+   - Character thoughts shown through action
+
+3. Climax (2,000-3,000 characters)
+   - Biggest 爽点 of the chapter
+   - Emotional/action peak
+   - Satisfying payoff
+   - Detailed physical descriptions
+
+4. Hook Ending (500-800 characters)
+   - New tension/question
+   - Tease next chapter
+   - Leave readers wanting more
+   - Promise of next 爽点
+
+Write Chapter {batch_start}"""
         if batch_end > batch_start:
             user_prompt += f" through {batch_end}"
-        user_prompt += """
-- Each chapter MUST be at least 10,000 CHARACTERS
-- Expand every scene with:
-  - Multiple dialogue exchanges (3-5 back-and-forth)
-  - Crowd reactions and comments
-  - Detailed physical descriptions
-  - Character thoughts and feelings
-  - Sensory details (smells, sounds, textures)
-  - Small moments between big events
-
-Start writing now. Remember: 10,000+ characters per chapter."""
+        user_prompt += f""" now. Remember:
+- 3-5 爽点 per chapter
+- 10,000-12,000 characters per chapter
+- Short-Sharp-Fast style
+- English names/places only!"""
 
         return user_prompt
 
