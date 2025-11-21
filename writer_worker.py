@@ -128,22 +128,27 @@ class WriterWorker:
         if chars_match:
             data['main_characters'] = chars_match.group(1).strip()
 
-        # 提取 CHAPTER_OUTLINES
+        # 提取 CHAPTER_OUTLINES（支持新旧格式）
         chapter_section = re.search(r'={5,}\s*CHAPTER_OUTLINES\s*={5,}\s*\n(.+?)(?=\n={5,}\s*END|$)', text, re.DOTALL)
         if chapter_section:
             chapter_text = chapter_section.group(1)
 
-            # 匹配每个章节
-            chapter_pattern = r'Chapter\s+(\d+):\s*(.+?)\nSummary:\s*(.+?)(?=\n(?:Key Events:|Characters:|Chapter\s+\d+:|$))'
+            # 匹配每个章节 - 支持新格式（Opening/Development/Conflict等）和旧格式（Summary）
+            chapter_pattern = r'Chapter\s+(\d+):\s*(.+?)(?=\nChapter\s+\d+:|$)'
             for match in re.finditer(chapter_pattern, chapter_text, re.DOTALL):
                 ch_num = int(match.group(1))
-                ch_title = match.group(2).strip()
-                ch_summary = match.group(3).strip()
+                chapter_content = match.group(2).strip()
 
+                # 提取标题（第一行）
+                lines = chapter_content.split('\n', 1)
+                ch_title = lines[0].strip()
+                remaining_content = lines[1] if len(lines) > 1 else ""
+
+                # 将整个章节内容作为 summary（包含所有新格式字段）
                 data['chapter_outlines'].append({
                     'chapter': ch_num,
                     'title': ch_title,
-                    'summary': ch_summary
+                    'summary': remaining_content.strip()
                 })
 
         return data

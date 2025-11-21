@@ -741,14 +741,30 @@ Max Tokens: {task.config['max_tokens']}
         for chapter in chapters:
             ch_num = chapter.get('number', 0)
             ch_title = chapter.get('title', f'Chapter {ch_num}') or f'Chapter {ch_num}'
-            ch_summary = chapter.get('summary', '') or ''
 
             # 文件名：chapter_1_prompt.txt, chapter_2_prompt.txt, ...
             filename = f"chapter_{ch_num}_prompt.txt"
 
             with open(os.path.join(output_folder, filename), 'w', encoding='utf-8') as f:
                 f.write(f"Chapter {ch_num}: {ch_title}\n\n")
-                f.write(f"Summary:\n{ch_summary}\n\n")
+
+                # 保存新格式的字段（如果有的话）
+                if 'opening' in chapter:
+                    f.write(f"Opening: {chapter['opening']}\n\n")
+                if 'development' in chapter:
+                    f.write(f"Development: {chapter['development']}\n\n")
+                if 'conflict' in chapter:
+                    f.write(f"Conflict: {chapter['conflict']}\n\n")
+                if 'climax' in chapter:
+                    f.write(f"Climax: {chapter['climax']}\n\n")
+                if 'hook' in chapter:
+                    f.write(f"Hook: {chapter['hook']}\n\n")
+                if 'key_scenes' in chapter:
+                    f.write(f"Key Scenes:\n{chapter['key_scenes']}\n\n")
+
+                # 兼容旧格式
+                if 'summary' in chapter and not any(k in chapter for k in ['opening', 'development', 'conflict']):
+                    f.write(f"Summary:\n{chapter['summary']}\n\n")
                 if 'key_events' in chapter:
                     f.write(f"Key Events:\n{chapter['key_events']}\n\n")
                 if 'characters' in chapter:
@@ -827,28 +843,49 @@ Max Tokens: {task.config['max_tokens']}
         if chapter_section:
             chapter_text = chapter_section.group(1)
 
-            # 匹配每个章节
-            chapter_pattern = r'Chapter\s+(\d+):\s*(.+?)\n\s*Summary:\s*(.+?)(?=\n\s*(?:Key Events:|Characters:|Chapter\s+\d+:|$))'
+            # 匹配每个章节 - 支持新格式（Opening/Development/Conflict/Climax/Hook/Key Scenes）
+            # 使用更灵活的模式匹配
+            chapter_pattern = r'Chapter\s+(\d+):\s*(.+?)(?=\nChapter\s+\d+:|$)'
             for match in re.finditer(chapter_pattern, chapter_text, re.DOTALL):
                 ch_num = int(match.group(1))
-                ch_title = match.group(2).strip()
-                ch_summary = match.group(3).strip()
+                chapter_content = match.group(2).strip()
 
+                # 提取标题（第一行）
+                lines = chapter_content.split('\n', 1)
+                ch_title = lines[0].strip()
+                remaining_content = lines[1] if len(lines) > 1 else ""
+
+                # 构建章节数据，包含完整内容
                 chapter_data = {
                     'number': ch_num,
                     'title': ch_title,
-                    'summary': ch_summary
+                    'summary': remaining_content.strip()  # 保存完整的章节大纲内容
                 }
 
-                # 尝试提取Key Events
-                events_match = re.search(rf'Chapter\s+{ch_num}:.*?Key Events:\s*(.+?)(?=\n\s*Characters:|Chapter\s+\d+:|$)', chapter_text, re.DOTALL)
-                if events_match:
-                    chapter_data['key_events'] = events_match.group(1).strip()
+                # 尝试提取特定字段（新格式）
+                opening_match = re.search(r'Opening:\s*(.+?)(?=\n(?:Development:|Conflict:|$))', remaining_content, re.DOTALL)
+                if opening_match:
+                    chapter_data['opening'] = opening_match.group(1).strip()
 
-                # 尝试提取Characters
-                chars_match = re.search(rf'Chapter\s+{ch_num}:.*?Characters:\s*(.+?)(?=\n\s*Chapter\s+\d+:|$)', chapter_text, re.DOTALL)
-                if chars_match:
-                    chapter_data['characters'] = chars_match.group(1).strip()
+                development_match = re.search(r'Development:\s*(.+?)(?=\n(?:Conflict:|Climax:|$))', remaining_content, re.DOTALL)
+                if development_match:
+                    chapter_data['development'] = development_match.group(1).strip()
+
+                conflict_match = re.search(r'Conflict:\s*(.+?)(?=\n(?:Climax:|Hook:|$))', remaining_content, re.DOTALL)
+                if conflict_match:
+                    chapter_data['conflict'] = conflict_match.group(1).strip()
+
+                climax_match = re.search(r'Climax:\s*(.+?)(?=\n(?:Hook:|Key Scenes:|$))', remaining_content, re.DOTALL)
+                if climax_match:
+                    chapter_data['climax'] = climax_match.group(1).strip()
+
+                hook_match = re.search(r'Hook:\s*(.+?)(?=\n(?:Key Scenes:|Chapter\s+\d+:|$))', remaining_content, re.DOTALL)
+                if hook_match:
+                    chapter_data['hook'] = hook_match.group(1).strip()
+
+                key_scenes_match = re.search(r'Key Scenes.*?:\s*(.+?)(?=\nChapter\s+\d+:|$)', remaining_content, re.DOTALL)
+                if key_scenes_match:
+                    chapter_data['key_scenes'] = key_scenes_match.group(1).strip()
 
                 data['chapters'].append(chapter_data)
 
