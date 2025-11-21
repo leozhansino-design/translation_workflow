@@ -961,12 +961,39 @@ Now write Chapter {next_chapter} based on the outline above."""
 
     def start_task(self, task):
         """启动任务 - 直接运行worker（不用subprocess，避免exe打包问题）"""
+        print(f"\n{'='*70}")
+        print(f"🎬 start_task() 被调用")
+        print(f"  任务: {task.title}")
+        print(f"  当前状态: {task.status}")
+        print(f"  当前进度: {task.current_chapter}/{task.total_chapters}")
+        print(f"{'='*70}\n")
+
         if task.status == 'in_progress':
             messagebox.showinfo("提示", "任务正在运行中")
+            print("  ⏸️ 任务已在运行，返回")
             return
+
+        # 如果是completed或failed状态，询问是否重新开始
+        if task.status in ['completed', 'failed']:
+            print(f"  ⚠️ 任务状态为 {task.status}，弹出确认对话框")
+            if not messagebox.askyesno("确认", f"任务状态: {task.status}，是否重新开始？"):
+                print("  ❌ 用户取消重新开始")
+                return
+            # 重置状态
+            print("  ✅ 用户确认，重置任务状态")
+            task.progress = 0
+            task.current_chapter = 0
+            # 清理旧的进度文件
+            if hasattr(task, 'task_id'):
+                old_progress = f"tasks/{task.task_id}/progress.json"
+                if os.path.exists(old_progress):
+                    os.remove(old_progress)
+                    print(f"  🗑️ 已删除旧进度文件: {old_progress}")
 
         task.status = 'in_progress'
         task.started_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"  ✅ 任务状态更新为: in_progress")
+        print(f"  ⏰ 启动时间: {task.started_at}\n")
 
         # 直接运行WriterWorker（不用subprocess，就像Jupyter代码一样）
         def _run_task():
