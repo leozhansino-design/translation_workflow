@@ -1,42 +1,73 @@
 """
-任务管理器主窗口
-显示所有写作任务，支持创建、监控、管理任务
+小说写作工具 - 主窗口
+批量生成小说章节，支持断点续写
 """
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
-import time
 import os
+import json
 from datetime import datetime
 
-from task_manager import TaskManager
-from utils import format_time_elapsed, scan_chapter_files
+from writer_worker import WriterWorker
+from utils import scan_chapter_files
 
 
-class TaskManagerWindow:
-    """任务管理器主窗口"""
+class WritingTask:
+    """写作任务对象"""
+    def __init__(self, outline_folder, config):
+        self.outline_folder = outline_folder
+        self.config = config
+        self.status = 'pending'
+        self.progress = 0
+        self.current_chapter = 0
+        self.total_chapters = config.get('end_chapter', 50)
+        self.cost = 0.0
+        self.started_at = None
+        self.worker_thread = None
+        self.title = os.path.basename(outline_folder)
+
+        # 扫描已有章节（断点续写）
+        self.existing_chapters = self._scan_existing_chapters()
+        if self.existing_chapters:
+            self.current_chapter = max(self.existing_chapters)
+            # 计算进度
+            self.progress = (len(self.existing_chapters) / self.total_chapters) * 100
+
+    def _scan_existing_chapters(self):
+        """扫描项目文件夹中已有的章节"""
+        project_folder = self.config.get('project_folder', self.outline_folder)
+        if not os.path.exists(project_folder):
+            return []
+
+        chapters = []
+        for file in os.listdir(project_folder):
+            if file.startswith('chapter_') and file.endswith('.txt'):
+                try:
+                    ch_num = int(file.replace('chapter_', '').replace('.txt', ''))
+                    chapters.append(ch_num)
+                except:
+                    pass
+
+        return sorted(chapters)
+
+
+class WritingToolWindow:
+    """写作工具主窗口"""
 
     def __init__(self):
         self.window = tk.Tk()
-        self.window.title("任务管理器 - 小说写作工具")
-        self.window.geometry("1100x750")
+        self.window.title("小说写作工具")
+        self.window.geometry("1200x800")
 
-        self.task_mgr = TaskManager()
-        self.task_containers = {}  # 存储任务容器的引用
+        self.tasks = []  # 任务列表
+        self.task_containers = {}  # 任务卡片引用
 
-        # 轮询线程
-        self.polling = False
-
-        # 初始化界面
         self.setup_ui()
-        self.refresh_tasks()
-
-        # 启动轮询
-        self.start_polling()
 
     def setup_ui(self):
         """设置界面"""
-        # === 标题栏 ===
+        # 标题栏
         title_frame = tk.Frame(self.window, bg="#4CAF50", height=60)
         title_frame.pack(fill=tk.X)
         title_frame.pack_propagate(False)
@@ -51,577 +82,128 @@ class TaskManagerWindow:
 
         tk.Label(
             title_frame,
-            text="批量生成小说章节",
+            text="批量生成小说章节 | 支持断点续写",
             font=("Arial", 11),
             bg="#4CAF50",
             fg="white"
         ).pack(side=tk.LEFT, padx=10)
 
-        # === 工具栏 ===
-        toolbar = tk.Frame(self.window)
-        toolbar.pack(fill=tk.X, padx=10, pady=10)
+        # API配置区
+        config_frame = tk.LabelFrame(self.window, text="⚙️ API配置", padx=15, pady=10)
+        config_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        tk.Button(
-            toolbar,
-            text="➕ 新建任务",
-            command=self.create_new_task,
-            bg="#2196F3",
-            fg="white",
-            width=12
-        ).pack(side=tk.LEFT, padx=5)
+        # API Key
+        tk.Label(config_frame, text="API Key:", width=12, anchor='w').grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
+        tk.Entry(config_frame, textvariable=self.api_key_var, show="*", width=50).grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
 
-        tk.Button(
-            toolbar,
-            text="🔄 刷新",
-            command=self.refresh_tasks,
-            width=12
-        ).pack(side=tk.LEFT, padx=5)
+        # Base URL
+        tk.Label(config_frame, text="Base URL:", width=12, anchor='w').grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.base_url_var = tk.StringVar(value="https://yunwuapi.com/v1/")
+        tk.Entry(config_frame, textvariable=self.base_url_var, width=50).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
 
-        tk.Button(
-            toolbar,
-            text="🗑️ 清空队列",
-            command=self.clear_all_tasks,
-            width=12,
-            bg="#f44336",
-            fg="white"
-        ).pack(side=tk.LEFT, padx=5)
+        # Model
+        tk.Label(config_frame, text="Model:", width=12, anchor='w').grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.model_var = tk.StringVar(value="gpt-5.1")
+        model_combo = ttk.Combobox(config_frame, textvariable=self.model_var, width=47)
+        model_combo['values'] = ["gpt-5.1", "gemini-2.5-pro", "gpt-5", "gemini-3-pro-preview"]
+        model_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
+        model_combo['state'] = 'normal'  # 允许手动输入
 
-        # === 任务队列（滚动区域）===
+        # Temperature
+        tk.Label(config_frame, text="Temperature:", width=12, anchor='w').grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.temperature_var = tk.DoubleVar(value=0.8)
+        tk.Scale(config_frame, from_=0, to=1, resolution=0.1, orient=tk.HORIZONTAL,
+                 variable=self.temperature_var, length=300).grid(row=3, column=1, sticky=tk.W, pady=5, padx=5)
+
+        # Max Tokens
+        tk.Label(config_frame, text="Max Tokens:", width=12, anchor='w').grid(row=4, column=0, sticky=tk.W, pady=5)
+        self.max_tokens_var = tk.IntVar(value=20000)
+        tk.Spinbox(config_frame, from_=5000, to=200000, increment=1000,
+                   textvariable=self.max_tokens_var, width=15).grid(row=4, column=1, sticky=tk.W, pady=5, padx=5)
+
+        # 添加任务区
+        add_task_frame = tk.LabelFrame(self.window, text="➕ 添加任务", padx=15, pady=10)
+        add_task_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        # 选择大纲文件夹
+        folder_frame = tk.Frame(add_task_frame)
+        folder_frame.pack(fill=tk.X, pady=5)
+
+        tk.Label(folder_frame, text="大纲文件夹:", width=12, anchor='w').pack(side=tk.LEFT)
+        self.outline_folder_var = tk.StringVar(value="未选择")
+        tk.Label(folder_frame, textvariable=self.outline_folder_var, fg="gray").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        tk.Button(folder_frame, text="📂 选择", command=self.select_outline_folder, width=10).pack(side=tk.RIGHT, padx=5)
+
+        # 章节范围和批次
+        range_frame = tk.Frame(add_task_frame)
+        range_frame.pack(fill=tk.X, pady=5)
+
+        tk.Label(range_frame, text="章节范围:", width=12, anchor='w').pack(side=tk.LEFT)
+        tk.Label(range_frame, text="从").pack(side=tk.LEFT, padx=(0, 5))
+        self.start_chapter_var = tk.IntVar(value=1)
+        tk.Spinbox(range_frame, from_=1, to=500, textvariable=self.start_chapter_var, width=8).pack(side=tk.LEFT)
+        tk.Label(range_frame, text="到").pack(side=tk.LEFT, padx=(10, 5))
+        self.end_chapter_var = tk.IntVar(value=50)
+        tk.Spinbox(range_frame, from_=1, to=500, textvariable=self.end_chapter_var, width=8).pack(side=tk.LEFT)
+
+        tk.Label(range_frame, text="每批章节数:", width=12, anchor='w').pack(side=tk.LEFT, padx=(20, 5))
+        self.batch_size_var = tk.IntVar(value=3)
+        tk.Spinbox(range_frame, from_=1, to=10, textvariable=self.batch_size_var, width=8).pack(side=tk.LEFT)
+
+        tk.Button(range_frame, text="✚ 添加到队列", command=self.add_task,
+                  bg="#2196F3", fg="white", width=15).pack(side=tk.RIGHT, padx=5)
+
+        # 任务队列
         queue_frame = tk.LabelFrame(self.window, text="📋 任务队列", padx=5, pady=5)
         queue_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # 创建Canvas和Scrollbar
+        # Canvas + Scrollbar
         self.canvas = tk.Canvas(queue_frame, bg="white")
         scrollbar = ttk.Scrollbar(queue_frame, orient=tk.VERTICAL, command=self.canvas.yview)
-
-        # 创建内部Frame（用于放置任务卡片）
         self.tasks_frame = tk.Frame(self.canvas, bg="white")
 
-        # 创建canvas窗口
         self.canvas_window = self.canvas.create_window((0, 0), window=self.tasks_frame, anchor="nw")
-
-        # 配置Canvas
         self.canvas.configure(yscrollcommand=scrollbar.set)
 
-        # 布局
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # 绑定配置事件（自动调整canvas窗口宽度）
-        self.tasks_frame.bind("<Configure>", self._on_frame_configure)
-        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        self.tasks_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfig(self.canvas_window, width=e.width))
 
-    def _on_frame_configure(self, event=None):
-        """更新Canvas的滚动区域"""
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        # 显示空状态
+        self.show_empty_state()
 
-    def _on_canvas_configure(self, event):
-        """调整内部Frame的宽度以匹配Canvas"""
-        self.canvas.itemconfig(self.canvas_window, width=event.width)
-
-    def refresh_tasks(self):
-        """刷新任务列表"""
-        # 清空现有任务卡片
+    def show_empty_state(self):
+        """显示空状态提示"""
         for widget in self.tasks_frame.winfo_children():
             widget.destroy()
-        self.task_containers.clear()
 
-        # 获取所有任务
-        tasks = self.task_mgr.list_all_tasks()
-
-        if not tasks:
-            # 显示空状态提示
-            empty_label = tk.Label(
-                self.tasks_frame,
-                text="📭 暂无任务，点击「新建任务」开始",
-                font=("Arial", 12),
-                fg="gray",
-                bg="white"
-            )
-            empty_label.pack(pady=50)
-            return
-
-        # 为每个任务创建卡片
-        for task_data in tasks:
-            task_id = task_data['task_id']
-            self._create_task_card(task_id)
-
-    def _create_task_card(self, task_id):
-        """创建任务卡片"""
-        summary = self.task_mgr.get_task_summary(task_id)
-        if not summary:
-            return
-
-        # 创建任务容器（卡片）
-        task_container = tk.Frame(self.tasks_frame, bg="#f5f5f5", relief=tk.RAISED, borderwidth=1)
-        task_container.pack(fill=tk.X, padx=5, pady=5)
-
-        # 左侧：信息区域
-        info_frame = tk.Frame(task_container, bg="#f5f5f5")
-        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # 标题行
-        title_frame = tk.Frame(info_frame, bg="#f5f5f5")
-        title_frame.pack(fill=tk.X)
-
-        tk.Label(
-            title_frame,
-            text=f"📖 {summary['title']}",
-            font=("Arial", 12, "bold"),
-            bg="#f5f5f5",
-            anchor="w"
-        ).pack(side=tk.LEFT)
-
-        # 状态标签
-        status_icon, status_color = self._get_status_display(summary['status'])
-        status_label = tk.Label(
-            title_frame,
-            text=f"{status_icon} {summary['status']}",
-            font=("Arial", 10),
-            bg="#f5f5f5",
-            fg=status_color
+        empty_label = tk.Label(
+            self.tasks_frame,
+            text="📭 暂无任务，请选择大纲文件夹后添加任务",
+            font=("Arial", 12),
+            fg="gray",
+            bg="white"
         )
-        status_label.pack(side=tk.LEFT, padx=10)
+        empty_label.pack(pady=50)
 
-        # 详情行
-        details_frame = tk.Frame(info_frame, bg="#f5f5f5")
-        details_frame.pack(fill=tk.X, pady=(5, 0))
-
-        details_text = f"模型: {summary.get('model', 'N/A')}  |  章节: {summary['current_chapter']}/{summary['target_chapters']}"
-
-        # 如果有启动时间，显示启动时间
-        if summary.get('started_at'):
-            started_time = summary['started_at'][:19] if len(summary.get('started_at', '')) > 19 else summary.get('started_at', '')
-            details_text += f"  |  启动: {started_time}"
-
-        details_label = tk.Label(
-            details_frame,
-            text=details_text,
-            font=("Arial", 9),
-            bg="#f5f5f5",
-            fg="gray"
-        )
-        details_label.pack(side=tk.LEFT)
-
-        # 进度条
-        progress_frame = tk.Frame(info_frame, bg="#f5f5f5")
-        progress_frame.pack(fill=tk.X, pady=(8, 0))
-
-        progress_bar = ttk.Progressbar(
-            progress_frame,
-            orient=tk.HORIZONTAL,
-            length=300,
-            mode='determinate',
-            value=summary['progress_percent']
-        )
-        progress_bar.pack(side=tk.LEFT, fill=tk.X, expand=True)
-
-        progress_text = tk.Label(
-            progress_frame,
-            text=f"{summary['progress_percent']:.1f}% | ${summary['total_cost']:.2f}",
-            font=("Arial", 9),
-            bg="#f5f5f5",
-            fg="gray"
-        )
-        progress_text.pack(side=tk.LEFT, padx=(10, 0))
-
-        # 右侧：按钮区域
-        button_frame = tk.Frame(task_container, bg="#f5f5f5")
-        button_frame.pack(side=tk.RIGHT, padx=10, pady=10)
-
-        # 开始按钮
-        start_btn = tk.Button(
-            button_frame,
-            text="▶️ 开始",
-            command=lambda: self.start_task(task_id),
-            width=12,
-            bg="#4CAF50",
-            fg="white"
-        )
-        start_btn.pack(side=tk.LEFT, padx=3)
-
-        # 停止按钮
-        stop_btn = tk.Button(
-            button_frame,
-            text="⏸️ 停止",
-            command=lambda: self.stop_task(task_id),
-            width=12,
-            bg="#FF9800",
-            fg="white",
-            state=tk.DISABLED
-        )
-        stop_btn.pack(side=tk.LEFT, padx=3)
-
-        # 打开文件夹按钮
-        tk.Button(
-            button_frame,
-            text="📂 文件夹",
-            command=lambda: self.open_project_folder(task_id),
-            width=12
-        ).pack(side=tk.LEFT, padx=3)
-
-        # 删除按钮
-        tk.Button(
-            button_frame,
-            text="🗑️ 删除",
-            command=lambda: self.delete_task(task_id),
-            width=10,
-            bg="#f44336",
-            fg="white"
-        ).pack(side=tk.LEFT, padx=3)
-
-        # 保存引用以便后续更新
-        self.task_containers[task_id] = {
-            'container': task_container,
-            'status_label': status_label,
-            'details_label': details_label,
-            'progress_bar': progress_bar,
-            'progress_text': progress_text,
-            'start_btn': start_btn,
-            'stop_btn': stop_btn
-        }
-
-        # 根据当前状态调整按钮
-        self._update_task_buttons(task_id, summary['status'], summary['is_running'])
-
-    def _get_status_display(self, status):
-        """获取状态显示（图标和颜色）"""
-        status_map = {
-            'pending': ('⏸️', 'orange'),
-            'initializing': ('🔄', 'blue'),
-            'in_progress': ('🔄', 'blue'),
-            'completed': ('✅', 'green'),
-            'failed': ('❌', 'red')
-        }
-        return status_map.get(status, ('❓', 'gray'))
-
-    def _update_task_buttons(self, task_id, status, is_running):
-        """更新任务按钮状态"""
-        if task_id not in self.task_containers:
-            return
-
-        refs = self.task_containers[task_id]
-        start_btn = refs['start_btn']
-        stop_btn = refs['stop_btn']
-
-        if status == 'completed':
-            start_btn.config(state=tk.DISABLED)
-            stop_btn.config(state=tk.DISABLED)
-        elif is_running:
-            start_btn.config(state=tk.DISABLED)
-            stop_btn.config(state=tk.NORMAL)
-        else:
-            start_btn.config(state=tk.NORMAL)
-            stop_btn.config(state=tk.DISABLED)
-
-    def _update_task_display(self, task_id):
-        """更新单个任务的显示信息"""
-        if task_id not in self.task_containers:
-            return
-
-        summary = self.task_mgr.get_task_summary(task_id)
-        if not summary:
-            return
-
-        refs = self.task_containers[task_id]
-
-        # 更新状态
-        status_icon, status_color = self._get_status_display(summary['status'])
-        refs['status_label'].config(text=f"{status_icon} {summary['status']}", fg=status_color)
-
-        # 更新详情
-        details_text = f"模型: {summary.get('model', 'N/A')}  |  章节: {summary['current_chapter']}/{summary['target_chapters']}"
-        if summary.get('started_at'):
-            started_time = summary['started_at'][:19] if len(summary.get('started_at', '')) > 19 else summary.get('started_at', '')
-            details_text += f"  |  启动: {started_time}"
-        refs['details_label'].config(text=details_text)
-
-        # 更新进度条
-        refs['progress_bar']['value'] = summary['progress_percent']
-        refs['progress_text'].config(text=f"{summary['progress_percent']:.1f}% | ${summary['total_cost']:.2f}")
-
-        # 更新按钮
-        self._update_task_buttons(task_id, summary['status'], summary['is_running'])
-
-    def create_new_task(self):
-        """创建新任务"""
-        NewTaskWindow(self.window, self.task_mgr, callback=self.refresh_tasks)
-
-    def start_task(self, task_id):
-        """启动任务"""
-        try:
-            # 记录启动时间
-            progress = self.task_mgr.get_task_progress(task_id)
-            if progress:
-                progress['started_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                # 直接保存progress.json
-                import json
-                progress_file = os.path.join('tasks', task_id, 'progress.json')
-                with open(progress_file, 'w', encoding='utf-8') as f:
-                    json.dump(progress, f, indent=2, ensure_ascii=False)
-
-            # 启动任务
-            self.task_mgr.start_task(task_id)
-            messagebox.showinfo("成功", f"任务 {task_id} 已启动")
-
-            # 刷新显示
-            self.window.after(500, lambda: self._update_task_display(task_id))
-
-        except Exception as e:
-            messagebox.showerror("错误", f"启动任务失败: {str(e)}")
-
-    def stop_task(self, task_id):
-        """停止任务"""
-        if messagebox.askyesno("确认", "确定要停止这个任务吗？"):
-            success = self.task_mgr.stop_task(task_id)
-            if success:
-                messagebox.showinfo("成功", "任务已停止")
-                self._update_task_display(task_id)
-            else:
-                messagebox.showwarning("警告", "任务可能未运行或已停止")
-
-    def delete_task(self, task_id):
-        """删除任务"""
-        if messagebox.askyesno("确认", "确定要删除这个任务吗？\n注意：这不会删除生成的项目文件。"):
-            self.task_mgr.delete_task(task_id)
-            self.refresh_tasks()
-
-    def clear_all_tasks(self):
-        """清空所有任务"""
-        tasks = self.task_mgr.list_all_tasks()
-        if not tasks:
-            messagebox.showinfo("提示", "任务队列已经是空的")
-            return
-
-        if messagebox.askyesno("确认", f"确定要清空所有 {len(tasks)} 个任务吗？\n注意：这不会删除生成的项目文件。"):
-            for task_data in tasks:
-                self.task_mgr.delete_task(task_data['task_id'])
-            self.refresh_tasks()
-            messagebox.showinfo("成功", "已清空所有任务")
-
-    def open_project_folder(self, task_id):
-        """打开项目文件夹"""
-        config = self.task_mgr.get_task_config(task_id)
-        project_folder = config.get('project_folder')
-
-        if project_folder and os.path.exists(project_folder):
-            import platform
-            system = platform.system()
-
-            if system == 'Darwin':  # Mac
-                os.system(f'open "{project_folder}"')
-            elif system == 'Windows':
-                os.system(f'explorer "{project_folder}"')
-            else:  # Linux
-                os.system(f'xdg-open "{project_folder}"')
-        else:
-            messagebox.showwarning("警告", "项目文件夹不存在")
-
-    def start_polling(self):
-        """启动轮询"""
-        self.polling = True
-
-        def poll():
-            while self.polling:
-                time.sleep(2)  # 每2秒刷新一次
-                # 只更新现有任务的显示，不完全刷新
-                tasks = self.task_mgr.list_all_tasks()
-                task_ids = [t['task_id'] for t in tasks]
-
-                # 检查是否有新任务或任务被删除
-                current_ids = set(self.task_containers.keys())
-                new_ids = set(task_ids)
-
-                if current_ids != new_ids:
-                    # 有变化，完全刷新
-                    self.window.after(0, self.refresh_tasks)
-                else:
-                    # 只更新每个任务的显示
-                    for task_id in task_ids:
-                        self.window.after(0, lambda tid=task_id: self._update_task_display(tid))
-
-        threading.Thread(target=poll, daemon=True).start()
-
-    def run(self):
-        """运行应用"""
-        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
-        self.window.mainloop()
-
-    def on_close(self):
-        """关闭窗口"""
-        self.polling = False
-        self.window.destroy()
-
-
-class NewTaskWindow:
-    """新建任务窗口"""
-
-    def __init__(self, parent, task_mgr, callback=None):
-        self.task_mgr = task_mgr
-        self.callback = callback
-
-        self.window = tk.Toplevel(parent)
-        self.window.title("新建任务")
-        self.window.geometry("600x450")
-
-        self.outline_file = None
-
-        self.setup_ui()
-
-    def setup_ui(self):
-        """设置界面"""
-        # 大纲选择
-        tk.Label(self.window, text="选择大纲文件夹:", font=("Arial", 11, "bold")).pack(
-            anchor=tk.W, padx=10, pady=(10, 5)
-        )
-
-        file_frame = tk.Frame(self.window)
-        file_frame.pack(fill=tk.X, padx=10, pady=5)
-
-        self.file_label = tk.Label(file_frame, text="未选择文件夹（需包含 _writing_prompt.txt）", fg="gray")
-        self.file_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
-
-        tk.Button(
-            file_frame,
-            text="选择文件夹",
-            command=self.select_outline
-        ).pack(side=tk.RIGHT)
-
-        # 配置参数
-        config_frame = tk.LabelFrame(self.window, text="配置参数", padx=15, pady=10)
-        config_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # API Key
-        tk.Label(config_frame, text="API Key:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
-        tk.Entry(
-            config_frame,
-            textvariable=self.api_key_var,
-            show="*",
-            width=40
-        ).grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
-
-        # Base URL
-        tk.Label(config_frame, text="Base URL:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.base_url_var = tk.StringVar(value="https://yunwuapi.com/v1/")
-        tk.Entry(
-            config_frame,
-            textvariable=self.base_url_var,
-            width=40
-        ).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
-
-        # 模型
-        tk.Label(config_frame, text="模型:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.model_var = tk.StringVar(value="gpt-5.1")
-        model_combo = ttk.Combobox(
-            config_frame,
-            textvariable=self.model_var,
-            values=["gpt-5.1", "gemini-2.5-pro", "gpt-5", "gemini-3-pro-preview", "gpt-4-turbo-preview"],
-            width=37
-        )
-        model_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
-
-        # 章节范围
-        tk.Label(config_frame, text="章节范围:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        chapter_range_frame = tk.Frame(config_frame)
-        chapter_range_frame.grid(row=3, column=1, sticky=tk.W, pady=5, padx=5)
-
-        self.start_chapter_var = tk.IntVar(value=1)
-        tk.Label(chapter_range_frame, text="从").pack(side=tk.LEFT)
-        tk.Spinbox(
-            chapter_range_frame,
-            from_=1,
-            to=500,
-            textvariable=self.start_chapter_var,
-            width=8
-        ).pack(side=tk.LEFT, padx=5)
-
-        self.end_chapter_var = tk.IntVar(value=50)
-        tk.Label(chapter_range_frame, text="到").pack(side=tk.LEFT, padx=5)
-        tk.Spinbox(
-            chapter_range_frame,
-            from_=1,
-            to=500,
-            textvariable=self.end_chapter_var,
-            width=8
-        ).pack(side=tk.LEFT, padx=5)
-
-        # 批次大小
-        tk.Label(config_frame, text="每批章节数:").grid(row=4, column=0, sticky=tk.W, pady=5)
-        self.batch_size_var = tk.IntVar(value=5)
-        tk.Spinbox(
-            config_frame,
-            from_=1,
-            to=10,
-            textvariable=self.batch_size_var,
-            width=15
-        ).grid(row=4, column=1, sticky=tk.W, pady=5, padx=5)
-
-        # Temperature
-        tk.Label(config_frame, text="Temperature:").grid(row=5, column=0, sticky=tk.W, pady=5)
-        self.temperature_var = tk.DoubleVar(value=0.8)
-        tk.Scale(
-            config_frame,
-            from_=0,
-            to=1,
-            resolution=0.1,
-            orient=tk.HORIZONTAL,
-            variable=self.temperature_var,
-            length=200
-        ).grid(row=5, column=1, sticky=tk.W, pady=5, padx=5)
-
-        # Max Tokens
-        tk.Label(config_frame, text="Max Tokens:").grid(row=6, column=0, sticky=tk.W, pady=5)
-        self.max_tokens_var = tk.IntVar(value=20000)
-        tk.Spinbox(
-            config_frame,
-            from_=5000,
-            to=200000,
-            increment=1000,
-            textvariable=self.max_tokens_var,
-            width=15
-        ).grid(row=6, column=1, sticky=tk.W, pady=5, padx=5)
-
-        # 按钮
-        btn_frame = tk.Frame(self.window)
-        btn_frame.pack(fill=tk.X, padx=10, pady=10)
-
-        tk.Button(
-            btn_frame,
-            text="创建任务",
-            command=self.create_task,
-            bg="#4CAF50",
-            fg="white",
-            width=15
-        ).pack(side=tk.RIGHT, padx=5)
-
-        tk.Button(
-            btn_frame,
-            text="取消",
-            command=self.window.destroy,
-            width=15
-        ).pack(side=tk.RIGHT, padx=5)
-
-    def select_outline(self):
+    def select_outline_folder(self):
         """选择大纲文件夹"""
-        folder_path = filedialog.askdirectory(
-            title="选择大纲文件夹（需包含 _writing_prompt.txt）",
-            initialdir="outlines"
-        )
-
-        if folder_path:
-            # 检查是否包含 _writing_prompt.txt
-            prompt_file = os.path.join(folder_path, '_writing_prompt.txt')
-            if not os.path.exists(prompt_file):
+        folder = filedialog.askdirectory(title="选择大纲文件夹", initialdir="outlines")
+        if folder:
+            # 验证文件夹包含_writing_prompt.txt
+            if not os.path.exists(os.path.join(folder, '_writing_prompt.txt')):
                 messagebox.showwarning("警告", "所选文件夹不包含 _writing_prompt.txt 文件")
                 return
 
-            self.outline_file = folder_path
-            self.file_label.config(text=os.path.basename(folder_path), fg="black")
+            self.outline_folder_var.set(os.path.basename(folder))
+            self.selected_outline_folder = folder
 
-    def create_task(self):
-        """创建任务（不自动启动）"""
-        if not self.outline_file:
+    def add_task(self):
+        """添加任务到队列"""
+        if not hasattr(self, 'selected_outline_folder'):
             messagebox.showwarning("警告", "请先选择大纲文件夹")
             return
 
@@ -629,173 +211,168 @@ class NewTaskWindow:
             messagebox.showwarning("警告", "请输入API Key")
             return
 
-        # 验证章节范围
-        start_ch = self.start_chapter_var.get()
-        end_ch = self.end_chapter_var.get()
-        if start_ch > end_ch:
-            messagebox.showwarning("警告", "起始章节不能大于结束章节")
-            return
-
         # 构建配置
         config = {
             'api_key': self.api_key_var.get(),
             'base_url': self.base_url_var.get(),
             'model': self.model_var.get(),
-            'start_chapter': start_ch,
-            'end_chapter': end_ch,
-            'target_chapters': end_ch,  # 保持兼容性
-            'batch_size': self.batch_size_var.get(),
             'temperature': self.temperature_var.get(),
-            'max_tokens': self.max_tokens_var.get()
+            'max_tokens': self.max_tokens_var.get(),
+            'start_chapter': self.start_chapter_var.get(),
+            'end_chapter': self.end_chapter_var.get(),
+            'batch_size': self.batch_size_var.get(),
+            'project_folder': self.selected_outline_folder  # 写作到大纲文件夹
         }
 
-        try:
-            # 只创建任务，不启动
-            task_id = self.task_mgr.create_task(self.outline_file, config)
+        # 创建任务
+        task = WritingTask(self.selected_outline_folder, config)
+        self.tasks.append(task)
 
-            messagebox.showinfo("成功", f"任务已创建！\n任务ID: {task_id}\n\n点击「开始」按钮启动任务")
+        # 刷新界面
+        self.refresh_task_list()
 
-            # 刷新父窗口
-            if self.callback:
-                self.callback()
+        messagebox.showinfo("成功", f"任务已添加：{task.title}")
 
-            # 关闭窗口
-            self.window.destroy()
+    def refresh_task_list(self):
+        """刷新任务列表"""
+        # 清空
+        for widget in self.tasks_frame.winfo_children():
+            widget.destroy()
+        self.task_containers.clear()
 
-        except Exception as e:
-            messagebox.showerror("错误", f"创建任务失败: {str(e)}")
-
-
-class TaskDetailWindow:
-    """任务详情窗口"""
-
-    def __init__(self, parent, task_id, task_mgr):
-        self.task_id = task_id
-        self.task_mgr = task_mgr
-
-        self.window = tk.Toplevel(parent)
-        self.window.title(f"任务详情 - {task_id}")
-        self.window.geometry("700x600")
-
-        self.setup_ui()
-        self.load_detail()
-
-    def setup_ui(self):
-        """设置界面"""
-        # 详情文本
-        self.detail_text = scrolledtext.ScrolledText(
-            self.window,
-            height=30,
-            wrap=tk.WORD,
-            font=("Courier", 9)
-        )
-        self.detail_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # 按钮
-        btn_frame = tk.Frame(self.window)
-        btn_frame.pack(fill=tk.X, padx=10, pady=10)
-
-        tk.Button(
-            btn_frame,
-            text="刷新",
-            command=self.load_detail,
-            width=12
-        ).pack(side=tk.LEFT, padx=5)
-
-        tk.Button(
-            btn_frame,
-            text="停止任务",
-            command=self.stop_task,
-            width=12
-        ).pack(side=tk.LEFT, padx=5)
-
-        tk.Button(
-            btn_frame,
-            text="打开项目文件夹",
-            command=self.open_project_folder,
-            width=15
-        ).pack(side=tk.LEFT, padx=5)
-
-        tk.Button(
-            btn_frame,
-            text="关闭",
-            command=self.window.destroy,
-            width=12
-        ).pack(side=tk.RIGHT, padx=5)
-
-    def load_detail(self):
-        """加载详情"""
-        config = self.task_mgr.get_task_config(self.task_id)
-        progress = self.task_mgr.get_task_progress(self.task_id)
-
-        if not config or not progress:
+        if not self.tasks:
+            self.show_empty_state()
             return
 
-        detail = f"""
-{'='*70}
-任务ID: {self.task_id}
-{'='*70}
+        # 创建任务卡片
+        for i, task in enumerate(self.tasks):
+            self._create_task_card(task, i)
 
-配置信息:
-- 大纲文件: {config.get('outline_file', 'N/A')}
-- 模型: {config.get('model', 'N/A')}
-- Base URL: {config.get('base_url', 'N/A')}
-- 批次大小: {config.get('batch_size', 'N/A')} 章/批
-- 目标章节数: {config.get('target_chapters', 'N/A')}
-- Temperature: {config.get('temperature', 'N/A')}
-- Max Tokens: {config.get('max_tokens', 'N/A')}
+    def _create_task_card(self, task, index):
+        """创建任务卡片"""
+        # 任务容器
+        container = tk.Frame(self.tasks_frame, bg="#f5f5f5", relief=tk.RAISED, borderwidth=1)
+        container.pack(fill=tk.X, padx=5, pady=5)
 
-进度信息:
-- 状态: {progress.get('status', 'N/A')}
-- 当前章节: {progress.get('current_chapter', 0)} / {progress.get('target_chapters', 0)}
-- 已完成章节: {progress.get('chapters_completed', 0)}
-- Token使用: {progress.get('total_tokens', 0):,}
-- 预计费用: ${progress.get('total_cost', 0):.2f}
+        # 左侧信息
+        info_frame = tk.Frame(container, bg="#f5f5f5")
+        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-时间信息:
-- 创建时间: {progress.get('created_at', 'N/A')}
-- 更新时间: {progress.get('updated_at', 'N/A')}
+        # 标题
+        tk.Label(
+            info_frame,
+            text=f"📖 {task.title}",
+            font=("Arial", 12, "bold"),
+            bg="#f5f5f5"
+        ).pack(anchor="w")
 
-消息:
-{progress.get('message', 'N/A')}
+        # 详情
+        status_map = {'pending': ('⏸️', 'orange'), 'in_progress': ('🔄', 'blue'),
+                      'completed': ('✅', 'green'), 'failed': ('❌', 'red')}
+        icon, color = status_map.get(task.status, ('❓', 'gray'))
 
-{'='*70}
-"""
+        details_text = f"{icon} {task.status}  |  章节: {task.current_chapter}/{task.total_chapters}  |  模型: {task.config['model']}"
+        if task.started_at:
+            details_text += f"  |  启动: {task.started_at}"
 
-        self.detail_text.delete(1.0, tk.END)
-        self.detail_text.insert(1.0, detail)
+        tk.Label(
+            info_frame,
+            text=details_text,
+            font=("Arial", 9),
+            bg="#f5f5f5",
+            fg="gray"
+        ).pack(anchor="w", pady=(5, 5))
 
-    def stop_task(self):
-        """停止任务"""
-        if messagebox.askyesno("确认", "确定要停止这个任务吗？"):
-            success = self.task_mgr.stop_task(self.task_id)
-            if success:
-                messagebox.showinfo("成功", "任务已停止")
-            else:
-                messagebox.showwarning("警告", "任务可能未运行或已停止")
+        # 进度条
+        progress_frame = tk.Frame(info_frame, bg="#f5f5f5")
+        progress_frame.pack(fill=tk.X, pady=(5, 0))
 
-    def open_project_folder(self):
-        """打开项目文件夹"""
-        config = self.task_mgr.get_task_config(self.task_id)
-        project_folder = config.get('project_folder')
+        progress_bar = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, mode='determinate', value=task.progress)
+        progress_bar.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        if project_folder and os.path.exists(project_folder):
-            import platform
-            system = platform.system()
+        progress_text = tk.Label(progress_frame, text=f"{task.progress:.1f}% | ${task.cost:.2f}",
+                                font=("Arial", 9), bg="#f5f5f5", fg="gray")
+        progress_text.pack(side=tk.LEFT, padx=(10, 0))
 
-            if system == 'Darwin':  # Mac
-                os.system(f'open "{project_folder}"')
-            elif system == 'Windows':
-                os.system(f'explorer "{project_folder}"')
-            else:  # Linux
-                os.system(f'xdg-open "{project_folder}"')
-        else:
+        # 右侧按钮
+        button_frame = tk.Frame(container, bg="#f5f5f5")
+        button_frame.pack(side=tk.RIGHT, padx=10, pady=10)
+
+        tk.Button(button_frame, text="👁️ 预览", command=lambda: self.preview_prompt(task),
+                  width=10, bg="#FF9800", fg="white").pack(side=tk.LEFT, padx=2)
+        tk.Button(button_frame, text="▶️ 开始", command=lambda: self.start_task(task),
+                  width=10, bg="#4CAF50", fg="white").pack(side=tk.LEFT, padx=2)
+        tk.Button(button_frame, text="🔄 重新生成", command=lambda: self.restart_task(task),
+                  width=12).pack(side=tk.LEFT, padx=2)
+        tk.Button(button_frame, text="📂 文件夹", command=lambda: self.open_folder(task),
+                  width=10).pack(side=tk.LEFT, padx=2)
+        tk.Button(button_frame, text="🗑️ 删除", command=lambda: self.delete_task(index),
+                  width=8, bg="#f44336", fg="white").pack(side=tk.LEFT, padx=2)
+
+        # 保存引用
+        self.task_containers[index] = {
+            'container': container,
+            'progress_bar': progress_bar,
+            'progress_text': progress_text
+        }
+
+    def preview_prompt(self, task):
+        """预览Prompt"""
+        # TODO: 根据当前进度动态生成prompt预览
+        messagebox.showinfo("预览Prompt", f"功能开发中...\n任务：{task.title}\n当前章节：{task.current_chapter}")
+
+    def start_task(self, task):
+        """启动任务"""
+        if task.status == 'in_progress':
+            messagebox.showinfo("提示", "任务正在运行中")
+            return
+
+        task.status = 'in_progress'
+        task.started_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # TODO: 启动WriterWorker线程
+        messagebox.showinfo("成功", f"任务已启动：{task.title}")
+        self.refresh_task_list()
+
+    def restart_task(self, task):
+        """重新生成（从头开始）"""
+        if messagebox.askyesno("确认", "确定要从头重新生成吗？\n已生成的章节将被覆盖"):
+            task.current_chapter = 0
+            task.progress = 0
+            task.cost = 0.0
+            task.status = 'pending'
+            self.refresh_task_list()
+
+    def open_folder(self, task):
+        """打开文件夹"""
+        import platform
+        folder = task.config.get('project_folder', task.outline_folder)
+
+        if not os.path.exists(folder):
             messagebox.showwarning("警告", "项目文件夹不存在")
+            return
+
+        system = platform.system()
+        if system == 'Darwin':
+            os.system(f'open "{folder}"')
+        elif system == 'Windows':
+            os.system(f'explorer "{folder}"')
+        else:
+            os.system(f'xdg-open "{folder}"')
+
+    def delete_task(self, index):
+        """删除任务"""
+        if messagebox.askyesno("确认", "确定要删除这个任务吗？\n注意：不会删除已生成的文件"):
+            del self.tasks[index]
+            self.refresh_task_list()
+
+    def run(self):
+        """运行应用"""
+        self.window.mainloop()
 
 
 def main():
-    """主函数"""
-    app = TaskManagerWindow()
+    app = WritingToolWindow()
     app.run()
 
 

@@ -175,7 +175,7 @@ def save_chapter_file(project_folder, chapter_num, content, metadata=None):
     """
     os.makedirs(project_folder, exist_ok=True)
 
-    filename = f'ch{chapter_num}.txt'
+    filename = f'chapter_{chapter_num}.txt'
     filepath = os.path.join(project_folder, filename)
 
     with open(filepath, 'w', encoding='utf-8') as f:

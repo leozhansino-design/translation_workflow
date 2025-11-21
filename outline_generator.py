@@ -736,17 +736,15 @@ Max Tokens: {task.config['max_tokens']}
         with open(os.path.join(output_folder, 'category.txt'), 'w', encoding='utf-8') as f:
             f.write(task.genre)
 
-        # 5. 保存章节大纲（每章一个文件）
+        # 5. 保存章节大纲（每章一个prompt文件：chapter_X_prompt.txt）
         chapters = parsed_data.get('chapters', [])
         for chapter in chapters:
             ch_num = chapter.get('number', 0)
             ch_title = chapter.get('title', f'Chapter {ch_num}') or f'Chapter {ch_num}'
             ch_summary = chapter.get('summary', '') or ''
 
-            # 文件名：chapter 1 Title.txt
-            safe_ch_title = "".join(c for c in ch_title if c.isalnum() or c in (' ', '-', '_'))
-            safe_ch_title = safe_ch_title if safe_ch_title else f'Chapter_{ch_num}'
-            filename = f"chapter {ch_num} {safe_ch_title}.txt"
+            # 文件名：chapter_1_prompt.txt, chapter_2_prompt.txt, ...
+            filename = f"chapter_{ch_num}_prompt.txt"
 
             with open(os.path.join(output_folder, filename), 'w', encoding='utf-8') as f:
                 f.write(f"Chapter {ch_num}: {ch_title}\n\n")
@@ -766,7 +764,10 @@ Max Tokens: {task.config['max_tokens']}
         return output_folder
 
     def _save_writing_prompt(self, output_folder, result_text, parsed_data):
-        """保存写作工具需要的精简Prompt"""
+        """保存写作工具需要的基础Prompt（只包含世界观和角色，不含章节大纲）
+
+        章节大纲已单独保存在 chapter_X_prompt.txt 文件中
+        """
         writing_prompt = ""
 
         # 1. 提取 WORLD_SETTING
@@ -783,24 +784,9 @@ Max Tokens: {task.config['max_tokens']}
             writing_prompt += "===== MAIN_CHARACTERS =====\n"
             writing_prompt += main_characters + "\n\n"
 
-        # 3. 添加 CHAPTER_OUTLINES（使用parsed_data）
-        writing_prompt += "===== CHAPTER_OUTLINES =====\n"
-        chapters = parsed_data.get('chapters', [])
-        for chapter in chapters:
-            ch_num = chapter.get('number', 0)
-            ch_title = chapter.get('title', f'Chapter {ch_num}')
-            ch_summary = chapter.get('summary', '')
-
-            writing_prompt += f"Chapter {ch_num}: {ch_title}\n"
-            writing_prompt += f"Summary: {ch_summary}\n"
-
-            if 'key_events' in chapter:
-                writing_prompt += f"Key Events: {chapter['key_events']}\n"
-            if 'characters' in chapter:
-                writing_prompt += f"Characters: {chapter['characters']}\n"
-            writing_prompt += "\n"
-
-        writing_prompt += "===== END =====\n"
+        # 注：章节大纲不再包含在_writing_prompt.txt中
+        # 每章的大纲已单独保存在 chapter_X_prompt.txt 文件中
+        # 写作工具会根据需要动态加载相关章节的prompt
 
         # 保存文件
         with open(os.path.join(output_folder, '_writing_prompt.txt'), 'w', encoding='utf-8') as f:

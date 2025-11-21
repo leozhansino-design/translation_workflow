@@ -200,15 +200,15 @@ class WriterWorker:
         if current_chapter <= 1:
             return ""
 
-        # 读取上一章的最后3000字符
-        prev_chapter_file = os.path.join(self.project_folder, f'ch{current_chapter - 1}.txt')
+        # 读取上一章的最后2000字符
+        prev_chapter_file = os.path.join(self.project_folder, f'chapter_{current_chapter - 1}.txt')
 
         if not os.path.exists(prev_chapter_file):
             return ""
 
         content = load_chapter_content(prev_chapter_file)
-        # 取最后3000字符
-        return content[-3000:] if len(content) > 3000 else content
+        # 取最后2000字符
+        return content[-2000:] if len(content) > 2000 else content
 
     def save_prompt_log(self, batch_start, batch_end, system_prompt, prompt_vars):
         """保存每个批次的Prompt日志"""
@@ -281,56 +281,67 @@ class WriterWorker:
         return chapters
 
     def generate_batch(self, outline_data, batch_start, batch_end, previous_context=""):
-        """生成一个批次的章节"""
+        """生成一个批次的章节
+
+        新的Prompt构建逻辑：
+        1. 读取_writing_prompt.txt（世界观+角色）
+        2. 如果有上一章，加载上一章的chapter_X_prompt.txt
+        3. 加载当前批次所有章节的chapter_X_prompt.txt
+        4. 如果有previous_context，添加前文最后2000字
+        """
         outline = outline_data['outline']
+        outline_folder = os.path.dirname(self.outline_file)
 
-        # 只获取相邻章节的大纲（上一章 + 本批次章节）
-        chapter_outlines = outline['chapter_outlines']
+        # 1. 读取_writing_prompt.txt（世界观+角色）
+        writing_prompt_file = os.path.join(outline_folder, '_writing_prompt.txt')
+        base_prompt = ""
+        if os.path.exists(writing_prompt_file):
+            with open(writing_prompt_file, 'r', encoding='utf-8') as f:
+                base_prompt = f.read()
 
-        # 计算需要包含的章节范围：上一章(如果有) + 本批次
-        context_start = max(1, batch_start - 1) if batch_start > 1 else batch_start
+        # 2. 读取相关章节的prompts
+        chapter_prompts = ""
 
-        batch_outlines = [
-            ch for ch in chapter_outlines
-            if context_start <= ch.get('chapter', ch.get('chapter_number', 0)) <= batch_end
-        ]
+        # 如果不是从第1章开始，添加上一章的prompt
+        if batch_start > 1:
+            prev_chapter_prompt_file = os.path.join(outline_folder, f'chapter_{batch_start - 1}_prompt.txt')
+            if os.path.exists(prev_chapter_prompt_file):
+                with open(prev_chapter_prompt_file, 'r', encoding='utf-8') as f:
+                    chapter_prompts += f.read() + "\n\n"
 
-        # 构建章节大纲文本（精简版，只包含相邻章节）
-        outline_text = ""
-        for ch in batch_outlines:
-            ch_num = ch.get('chapter', ch.get('chapter_number', 0))
-            ch_title = ch.get('title', '')
-            ch_summary = ch.get('summary', ch.get('plot', ''))
+        # 添加当前批次所有章节的prompts
+        for ch_num in range(batch_start, batch_end + 1):
+            chapter_prompt_file = os.path.join(outline_folder, f'chapter_{ch_num}_prompt.txt')
+            if os.path.exists(chapter_prompt_file):
+                with open(chapter_prompt_file, 'r', encoding='utf-8') as f:
+                    chapter_prompts += f.read() + "\n\n"
 
-            outline_text += f"\nChapter {ch_num}: {ch_title}\n"
-            outline_text += f"Summary: {ch_summary}\n"
+        # 3. 组合完整的prompt
+        full_prompt = base_prompt + "\n\n===== CHAPTER_OUTLINES =====\n" + chapter_prompts
 
-        # main_characters 已经是字符串格式，直接使用
-        characters_text = outline.get('main_characters', '')
+        # 如果有前文，添加到prompt中
+        if previous_context:
+            full_prompt += f"\n\n===== PREVIOUS_CONTEXT =====\n{previous_context}\n"
 
-        # 准备Prompt变量（精简版）
+        # 准备Prompt变量（用于日志记录）
         prompt_vars = {
-            'genre': outline['genre'],
+            'genre': outline.get('genre', ''),
             'style': outline_data.get('style', ''),
-            'world_setting': outline.get('world_setting', ''),
-            'characters': characters_text,
+            'base_prompt': base_prompt,
+            'chapter_prompts': chapter_prompts,
             'start_chapter': batch_start,
             'end_chapter': batch_end,
-            'previous_context': previous_context if previous_context else "",
-            'chapter_outlines': outline_text
+            'previous_context': previous_context if previous_context else ""
         }
 
-        # 渲染Prompt
-        system_prompt = self.prompt_mgr.render_writer_prompt(prompt_vars)
-
         # 保存Prompt日志（用于调试）
-        self.save_prompt_log(batch_start, batch_end, system_prompt, prompt_vars)
+        self.save_prompt_log(batch_start, batch_end, full_prompt, prompt_vars)
 
         # 调用API
         response = self.client.chat.completions.create(
             model=self.config.get('model', 'gpt-4-turbo-preview'),
             messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": full_prompt},
                 {"role": "user", "content": f"请写作 Chapter {batch_start} - {batch_end}"}
             ],
             temperature=self.config.get('temperature', 0.8),
