@@ -251,6 +251,59 @@ class OutlineGeneratorWithQueue:
             width=20
         ).pack(side=tk.LEFT, padx=10)
 
+        # === 封面生成区域 ===
+        cover_frame = tk.LabelFrame(top_container, text="🎨 封面生成", padx=15, pady=10)
+        cover_frame.pack(fill=tk.X, pady=(10, 0))
+
+        # 文件夹选择
+        tk.Label(cover_frame, text="Outline文件夹:", font=("Arial", 10, "bold")).grid(
+            row=0, column=0, sticky=tk.W, pady=5
+        )
+
+        folder_select_frame = tk.Frame(cover_frame)
+        folder_select_frame.grid(row=0, column=1, sticky=tk.W, pady=5, padx=5, columnspan=3)
+
+        self.cover_folders_label = tk.Label(
+            folder_select_frame,
+            text="未选择（可多选）",
+            fg="gray",
+            font=("Arial", 9)
+        )
+        self.cover_folders_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        tk.Button(
+            folder_select_frame,
+            text="➕ 添加文件夹",
+            command=self.add_cover_folder
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            folder_select_frame,
+            text="🗑️ 清空",
+            command=self.clear_cover_folders
+        ).pack(side=tk.LEFT, padx=5)
+
+        # 生成按钮和状态
+        button_status_frame = tk.Frame(cover_frame)
+        button_status_frame.grid(row=1, column=0, columnspan=4, pady=10)
+
+        tk.Button(
+            button_status_frame,
+            text="🎨 生成封面",
+            command=self.generate_covers,
+            font=("Arial", 12, "bold"),
+            bg="#9C27B0",
+            fg="white",
+            height=2,
+            width=20
+        ).pack(side=tk.LEFT, padx=10)
+
+        self.cover_status_label = tk.Label(button_status_frame, text="", fg="gray", font=("Arial", 10))
+        self.cover_status_label.pack(side=tk.LEFT, padx=10)
+
+        # 初始化封面生成变量
+        self.cover_folders = []
+
         # === 下半部分：任务队列 ===
         queue_container = tk.LabelFrame(
             self.window,
@@ -1385,6 +1438,222 @@ Max Tokens: {task.config['max_tokens']}
             command=prompt_window.destroy,
             width=15
         ).pack(side=tk.RIGHT, padx=5)
+
+    # === 封面生成相关方法 ===
+    def add_cover_folder(self):
+        """添加outline文件夹"""
+        folder = filedialog.askdirectory(title="选择Outline文件夹", initialdir="outlines")
+        if folder:
+            # 验证文件夹包含必要文件
+            if not os.path.exists(os.path.join(folder, '_writing_prompt.txt')):
+                messagebox.showwarning("警告", "所选文件夹不包含 _writing_prompt.txt 文件")
+                return
+
+            if folder not in self.cover_folders:
+                self.cover_folders.append(folder)
+                self._update_cover_folders_label()
+
+    def clear_cover_folders(self):
+        """清空选择的文件夹"""
+        self.cover_folders.clear()
+        self._update_cover_folders_label()
+
+    def _update_cover_folders_label(self):
+        """更新文件夹显示标签"""
+        if not self.cover_folders:
+            self.cover_folders_label.config(text="未选择（可多选）", fg="gray")
+        else:
+            folder_names = [os.path.basename(f) for f in self.cover_folders]
+            display_text = f"已选择 {len(self.cover_folders)} 个: {', '.join(folder_names[:3])}"
+            if len(folder_names) > 3:
+                display_text += f"... (共{len(folder_names)}个)"
+            self.cover_folders_label.config(text=display_text, fg="blue")
+
+    def generate_covers(self):
+        """生成封面（支持批量）"""
+        if not self.cover_folders:
+            messagebox.showwarning("警告", "请先选择Outline文件夹")
+            return
+
+        if not self.api_key_var.get():
+            messagebox.showwarning("警告", "请先配置API Key")
+            return
+
+        # 确认生成
+        if not messagebox.askyesno("确认", f"将为 {len(self.cover_folders)} 个文件夹生成封面，确认继续？"):
+            return
+
+        # 更新状态
+        self.cover_status_label.config(text="🔄 生成中...", fg="blue")
+        self.window.update()
+
+        # 在新线程中生成，避免阻塞UI
+        def _generate():
+            success_count = 0
+            fail_count = 0
+
+            for i, folder in enumerate(self.cover_folders, 1):
+                folder_name = os.path.basename(folder)
+
+                # 更新进度
+                self.window.after(0, lambda i=i, total=len(self.cover_folders), name=folder_name:
+                    self.cover_status_label.config(
+                        text=f"🔄 [{i}/{total}] 生成 {name}...",
+                        fg="blue"
+                    )
+                )
+
+                try:
+                    # 读取outline信息
+                    outline_info = self._read_outline_info(folder)
+
+                    # 生成封面
+                    success = self._generate_single_cover(folder, outline_info)
+
+                    if success:
+                        success_count += 1
+                    else:
+                        fail_count += 1
+
+                except Exception as e:
+                    print(f"❌ 生成封面失败 [{folder_name}]: {e}")
+                    fail_count += 1
+
+            # 完成，更新状态
+            result_msg = f"✅ 完成！成功: {success_count}, 失败: {fail_count}"
+            self.window.after(0, lambda: self.cover_status_label.config(
+                text=result_msg,
+                fg="green" if fail_count == 0 else "orange"
+            ))
+            self.window.after(0, lambda: messagebox.showinfo("封面生成完成", result_msg))
+
+        thread = threading.Thread(target=_generate, daemon=True)
+        thread.start()
+
+    def _read_outline_info(self, folder):
+        """读取outline文件夹信息"""
+        info = {
+            'title': 'Untitled',
+            'genre': 'Unknown',
+            'outline': '',
+            'tags': []
+        }
+
+        # 读取title
+        title_file = os.path.join(folder, 'title.txt')
+        if os.path.exists(title_file):
+            with open(title_file, 'r', encoding='utf-8') as f:
+                info['title'] = f.read().strip()
+
+        # 读取genre
+        category_file = os.path.join(folder, 'category.txt')
+        if os.path.exists(category_file):
+            with open(category_file, 'r', encoding='utf-8') as f:
+                info['genre'] = f.read().strip()
+
+        # 读取完整outline
+        writing_prompt_file = os.path.join(folder, '_writing_prompt.txt')
+        if os.path.exists(writing_prompt_file):
+            with open(writing_prompt_file, 'r', encoding='utf-8') as f:
+                info['outline'] = f.read()
+
+        return info
+
+    def _create_cover_prompt(self, outline_info):
+        """构建封面生成prompt"""
+        title = outline_info['title']
+        genre = outline_info['genre'].lower()
+        outline = outline_info['outline'][:2000]  # 只取前2000字符
+
+        # 根据genre定制prompt
+        genre_styles = {
+            'horror': 'dark, atmospheric horror with haunting elements, deep shadows, blood red accents',
+            'romance': 'romantic and dreamy atmosphere, soft lighting, warm colors, emotional depth',
+            'fantasy': 'epic fantasy with magical elements, mystical atmosphere, vibrant colors',
+            'mystery': 'mysterious and suspenseful mood, noir style, dramatic lighting',
+            'scifi': 'futuristic sci-fi aesthetic, high-tech elements, cool blue tones',
+            'thriller': 'intense and suspenseful, high contrast, dramatic composition'
+        }
+
+        style = genre_styles.get(genre, 'professional and cinematic aesthetic, dramatic lighting')
+
+        prompt = f"""Create a professional book cover for "{title}".
+
+Genre: {genre}
+
+Visual style:
+- {style}
+- Photorealistic but with cinematic quality
+- High contrast lighting
+- Professional book cover composition
+
+Based on story outline:
+{outline[:500]}...
+
+Technical requirements:
+- Vertical orientation for book cover (portrait)
+- Clean composition with space for title text
+- Sharp focus on main subject
+- Atmospheric background
+- Size: 1024x1792
+
+The cover should evoke the mood and atmosphere of a {genre} novel, with professional publishing quality."""
+
+        return prompt
+
+    def _generate_single_cover(self, folder, outline_info):
+        """生成单个封面"""
+        try:
+            # 构建prompt
+            prompt = self._create_cover_prompt(outline_info)
+
+            print(f"\n🎨 为 {outline_info['title']} 生成封面...")
+            print(f"📝 Prompt前100字符: {prompt[:100]}...")
+
+            # 调用API生成图片
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=self.api_key_var.get(),
+                base_url="https://yunwuapi.com/v1/"
+            )
+
+            response = client.images.generate(
+                model="gpt-4o-image-vip",
+                prompt=prompt,
+                size="1024x1792",
+                quality="hd",
+                n=1
+            )
+
+            image_url = response.data[0].url
+            print(f"✅ 图片生成成功！URL: {image_url}")
+
+            # 下载并保存封面
+            import urllib.request
+            from PIL import Image
+
+            # 下载原图
+            cover_path = os.path.join(folder, 'cover.png')
+            urllib.request.urlretrieve(image_url, cover_path)
+            print(f"💾 封面已保存: {cover_path}")
+
+            # 可选：生成缩略图 (300x400)
+            try:
+                img = Image.open(cover_path)
+                img_resized = img.resize((300, 400), Image.Resampling.LANCZOS)
+                thumbnail_path = os.path.join(folder, 'cover_300x400.jpg')
+                img_resized.save(thumbnail_path, quality=95)
+                print(f"📐 缩略图已保存: {thumbnail_path}")
+            except:
+                pass  # 缩略图生成失败不影响主流程
+
+            return True
+
+        except Exception as e:
+            print(f"❌ 生成封面错误: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
     def run(self):
         """运行应用"""
