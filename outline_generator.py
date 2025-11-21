@@ -354,7 +354,7 @@ class OutlineGeneratorWithQueue:
 
         config_params = {
             'api_key': self.api_key_var.get(),
-            'base_url': 'https://yunwuapi.com/v1/',
+            'base_url': 'https://yunwuapi.com',
             'model': self.model_var.get(),
             'male_count': self.male_count_var.get(),
             'female_count': self.female_count_var.get(),
@@ -678,7 +678,7 @@ Max Tokens: {task.config['max_tokens']}
 
                 result = call_api_with_http_client(
                     api_key=task.config['api_key'],
-                    base_url=task.config.get('base_url', 'https://yunwuapi.com/v1/'),
+                    base_url=task.config.get('base_url', 'https://yunwuapi.com'),
                     model=model,
                     messages=[
                         {"role": "system", "content": system_prompt},
@@ -696,7 +696,7 @@ Max Tokens: {task.config['max_tokens']}
                 # 使用标准OpenAI客户端方式
                 client = OpenAI(
                     api_key=task.config['api_key'],
-                    base_url=task.config.get('base_url', 'https://yunwuapi.com/v1/')
+                    base_url=task.config.get('base_url', 'https://yunwuapi.com') + '/v1/'
                 )
 
                 response = client.chat.completions.create(

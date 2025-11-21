@@ -99,7 +99,7 @@ class WritingToolWindow:
 
         # Base URL
         tk.Label(config_frame, text="Base URL:", width=12, anchor='w').grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.base_url_var = tk.StringVar(value="https://yunwuapi.com/v1/")
+        self.base_url_var = tk.StringVar(value="https://yunwuapi.com")
         tk.Entry(config_frame, textvariable=self.base_url_var, width=50).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
 
         # Model

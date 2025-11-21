@@ -133,7 +133,7 @@ class OutlineWorker:
                 print(f"检测到特殊模型 '{model}'，使用http.client方式调用API...")
                 result = call_api_with_http_client(
                     api_key=self.config['api_key'],
-                    base_url=self.config.get('base_url', 'https://api.openai.com/v1/'),
+                    base_url=self.config.get('base_url', 'https://yunwuapi.com'),
                     model=model,
                     messages=[
                         {"role": "system", "content": system_prompt},
@@ -152,9 +152,13 @@ class OutlineWorker:
                 print(f"使用标准OpenAI客户端调用模型 '{model}'...")
 
                 # 初始化OpenAI客户端
+                base_url = self.config.get('base_url', 'https://yunwuapi.com')
+                # OpenAI SDK需要带/v1/后缀的base_url
+                if not base_url.endswith('/v1/') and not base_url.endswith('/v1'):
+                    base_url = base_url.rstrip('/') + '/v1/'
                 self.client = OpenAI(
                     api_key=self.config['api_key'],
-                    base_url=self.config.get('base_url', 'https://api.openai.com/v1/')
+                    base_url=base_url
                 )
 
                 response = self.client.chat.completions.create(

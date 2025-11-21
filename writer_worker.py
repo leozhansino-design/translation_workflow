@@ -47,9 +47,13 @@ class WriterWorker:
     def initialize_client(self):
         """初始化OpenAI客户端（仅在需要时调用）"""
         if self.client is None:
+            base_url = self.config.get('base_url', 'https://yunwuapi.com')
+            # OpenAI SDK需要带/v1/后缀的base_url
+            if not base_url.endswith('/v1/') and not base_url.endswith('/v1'):
+                base_url = base_url.rstrip('/') + '/v1/'
             self.client = OpenAI(
                 api_key=self.config['api_key'],
-                base_url=self.config.get('base_url', 'https://api.openai.com/v1/')
+                base_url=base_url
             )
 
     def update_progress(self, status, current_chapter=0, message=""):
@@ -354,7 +358,7 @@ class WriterWorker:
             print(f"使用http.client方式调用模型 '{model}'...")
             result = call_api_with_http_client(
                 api_key=self.config['api_key'],
-                base_url=self.config.get('base_url', 'https://api.openai.com/v1/'),
+                base_url=self.config.get('base_url', 'https://yunwuapi.com'),
                 model=model,
                 messages=[
                     {"role": "system", "content": full_prompt},
