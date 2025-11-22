@@ -17,6 +17,7 @@ from utils import (
     save_project_metadata
 )
 from prompt_manager import PromptManager
+from universal_api import UniversalAPIClient
 
 
 # 写作系统提示词（固定在代码中）- 强调自然人类写作风格
@@ -142,20 +143,13 @@ class WriterWorkerV2:
         self.total_cost = 0.0
         self.chapters_completed = 0
 
-        # 初始化OpenAI客户端（使用Jupyter稳定版的方式）
-        print(f"\n🔧 初始化OpenAI客户端...")
+        # 初始化UniversalAPIClient（兼容Gemini和GPT）
+        print(f"\n🔧 初始化API客户端...")
         api_key = self.config.get('api_key')
         base_url = self.config.get('base_url', 'https://yunwuapi.com')
 
-        # 确保base_url以/v1/结尾（OpenAI SDK需要）
-        if not base_url.endswith('/v1/'):
-            if not base_url.endswith('/'):
-                base_url += '/'
-            if not base_url.endswith('v1/'):
-                base_url += 'v1/'
-
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
-        print(f"✅ OpenAI客户端初始化完成")
+        self.client = UniversalAPIClient(api_key=api_key, base_url=base_url)
+        print(f"✅ API客户端初始化完成（支持Gemini/GPT）")
 
         print(f"\n{'='*70}")
         print(f"📚 Writer Worker V2 初始化完成")
@@ -209,9 +203,9 @@ class WriterWorkerV2:
         try:
             start_time = time.time()
 
-            # 使用OpenAI SDK调用（完全按照Jupyter稳定版）
+            # 使用UniversalAPIClient调用（兼容Gemini和GPT）
             # 关键：保持system和user分离，不合并！
-            response = self.client.chat.completions.create(
+            response = self.client.chat_completion(
                 model=model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -224,8 +218,17 @@ class WriterWorkerV2:
             elapsed = time.time() - start_time
 
             # 获取结果
-            content = response.choices[0].message.content
-            usage = response.usage
+            content = self.client.get_message_content(response)
+            usage_dict = self.client.get_usage(response)
+
+            # 转换为对象格式以兼容原有代码
+            class Usage:
+                def __init__(self, d):
+                    self.total_tokens = d.get('total_tokens', 0)
+                    self.prompt_tokens = d.get('prompt_tokens', 0)
+                    self.completion_tokens = d.get('completion_tokens', 0)
+
+            usage = Usage(usage_dict)
 
             chars = len(content)
             words = len(content.split())

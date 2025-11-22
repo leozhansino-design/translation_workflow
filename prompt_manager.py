@@ -317,7 +317,7 @@ START WRITING.
 """
 
 
-DEFAULT_COVER_PROMPT = """Create a distinctive 300x400 book cover image (PNG or JPG) for this web novel.
+DEFAULT_COVER_PROMPT = """Create a creative bestseller book cover image for this web novel.
 
 【Title】
 {title}
@@ -328,19 +328,31 @@ DEFAULT_COVER_PROMPT = """Create a distinctive 300x400 book cover image (PNG or 
 【Full Story Outline】
 {outline}
 
-【Your Creative Task】
-Based on the complete outline above, design a unique and eye-catching book cover that:
-- Captures the essence and mood of the story
-- Has a distinctive visual style (choose your own artistic direction)
-- Stands out and grabs attention
-- Fits the {genre} genre but in a creative way
+【Design Requirements】
 
-【Technical Requirements】
-- Image dimensions: 300 x 400 pixels
+**Text & Typography:**
+- Display ONLY the title: "{title}"
+- NO author name
+- Use creative, designer fonts (examples: decorative script, elegant calligraphy, hand-lettering, artistic serif, or custom stylized fonts)
+- Font should match the genre and mood
+- Make the title prominent and eye-catching
+
+**Visual Style:**
+- Based on the complete outline above, create a unique and compelling book cover
+- Capture the essence, mood, and key themes of the story
+- Design should appeal to {genre} readers
+- Create a professional, bestseller-quality cover that stands out
+
+**Technical Specifications:**
+- Image dimensions: 300 x 400 pixels (portrait orientation)
 - Format: PNG or JPG
-- Vertical portrait orientation
+- File size: Under 2MB
+- High quality and sharp
 
-Be creative and distinctive. Make readers stop scrolling and want to click."""
+**Goal:**
+Make readers stop scrolling and want to click. The cover should look like a bestselling novel they'd see in a bookstore.
+
+Be creative, distinctive, and professional. Focus on visual storytelling through imagery and beautiful typography."""
 
 
 class PromptManager:

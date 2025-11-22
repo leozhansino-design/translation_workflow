@@ -16,6 +16,7 @@ from datetime import datetime
 from writer_worker import WriterWorker
 from utils import scan_chapter_files
 from prompt_manager import PromptManager
+from universal_api import UniversalAPIClient
 
 
 class WritingTask:
@@ -233,7 +234,7 @@ class WritingToolWindow:
         empty_label.pack(pady=50)
 
     def test_api_connection(self):
-        """测试API连接 - 使用OpenAI SDK（Jupyter稳定版方式）"""
+        """测试API连接 - 使用UniversalAPIClient（兼容Gemini和GPT）"""
         api_key = self.api_key_var.get()
         base_url = self.base_url_var.get()
         model = self.model_var.get()
@@ -249,22 +250,11 @@ class WritingToolWindow:
         # 在新线程中测试，避免阻塞UI
         def _test():
             try:
-                # 使用OpenAI SDK（Jupyter稳定版方式）
-                from openai import OpenAI
-
-                # 确保base_url以/v1/结尾
-                test_base_url = base_url
-                if not test_base_url.endswith('/v1/'):
-                    if not test_base_url.endswith('/'):
-                        test_base_url += '/'
-                    if not test_base_url.endswith('v1/'):
-                        test_base_url += 'v1/'
-
-                # 初始化客户端
-                client = OpenAI(api_key=api_key, base_url=test_base_url)
+                # 使用UniversalAPIClient（兼容Gemini和GPT）
+                client = UniversalAPIClient(api_key=api_key, base_url=base_url)
 
                 # 测试调用
-                response = client.chat.completions.create(
+                response = client.chat_completion(
                     model=model,
                     messages=[
                         {"role": "user", "content": "Hello"}
@@ -274,7 +264,7 @@ class WritingToolWindow:
                 )
 
                 # 成功
-                if response.choices and len(response.choices) > 0:
+                if response.get('choices') and len(response['choices']) > 0:
                     self.window.after(0, lambda: self.api_status_label.config(
                         text="✅ 连接成功", fg="green"
                     ))
@@ -294,7 +284,7 @@ class WritingToolWindow:
         thread.start()
 
     def test_gemini_simple(self):
-        """测试Gemini连接 - 使用OpenAI SDK（Jupyter稳定版方式）"""
+        """测试Gemini连接 - 使用UniversalAPIClient（兼容Gemini和GPT）"""
         api_key = self.api_key_var.get()
 
         if not api_key:
@@ -308,15 +298,12 @@ class WritingToolWindow:
         # 在新线程中测试
         def _test():
             try:
-                # 使用OpenAI SDK（Jupyter稳定版方式）
-                from openai import OpenAI
-
-                # 初始化客户端
-                client = OpenAI(api_key=api_key, base_url="https://yunwuapi.com/v1/")
+                # 使用UniversalAPIClient（兼容Gemini和GPT）
+                client = UniversalAPIClient(api_key=api_key, base_url="https://yunwuapi.com")
 
                 # 测试调用
-                response = client.chat.completions.create(
-                    model="gemini-2.5-pro",
+                response = client.chat_completion(
+                    model="gemini-3-pro-preview",
                     messages=[
                         {"role": "user", "content": "你好，你是谁。"}
                     ],
@@ -325,7 +312,7 @@ class WritingToolWindow:
                 )
 
                 # 获取回复
-                assistant_reply = response.choices[0].message.content
+                assistant_reply = client.get_message_content(response)
 
                 # 成功
                 self.window.after(0, lambda: messagebox.showinfo(
