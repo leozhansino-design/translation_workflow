@@ -5,6 +5,8 @@ import os
 import re
 import json
 import http.client
+import ssl
+import certifi
 from datetime import datetime
 
 
@@ -413,8 +415,11 @@ def call_api_with_http_client(api_key, base_url, model, messages, temperature=0.
 
     conn = None
     try:
-        # 设置连接（不设置timeout，和成功的Gemini测试代码一样）
-        conn = http.client.HTTPSConnection(host)
+        # 创建SSL上下文（使用certifi证书，解决macOS打包后SSL错误）
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+        # 设置连接
+        conn = http.client.HTTPSConnection(host, context=ssl_context)
 
         # 发送请求
         conn.request("POST", "/v1/chat/completions", payload, headers)

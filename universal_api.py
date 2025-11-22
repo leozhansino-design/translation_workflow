@@ -6,6 +6,8 @@
 import http.client
 import json
 import time
+import ssl
+import certifi
 
 
 class UniversalAPIClient:
@@ -59,8 +61,11 @@ class UniversalAPIClient:
         }
 
         try:
-            # 建立HTTPS连接（不设置timeout，完全按照成功代码）
-            conn = http.client.HTTPSConnection(self.base_url)
+            # 创建SSL上下文（使用certifi证书，解决macOS打包后SSL错误）
+            ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+            # 建立HTTPS连接
+            conn = http.client.HTTPSConnection(self.base_url, context=ssl_context)
 
             # 发送请求
             conn.request("POST", "/v1/chat/completions", payload, headers)
