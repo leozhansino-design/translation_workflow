@@ -1585,10 +1585,10 @@ Max Tokens: {task.config['max_tokens']}
                 response = client.chat_completion(
                     model=model,
                     messages=[
-                        {"role": "user", "content": "Hello"}
+                        {"role": "user", "content": "你好"}
                     ],
                     temperature=0.7,
-                    max_tokens=10
+                    max_tokens=25000  # Gemini需要较大的max_tokens
                 )
 
                 # 检查响应

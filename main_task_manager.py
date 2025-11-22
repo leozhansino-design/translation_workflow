@@ -257,10 +257,10 @@ class WritingToolWindow:
                 response = client.chat_completion(
                     model=model,
                     messages=[
-                        {"role": "user", "content": "Hello"}
+                        {"role": "user", "content": "你好"}
                     ],
                     temperature=0.7,
-                    max_tokens=10
+                    max_tokens=25000  # Gemini需要较大的max_tokens
                 )
 
                 # 成功
@@ -308,7 +308,7 @@ class WritingToolWindow:
                         {"role": "user", "content": "你好，你是谁。"}
                     ],
                     temperature=0.7,
-                    max_tokens=100
+                    max_tokens=25000  # Gemini需要较大的max_tokens
                 )
 
                 # 获取回复
