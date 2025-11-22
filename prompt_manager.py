@@ -11,29 +11,49 @@ from datetime import datetime
 def get_resource_path(relative_path):
     """获取资源文件的绝对路径（支持PyInstaller打包）
 
-    优先使用当前目录的文件，如果不存在则从打包资源复制
+    macOS .app 双击启动时，会将资源文件复制到用户应用支持目录
     """
-    local_path = os.path.join(os.getcwd(), relative_path)
+    # 检查是否是打包环境
+    if getattr(sys, 'frozen', False):
+        # 打包环境：使用应用支持目录存储可写文件
+        app_name = "OutlineGenerator"
 
-    if os.path.exists(local_path):
-        return local_path
+        # macOS应用支持目录
+        if sys.platform == 'darwin':
+            support_dir = os.path.expanduser(f'~/Library/Application Support/{app_name}')
+        elif sys.platform == 'win32':
+            support_dir = os.path.join(os.getenv('APPDATA'), app_name)
+        else:
+            support_dir = os.path.expanduser(f'~/.{app_name}')
 
-    try:
-        base_path = sys._MEIPASS
-        bundled_path = os.path.join(base_path, relative_path)
+        # 用户数据文件路径
+        user_path = os.path.join(support_dir, relative_path)
 
-        if relative_path.startswith('data/') and os.path.exists(bundled_path):
-            os.makedirs(os.path.join(os.getcwd(), 'data'), exist_ok=True)
-            import shutil
-            try:
-                shutil.copy2(bundled_path, local_path)
-            except:
-                pass
+        # 如果用户文件已存在，直接使用
+        if os.path.exists(user_path):
+            return user_path
 
-        return local_path
+        # 第一次运行，从打包资源复制
+        try:
+            bundled_path = os.path.join(sys._MEIPASS, relative_path)
 
-    except AttributeError:
-        return local_path
+            if os.path.exists(bundled_path):
+                # 确保目标目录存在
+                os.makedirs(os.path.dirname(user_path), exist_ok=True)
+
+                # 复制到用户目录
+                import shutil
+                shutil.copy2(bundled_path, user_path)
+                return user_path
+            else:
+                return user_path
+        except Exception as e:
+            # 返回打包路径作为后备（只读）
+            return os.path.join(sys._MEIPASS, relative_path)
+
+    else:
+        # 开发环境：使用当前目录
+        return os.path.join(os.getcwd(), relative_path)
 
 
 PROMPTS_FILE = get_resource_path('data/prompts.json')

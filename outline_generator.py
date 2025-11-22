@@ -22,7 +22,8 @@ from utils import (
     extract_genre_from_filename,
     extract_title_from_filename,
     validate_genre,
-    parse_json_from_llm_response
+    parse_json_from_llm_response,
+    get_work_directory
 )
 
 
@@ -1236,9 +1237,9 @@ Max Tokens: {task.config['max_tokens']}
         # 解析返回的文本
         parsed_data = self._parse_outline_response(result_text)
 
-        # 创建基础文件夹 novels_for_translation（在当前工作目录下）
-        # 在Windows上可以配置工作目录为D:\，这样就会创建D:\novels_for_translation
-        base_folder = 'novels_for_translation'
+        # 创建基础文件夹（打包环境会在用户文档目录下创建）
+        work_dir = get_work_directory()
+        base_folder = os.path.join(work_dir, 'novels_for_translation')
         os.makedirs(base_folder, exist_ok=True)
 
         title = parsed_data.get('title', 'Untitled') or 'Untitled'

@@ -14,7 +14,7 @@ from datetime import datetime
 def get_resource_path(relative_path):
     """获取资源文件的绝对路径（支持PyInstaller打包）
 
-    如果是打包环境且本地没有data文件夹，会自动从打包资源复制到当前目录
+    macOS .app 双击启动时，会将资源文件复制到用户应用支持目录
 
     Args:
         relative_path: 相对路径，如 'data/styles.json'
@@ -22,40 +22,50 @@ def get_resource_path(relative_path):
     Returns:
         绝对路径
     """
-    # 优先使用当前目录的文件（用于读写）
-    local_path = os.path.join(os.getcwd(), relative_path)
-
-    # 如果本地文件存在，直接使用
-    if os.path.exists(local_path):
-        return local_path
-
     # 检查是否是打包环境
-    try:
-        # PyInstaller创建临时文件夹，路径存储在_MEIPASS中
-        base_path = sys._MEIPASS
-        bundled_path = os.path.join(base_path, relative_path)
+    if getattr(sys, 'frozen', False):
+        # 打包环境：使用应用支持目录存储可写文件
+        app_name = "OutlineGenerator"
 
-        # 如果是data目录下的文件，且打包资源存在，复制到本地
-        if relative_path.startswith('data/') and os.path.exists(bundled_path):
-            # 确保本地data目录存在
-            local_data_dir = os.path.join(os.getcwd(), 'data')
-            os.makedirs(local_data_dir, exist_ok=True)
+        # macOS应用支持目录
+        if sys.platform == 'darwin':
+            support_dir = os.path.expanduser(f'~/Library/Application Support/{app_name}')
+        elif sys.platform == 'win32':
+            support_dir = os.path.join(os.getenv('APPDATA'), app_name)
+        else:
+            support_dir = os.path.expanduser(f'~/.{app_name}')
 
-            # 复制文件到本地
-            import shutil
-            try:
-                shutil.copy2(bundled_path, local_path)
-                print(f"✓ 已复制资源文件: {relative_path}")
-            except Exception as e:
-                print(f"⚠ 复制资源文件失败: {e}")
-                # 复制失败，返回打包路径（只读）
-                return bundled_path
+        # 用户数据文件路径
+        user_path = os.path.join(support_dir, relative_path)
 
-        return local_path
+        # 如果用户文件已存在，直接使用
+        if os.path.exists(user_path):
+            return user_path
 
-    except AttributeError:
-        # 开发环境，使用当前目录
-        return local_path
+        # 第一次运行，从打包资源复制
+        try:
+            bundled_path = os.path.join(sys._MEIPASS, relative_path)
+
+            if os.path.exists(bundled_path):
+                # 确保目标目录存在
+                os.makedirs(os.path.dirname(user_path), exist_ok=True)
+
+                # 复制到用户目录
+                import shutil
+                shutil.copy2(bundled_path, user_path)
+                print(f"✓ 已复制资源文件到应用支持目录: {relative_path}")
+                return user_path
+            else:
+                print(f"⚠️ 打包资源不存在: {bundled_path}")
+                return user_path
+        except Exception as e:
+            print(f"❌ 复制资源文件失败: {e}")
+            # 返回打包路径作为后备（只读）
+            return os.path.join(sys._MEIPASS, relative_path)
+
+    else:
+        # 开发环境：使用当前目录
+        return os.path.join(os.getcwd(), relative_path)
 
 
 STYLES_FILE = get_resource_path('data/styles.json')

@@ -7,7 +7,33 @@ import json
 import http.client
 import ssl
 import certifi
+import sys
 from datetime import datetime
+
+
+def get_work_directory():
+    """获取工作目录（打包环境使用用户文档目录，开发环境使用当前目录）
+
+    Returns:
+        str: 工作目录的绝对路径
+    """
+    if getattr(sys, 'frozen', False):
+        # 打包环境：使用用户文档目录
+        if sys.platform == 'darwin':
+            # macOS: ~/Documents/OutlineGenerator
+            work_dir = os.path.expanduser('~/Documents/OutlineGenerator')
+        elif sys.platform == 'win32':
+            # Windows: 我的文档\OutlineGenerator
+            work_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'OutlineGenerator')
+        else:
+            # Linux: ~/OutlineGenerator
+            work_dir = os.path.expanduser('~/OutlineGenerator')
+
+        os.makedirs(work_dir, exist_ok=True)
+        return work_dir
+    else:
+        # 开发环境：使用当前工作目录
+        return os.getcwd()
 
 
 def extract_genre_from_filename(filename):
