@@ -18,7 +18,6 @@ pyinstaller --clean \
     --windowed \
     --onefile \
     --add-data="data:data" \
-    --add-data="prompts:prompts" \
     --hidden-import="PIL._tkinter_finder" \
     --collect-all="tkinter" \
     outline_generator.py
@@ -29,7 +28,6 @@ pyinstaller --clean \
     --windowed \
     --onefile \
     --add-data="data:data" \
-    --add-data="prompts:prompts" \
     --hidden-import="PIL._tkinter_finder" \
     --collect-all="tkinter" \
     main_task_manager.py
