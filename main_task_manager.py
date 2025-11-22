@@ -141,7 +141,7 @@ class WritingToolWindow:
             text="测试API连接",
             command=self.test_api_connection,
             bg="#2196F3",
-            fg="white",
+            fg="black",
             width=12
         ).pack(side=tk.LEFT, padx=5)
 
@@ -150,7 +150,7 @@ class WritingToolWindow:
             text="测试Gemini",
             command=self.test_gemini_simple,
             bg="#FF9800",
-            fg="white",
+            fg="black",
             width=12
         ).pack(side=tk.LEFT, padx=5)
 
@@ -159,7 +159,7 @@ class WritingToolWindow:
             text="📝 Prompt管理",
             command=self.manage_writer_prompts,
             bg="#9C27B0",
-            fg="white",
+            fg="black",
             width=12
         ).pack(side=tk.LEFT, padx=5)
 
@@ -196,7 +196,7 @@ class WritingToolWindow:
         tk.Spinbox(range_frame, from_=1, to=10, textvariable=self.batch_size_var, width=8).pack(side=tk.LEFT)
 
         tk.Button(range_frame, text="✚ 添加到队列", command=self.add_task,
-                  bg="#2196F3", fg="white", width=15).pack(side=tk.RIGHT, padx=5)
+                  bg="#2196F3", fg="black", width=15).pack(side=tk.RIGHT, padx=5)
 
         # 任务队列
         queue_frame = tk.LabelFrame(self.window, text="📋 任务队列", padx=5, pady=5)

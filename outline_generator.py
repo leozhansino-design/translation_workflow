@@ -162,7 +162,7 @@ class OutlineGeneratorWithQueue:
             command=self.test_gemini_simple,
             width=12,
             bg="#FF9800",
-            fg="white"
+            fg="black"
         ).grid(row=0, column=3, pady=5, padx=5)
 
         self.api_status_label = tk.Label(api_frame, text="", fg="gray")
@@ -274,7 +274,7 @@ class OutlineGeneratorWithQueue:
             command=self.add_to_queue,
             font=("Arial", 12, "bold"),
             bg="#4CAF50",
-            fg="white",
+            fg="black",
             height=2,
             width=20
         ).pack(side=tk.LEFT, padx=10)
@@ -285,7 +285,7 @@ class OutlineGeneratorWithQueue:
             command=self.import_web_outline,
             font=("Arial", 12, "bold"),
             bg="#2196F3",
-            fg="white",
+            fg="black",
             height=2,
             width=20
         ).pack(side=tk.LEFT, padx=10)
@@ -332,7 +332,7 @@ class OutlineGeneratorWithQueue:
             command=self.manage_cover_prompts,
             font=("Arial", 11, "bold"),
             bg="#2196F3",
-            fg="white",
+            fg="black",
             height=2,
             width=15
         ).pack(side=tk.LEFT, padx=5)
@@ -343,7 +343,7 @@ class OutlineGeneratorWithQueue:
             command=self.preview_cover_prompt,
             font=("Arial", 11, "bold"),
             bg="#FF9800",
-            fg="white",
+            fg="black",
             height=2,
             width=15
         ).pack(side=tk.LEFT, padx=5)
@@ -354,7 +354,7 @@ class OutlineGeneratorWithQueue:
             command=self.generate_covers,
             font=("Arial", 12, "bold"),
             bg="#9C27B0",
-            fg="white",
+            fg="black",
             height=2,
             width=20
         ).pack(side=tk.LEFT, padx=10)
