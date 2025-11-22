@@ -58,7 +58,18 @@ DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件�
 
 4. **语言风格**：地道英语口语，避免中式英语
 
-5. **标题不要用The+xx这种形势太模板化的东西**
+5. **Chapter Title Rules** 🎯:
+   - NO "The [Noun]" or abstract nouns alone
+   - Mix 6 formats:
+     (1) Objects: "Broken Phone"
+     (2) Single words: "Falling"
+     (3) Actions: "Running Wild"
+     (4) Numbers: "Two Days"
+     (5) Fragments: "What She Knew"
+     (6) Names: "Brooklyn"
+   - Each title must be visual, story-specific, and memorable
+   - Vary structure—max 2 consecutive "The" titles
+   - Test: Can you picture it? Is it generic? Would you remember it?
 
 【剧情扩展要求】⭐
 - 原文可能很短（如2章），你需要扩展到要求的章节数（如15章、50章、100章）
@@ -118,6 +129,7 @@ Background: [1-2句]
 
 ===== CHAPTER_OUTLINES =====
 [使用结构化大纲格式，每章包含：Opening, Development, Conflict, Climax, Hook, Key Scenes]
+[IMPORTANT: Follow Chapter Title Rules above - use diverse formats, avoid generic "The [Noun]" patterns]
 
 Chapter 1: [章节标题]
 Opening: [开场场景，1-2句话描述如何吸引读者]
