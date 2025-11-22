@@ -170,7 +170,7 @@ class OutlineGeneratorWithQueue:
         # 第二行：模型和Prompt管理
         tk.Label(api_frame, text="模型:").grid(row=1, column=0, sticky=tk.W, pady=5)
         self.model_var = tk.StringVar(value="gpt-5.1")
-        models = ["gpt-5.1", "gpt-5-mini", "gemini-2.5-pro", "gpt-5", "gemini-3-pro-preview", "gpt-4-turbo-preview"]
+        models = ["gpt-5.1", "gpt-5-mini", "gemini-2.5-pro", "gemini-3-pro-preview"]
         model_combo = ttk.Combobox(
             api_frame,
             textvariable=self.model_var,
