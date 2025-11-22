@@ -16,7 +16,6 @@ echo "打包大纲生成器..."
 pyinstaller --clean \
     --name="OutlineGenerator" \
     --windowed \
-    --onefile \
     --add-data="data:data" \
     --hidden-import="PIL._tkinter_finder" \
     --collect-all="tkinter" \
@@ -26,7 +25,6 @@ echo "打包章节写作工具..."
 pyinstaller --clean \
     --name="ChapterWriter" \
     --windowed \
-    --onefile \
     --add-data="data:data" \
     --hidden-import="PIL._tkinter_finder" \
     --collect-all="tkinter" \
