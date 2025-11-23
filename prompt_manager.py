@@ -68,8 +68,9 @@ DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件�
 【翻译本土化要求】
 1. **地理/文化背景**：改为非亚洲国家背景
 2. **人名**：
-   - 优先使用提供的英文名作为主要角色
-   - 如需更多角色可自由创造英文名
+   - 下面提供了建议人名列表，你可以选择使用
+   - 如果不需要那么多角色，不必强行使用所有名字
+   - 如果需要更多角色，可以自由创造英文名
    - 避免中文和拼音
    - 典型女反派角色建议：Angela（适合傲慢、嫉妒、背后捅刀子类型）
 
@@ -130,8 +131,12 @@ DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件�
 ===== TAGS =====
 [用逗号分隔，例如: #SlowBurn, #ForcedProximity, #AlphaMale]
 
-===== AGE_CATEGORY =====
-[Young Adult / New Adult / Adult]
+===== AGE_RATING =====
+[MUST choose EXACTLY ONE from these 4 options:
+1. All Age
+2. Teen 13+
+3. Mature 16+
+4. Explicit 18+]
 
 ===== WORLD_SETTING =====
 [世界观，150-200词，简洁描述背景设定]
@@ -334,8 +339,13 @@ Chapter {n}: [Title]
 
 [Content - 10,000+ characters]
 
----
-Character Count: XXXX
+IMPORTANT OUTPUT RULES:
+- Output ONLY the chapter title and content
+- DO NOT add chapter summaries at the end
+- DO NOT add "next chapter preview"
+- DO NOT add character count or metadata
+- DO NOT add "---" separator lines
+- Just the pure story content
 
 【YOUR JOB】
 The outline is your map. Follow it.
@@ -364,7 +374,8 @@ DEFAULT_COVER_PROMPT = """Create a creative bestseller book cover image for this
 
 **Text & Typography:**
 - Display ONLY the title: "{title}"
-- NO author name
+- CRITICAL: NO other text allowed - no author name, no genre labels, no subtitles, no "A Novel", no "Horror", no extra words
+- The ONLY text on the cover should be the title itself
 - Use creative, designer fonts (examples: decorative script, elegant calligraphy, hand-lettering, artistic serif, or custom stylized fonts)
 - Font should match the genre and mood
 - Make the title prominent and eye-catching

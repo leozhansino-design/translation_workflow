@@ -1037,13 +1037,24 @@ class OutlineGeneratorWithQueue:
             # 清空缓存，确保使用最新配置重新生成
             task.prompt_cache = None
 
-            # 生成Prompt
-            with open(task.source_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-                if len(content) > 10000:
-                    content_preview = content[:10000] + "\n\n... (内容已截断)"
-                else:
-                    content_preview = content
+            # 生成Prompt - 自动检测编码
+            content = None
+            encodings_to_try = ['utf-8', 'gbk', 'gb2312', 'latin1', 'cp1252']
+            for encoding in encodings_to_try:
+                try:
+                    with open(task.source_file, 'r', encoding=encoding) as f:
+                        content = f.read()
+                    break
+                except (UnicodeDecodeError, UnicodeError):
+                    continue
+
+            if content is None:
+                raise ValueError(f"无法读取文件，尝试了以下编码均失败: {', '.join(encodings_to_try)}")
+
+            if len(content) > 10000:
+                content_preview = content[:10000] + "\n\n... (内容已截断)"
+            else:
+                content_preview = content
 
             # 选择名字和风格
             selected_names = self.resource_mgr.select_names(
@@ -1136,9 +1147,19 @@ Max Tokens: {task.config['max_tokens']}
     def _execute_task(self, task):
         """执行任务（在后台线程）"""
         try:
-            # 读取原文
-            with open(task.source_file, 'r', encoding='utf-8') as f:
-                content = f.read()
+            # 读取原文 - 自动检测编码
+            content = None
+            encodings_to_try = ['utf-8', 'gbk', 'gb2312', 'latin1', 'cp1252']
+            for encoding in encodings_to_try:
+                try:
+                    with open(task.source_file, 'r', encoding=encoding) as f:
+                        content = f.read()
+                    break
+                except (UnicodeDecodeError, UnicodeError):
+                    continue
+
+            if content is None:
+                raise ValueError(f"无法读取文件，尝试了以下编码均失败: {', '.join(encodings_to_try)}")
 
             # 选择资源
             selected_names = self.resource_mgr.select_names(
@@ -1364,6 +1385,7 @@ Max Tokens: {task.config['max_tokens']}
             'blurb': '',
             'tags': '',
             'category': '',
+            'age_category': '',
             'chapters': []
         }
 
@@ -1386,6 +1408,11 @@ Max Tokens: {task.config['max_tokens']}
         category_match = re.search(r'={5,}\s*CATEGORY\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', text, re.DOTALL)
         if category_match:
             data['category'] = category_match.group(1).strip()
+
+        # 提取age_category
+        age_match = re.search(r'={5,}\s*AGE_RATING\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', text, re.DOTALL)
+        if age_match:
+            data['age_category'] = age_match.group(1).strip()
 
         # 提取章节
         chapter_section = re.search(r'={5,}\s*CHAPTER_OUTLINES\s*={5,}\s*\n(.+?)(?=\n={5,}\s*END|$)', text, re.DOTALL)

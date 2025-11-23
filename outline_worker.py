@@ -57,12 +57,22 @@ class OutlineWorker:
             # 更新进度
             self.update_progress('initializing', '初始化中...')
 
-            # 读取文件
+            # 读取文件 - 自动检测编码
             source_file = self.config['source_file']
-            with open(source_file, 'r', encoding='utf-8') as f:
-                content = f.read()
+            content = None
+            encodings_to_try = ['utf-8', 'gbk', 'gb2312', 'latin1', 'cp1252']
 
-            print(f"✓ 文件读取完成: {os.path.basename(source_file)}")
+            for encoding in encodings_to_try:
+                try:
+                    with open(source_file, 'r', encoding=encoding) as f:
+                        content = f.read()
+                    print(f"✓ 文件读取完成 (编码: {encoding}): {os.path.basename(source_file)}")
+                    break
+                except (UnicodeDecodeError, UnicodeError):
+                    continue
+
+            if content is None:
+                raise ValueError(f"无法读取文件，尝试了以下编码均失败: {', '.join(encodings_to_try)}")
 
             # 提取类型和书名
             genre = extract_genre_from_filename(source_file)
