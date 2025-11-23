@@ -1,137 +1,61 @@
 {
   "Romance": {
-    "authors": ["Colleen Hoover", "Nicholas Sparks", "Emily Henry"],
-    "styles": [
-      "Write in Colleen Hoover's raw emotional style with short punchy sentences and deep POV. Focus on intense emotional moments, internal monologue, and contemporary angst. Use present tense for immediacy and visceral reactions.",
-      "Write in Nicholas Sparks' nostalgic heartwarming style with vivid descriptions of settings and tender moments. Use lyrical prose, Southern charm, and bittersweet emotional arcs with hope at the core.",
-      "Write in Emily Henry's witty contemporary style with snappy dialogue and quirky humor. Blend romance with personal growth, use smart banter, and create emotionally authentic but fun relationships."
-    ],
-    "used": [0, 0, 0]
+    "focus": "Romantic chemistry and emotional connection drive everything. Build sexual/romantic tension through: lingering eye contact, accidental touches, jealousy, forced proximity (one bed, fake dating, stuck together). Physical escalation: brushing hands → hand-holding → hugs → almost-kisses → first kiss → heated scenes (fade to black). Emotional progression: misunderstandings create conflict, vulnerable confessions deepen bond, grand gestures resolve tension. Pacing: Every 2-3 chapters give payoff (a kiss, confession, protective moment, intimate conversation). Include: internal thoughts about feelings, physical reactions (butterflies, blushing, heart racing), 'I can't stop thinking about them' moments. Conflict sources: miscommunication, external obstacles (family disapproval, class gap), past trauma, love triangle. Readers want: slow burn that pays off, possessive/protective moments, emotional vulnerability, tension so thick you could cut it, happy or hopeful ending."
   },
-  "Fantasy": {
-    "authors": ["Brandon Sanderson", "Sarah J. Maas", "Holly Black"],
-    "styles": [
-      "Write in Brandon Sanderson's detailed magic system style with clear rules and logical worldbuilding. Use action-packed sequences, multiple POVs, and intricate plot threads that weave together.",
-      "Write in Sarah J. Maas' action-packed romantic fantasy style with fierce heroines and swoon-worthy romance. Blend high-stakes battles, court intrigue, and steamy tension with epic fantasy elements.",
-      "Write in Holly Black's dark fairy tale style with morally gray characters and dangerous fae politics. Use lush Gothic imagery, unreliable narrators, and twisted romance in magical settings."
-    ],
-    "used": [0, 0, 0]
-  },
+
   "Urban": {
-    "authors": ["Colleen Hoover", "Emily Henry", "Casey McQuiston"],
-    "styles": [
-      "Write in contemporary urban style with gritty city settings and modern relationships. Focus on career-driven characters, fast-paced dialogue, and realistic conflicts in metropolitan life.",
-      "Write in Emily Henry's contemporary rom-com style set in urban environments. Use witty banter, quirky situations, and heartfelt moments against city backdrops.",
-      "Write in Casey McQuiston's diverse contemporary style with inclusive characters and modern romance. Blend humor, pop culture references, and emotional depth in urban settings."
-    ],
-    "used": [0, 0, 0]
+    "focus": "Modern city life with ambition, power, and social climbing. Include specific details: luxury brands (Hermès, Gucci), expensive restaurants, penthouse apartments, corporate boardrooms, charity galas. Balance material world with emotional struggles: loneliness despite wealth, pressure to maintain image, sacrificing relationships for career. Character arc: rags to riches with clear progression (studio apartment → modest condo → luxury penthouse). Conflicts: workplace rivalry (stealing credit, sabotage), class differences (hiding poor background), reputation wars (rumors, scandals), family pressure. Payoffs: major promotions, public victories, face-slapping moments (ex regrets leaving, rival begs for mercy, doubters proven wrong). Show the cost: burnout, lost friendships, moral compromises. Ground in reality: no magic, just strategy, networking, and hustle."
   },
+
+  "Fantasy": {
+    "focus": "Magic or supernatural elements shape the world. Establish magic rules early: how it works (words, willpower, blood), what's the cost (energy drain, forbidden price), who can use it (bloodlines, training, chosen ones), limitations (can't raise dead, elemental weakness). Power progression: start weak → discover talent → train → unlock new ability → master forbidden technique → become powerful but not godlike. Include: magic academy (classes, rival students), magical creatures (dragons, phoenixes - make them dangerous), prophecies, ancient artifacts, different magic types (elemental, healing, dark magic). Reveal world through action, not info-dumps: show magic through battles, training, mistakes. Conflicts: mastering difficult magic, academy competition, dark lord rising, forbidden love across factions. Readers want: underestimated hero proving worth, mastering powerful magic, epic battles with visual spell descriptions, defeating arrogant enemies, discovering hidden heritage (secret royal, dragon blood, chosen one)."
+  },
+
   "Sci-Fi": {
-    "authors": ["Andy Weir", "Pierce Brown", "Blake Crouch"],
-    "styles": [
-      "Write in Andy Weir's science-heavy survival style with technical problem-solving and dark humor. Use first-person narration, scientific accuracy, and protagonists who think their way through crises.",
-      "Write in Pierce Brown's brutal dystopian style with complex power struggles and war tactics. Use visceral action, political intrigue, and morally complex characters in futuristic societies.",
-      "Write in Blake Crouch's mind-bending thriller style with quantum concepts and reality-warping plots. Blend hard science with psychological tension and philosophical questions."
-    ],
-    "used": [0, 0, 0]
+    "focus": "Technology and science drive plot. Make tech feel real with specific details: neural implants, holographic displays, AI systems, space battles, cyberpunk cities (neon streets, mega-corporations), genetic engineering, time travel. Show how tech works briefly, keep logic consistent. Include: hacking sequences, space ship combat, survival in harsh environments (Mars colony, deep space - oxygen, radiation challenges), futuristic gadgets. Conflicts: tech gone wrong (AI rebellion, experiment escapes), corporate control (surveillance, wage slavery), dystopian survival, alien encounters. Social themes: what makes us human (AI rights, uploaded consciousness), class divide (rich get enhancements, poor don't). Readers want: clever tech solutions to problems, humanity vs machines questions, thrilling space battles or chases, discovering alien secrets, protagonist outsmarting the system. Keep scientific logic consistent - establish rules early, don't violate your own physics."
   },
+
   "Mystery": {
-    "authors": ["Gillian Flynn", "Ruth Ware", "Riley Sager"],
-    "styles": [
-      "Write in Gillian Flynn's dark psychological thriller style with unreliable narrators and shocking twists. Use multiple timelines, disturbed characters, and nihilistic undertones.",
-      "Write in Ruth Ware's atmospheric locked-room mystery style with claustrophobic settings. Build slow-burn tension, use isolated locations, and create paranoid protagonists.",
-      "Write in Riley Sager's twisty page-turner style with suburban horror and dark secrets. Blend nostalgia with dread, use dual timelines, and deliver gasp-worthy reveals."
-    ],
-    "used": [0, 0, 0]
+    "focus": "Uncovering secrets and solving puzzles, often with supernatural or eerie elements. Different from Crime (which is procedural): Mystery emphasizes the unknown, atmosphere, 'what's really happening?' Plant clues early but readers won't catch them first time. Every chapter: answer one question, raise two more. Include: unexplained phenomena (objects moving, time loops, impossible events), secret societies, family secrets, cursed objects, missing persons, everyone hiding something, unreliable witnesses. Setting matters: old mansions with hidden rooms, small towns where everyone lies, isolated locations. Investigation: finding hidden clues (diary, old photos, coded messages), catching lies, researching history, experiencing strange events. Atmosphere: build unease (odd details, being watched feeling, warnings to leave), use weather (fog, storms). Readers want: 'didn't see that coming' twists, aha moments, satisfying revelations, protagonist endangered as they get close, psychological mind games. Common twists: helper was villain, protagonist unreliable, supernatural not criminal (or reverse), layered mysteries."
   },
+
   "Horror": {
-    "authors": ["Stephen King", "Paul Tremblay", "Grady Hendrix"],
-    "styles": [
-      "Write in Stephen King's character-driven horror style with small-town settings and cosmic dread. Use rich character development, slow-building terror, and supernatural threats that mirror human fears.",
-      "Write in Paul Tremblay's ambiguous psychological horror style with unreliable reality. Blur the line between supernatural and psychological, use family dynamics, and leave questions unanswered.",
-      "Write in Grady Hendrix's nostalgic horror-comedy style with 80s/90s throwback vibes. Blend genuine scares with dark humor, use pop culture references, and create likable characters in terrible situations."
-    ],
-    "used": [0, 0, 0]
+    "focus": "Psychological dread and atmosphere over graphic gore. Describe feelings not visuals: 'stomach dropped hearing wet sounds' not anatomical details. Imply horror, don't show explicitly. Build tension slowly then punctuate with scares. Atmosphere: isolation (cut off from help), darkness (power fails, fog), the unknown (strange noises, shadows moving). Settings: abandoned places (asylum, hospital), familiar places turned wrong (home but different), confined spaces. Threats: supernatural (ghosts, demons, possession), psychological (is it real or madness?), creatures (described through glimpses - wrong proportions, too many teeth), human monsters. Pacing: quiet dread → sudden scare → brief relief → worse dread. Smart protagonists: logical choices that still fail (phone dead, car won't start, nobody believes). Include: creepy details (toys in wrong place, scratching in walls, reflections don't match), building paranoia, physical fear (cold sweat, frozen, racing heart). For Wattpad: suggest horror, fade to black for extreme violence. Readers want: spine-tingling suspense, creative scares, clever survival, satisfying explanations OR terrifying ambiguity."
   },
-  "Adventure": {
-    "authors": ["Clive Cussler", "James Rollins", "Matthew Reilly"],
-    "styles": [
-      "Write in Clive Cussler's treasure-hunting adventure style with historical mysteries and marine settings. Use globe-trotting plots, detailed research, and larger-than-life heroes.",
-      "Write in James Rollins' action-packed thriller style blending history, science, and adventure. Use exotic locations, ancient secrets, and non-stop pacing with smart protagonists.",
-      "Write in Matthew Reilly's high-octane blockbuster style with impossible stunts and military hardware. Use short chapters, visual action sequences, and relentless forward momentum."
-    ],
-    "used": [0, 0, 0]
-  },
-  "Historical": {
-    "authors": ["Philippa Gregory", "Ken Follett", "Hilary Mantel"],
-    "styles": [
-      "Write in Philippa Gregory's intimate historical drama style focusing on women's perspectives. Use rich period detail, court intrigue, and personal stakes in grand historical events.",
-      "Write in Ken Follett's epic historical saga style spanning generations. Blend multiple storylines, detailed historical research, and ordinary people caught in extraordinary times.",
-      "Write in Hilary Mantel's immersive first-person historical style. Use present tense for immediacy, deep character psychology, and make historical figures feel modern and accessible."
-    ],
-    "used": [0, 0, 0]
-  },
+
   "Crime": {
-    "authors": ["Michael Connelly", "Tana French", "Lee Child"],
-    "styles": [
-      "Write in Michael Connelly's police procedural style with gritty Los Angeles crime. Use detailed detective work, morally complex cops, and realistic investigation procedures.",
-      "Write in Tana French's literary crime style with atmospheric Irish settings. Focus on character psychology, lyrical prose, and how crimes affect investigators personally.",
-      "Write in Lee Child's action thriller style with a drifter hero solving crimes. Use short sentences, strategic thinking, and brutal efficiency in confrontations."
-    ],
-    "used": [0, 0, 0]
+    "focus": "Law enforcement procedures, investigations, justice system. Ground in realism: how cops actually work, forensics, legal processes. Protagonist types: detective (haunted by past case), rookie cop (learning harsh truths), FBI agent, private investigator, or criminal anti-hero. Investigation: crime scene examination (blood splatter, fingerprints - be specific), witness interviews (catching lies), following paper trails (bank records, surveillance), forensics (DNA, autopsy - realistic timelines), stakeouts, informants, undercover work. Crime types: murder investigation (motive/means/opportunity), organized crime (mafia hierarchy), heists, serial killers (profiling, patterns), corruption, white collar fraud. Realism: warrants needed, chain of custody, lawyers present, cases take time, bureaucracy interferes. Conflicts: ticking clock (another victim soon), internal obstacles (corrupt boss, lack of resources), personal cost (PTSD, relationships strain), moral dilemmas (plant evidence on guilty person?, break rules for justice?). Readers want: clever detective work, criminals caught, justice served, plot twists, high stakes (personal connection, killer targets cop), gritty realism, courtroom drama. Include: authentic procedures, investigation timelines, legal constraints, moral complexity."
   },
-  "LGBTQ+": {
-    "authors": ["Casey McQuiston", "Adam Silvera", "Becky Albertalli"],
-    "styles": [
-      "Write in Casey McQuiston's joyful queer romance style with found family and political themes. Use humor, pop culture savvy, and characters who are proudly out and thriving.",
-      "Write in Adam Silvera's emotional coming-of-age style with LGBTQ+ teens facing life-or-death stakes. Blend romance with fantasy elements, use diverse characters, and don't shy from tragedy.",
-      "Write in Becky Albertalli's sweet contemporary style with awkward queer teens and first love. Focus on realistic dialogue, school settings, and the nervous excitement of coming out."
-    ],
-    "used": [0, 0, 0]
+
+  "Historical": {
+    "focus": "Period setting shapes all choices and conflicts. Research the era: clothing (corsets, specific fabrics), speech patterns (formal address, period slang - no modern phrases), social rules (etiquette, class divisions, gender roles), technology level, major events as backdrop. Time periods: Regency (balls, estates), Victorian (industrialization, strict morality), Medieval (knights, feudal system), American West, Roaring Twenties, WWII. Social structure: rigid class hierarchies (nobility, servants - never mixing), limited opportunities for women (marriage only option, property laws), arranged marriages (duty vs love), reputation is everything (scandal ruins you). Conflicts from era: forbidden love across class, political intrigue, war impact, defying norms (woman wanting education), survival (plague, poverty), religious constraints. Romance: chaperones prevent alone time (tension from stolen moments), innocence (first kiss huge), courtship rules (formal dances, letters), marriage pressure, scandal if caught. Include: balls and social events, duels, arranged marriages, class interaction, travel by horse/carriage, letters. Balance: authentic to era but modern pacing, don't slow story with period details. Readers want: immersion in time, romance constrained by propriety, characters defying limits, historical events backdrop."
   },
-  "Paranormal": {
-    "authors": ["Charlaine Harris", "Kelley Armstrong", "Patricia Briggs"],
-    "styles": [
-      "Write in Charlaine Harris' Southern paranormal style with supernatural creatures in small-town settings. Use first-person POV, romantic subplots, and blend horror with humor.",
-      "Write in Kelley Armstrong's urban fantasy style with werewolves and witches in modern cities. Focus on strong female leads, pack dynamics, and supernatural politics.",
-      "Write in Patricia Briggs' shapeshifter urban fantasy style with pack hierarchy and mate bonds. Use action-driven plots, loyal protagonists, and complex supernatural world-building."
-    ],
-    "used": [0, 0, 0]
+
+  "Adventure": {
+    "focus": "Constant movement, discovery, physical challenges. Characters travel to exotic/dangerous locations with new setting every few chapters. Pacing rapid, action frequent. Plot drivers: treasure hunts (maps, clues, ancient artifacts), escapes from danger, exploration (uncharted jungle, deep ocean), rescue missions, races against time/villain. Settings: exotic locations (Amazon, Himalayas, Sahara - describe unique features), dangerous terrain (quicksand, avalanches, storms), lost civilizations (hidden cities, temples, ruins), each with specific challenges. Action scenes: chases (through markets, across rooftops), fights, environmental hazards (bridge collapse, boulder rolling, floor giving way), narrow escapes (last-second rescue, rope swing), vehicle sequences (plane crash, ship in storm). Include: detailed maps, artifacts with history, rival treasure hunters, local guides, dangerous wildlife (real threats), booby traps (pressure plates, poison darts). Team dynamics: crew with different skills (historian, pilot, fighter, tech expert), conflicts between members, romance subplot, saving each other. Readers want: non-stop excitement, narrow escapes, discovering lost secrets, exotic vivid locations, survival teamwork, treasure at end. Structure: arrive location → explore → threat → action → escape → next location."
   },
-  "System": {
-    "authors": ["Andy Weir", "Ernest Cline", "Blake Crouch"],
-    "styles": [
-      "Write in LitRPG/System style with game-like progression and stat displays. Use level-ups, skill acquisition, and strategic character builds. Include system notifications and quantified growth.",
-      "Write in Ernest Cline's geek culture style with virtual reality and gaming references. Blend 80s nostalgia with futuristic technology, use puzzle-solving, and reward encyclopedic knowledge.",
-      "Write in progression fantasy style with cultivation-like power systems. Focus on training montages, power scaling, and characters who optimize their abilities through smart choices."
-    ],
-    "used": [0, 0, 0]
-  },
-  "Reborn": {
-    "authors": ["Blake Crouch", "Audrey Niffenegger", "Ken Grimwood"],
-    "styles": [
-      "Write in second-chance time loop style with protagonist using future knowledge. Focus on fixing past mistakes, relationship do-overs, and the psychological weight of living twice.",
-      "Write in Audrey Niffenegger's non-linear timeline style with romance across different ages. Use poetic prose, bittersweet tone, and explore how foreknowledge affects choices.",
-      "Write in Ken Grimwood's Replay style with multiple life do-overs. Focus on existential questions, changing historical events, and finding meaning when nothing is permanent."
-    ],
-    "used": [0, 0, 0]
-  },
+
   "Revenge": {
-    "authors": ["Alexandre Dumas", "Gillian Flynn", "V.E. Schwab"],
-    "styles": [
-      "Write in classic revenge tragedy style with elaborate long-term schemes. Use dramatic irony, morally gray protagonists, and explore whether vengeance brings satisfaction or emptiness.",
-      "Write in Gillian Flynn's dark revenge thriller style with unreliable narrators. Focus on psychological manipulation, shocking reveals, and characters who become monsters in pursuit of payback.",
-      "Write in V.E. Schwab's morally complex revenge fantasy style. Blend supernatural elements with questions of justice vs. vengeance, use lyrical prose, and create sympathetic villains."
-    ],
-    "used": [0, 0, 0]
+    "focus": "Payback is core motivation. Protagonist wronged (betrayed, humiliated, robbed, falsely accused, family destroyed) seeks systematic vengeance. Opening: show the betrayal clearly - make it visceral so readers root for revenge. Emotional tone: cold satisfaction (meticulous planning, calm execution) OR hot anger (passionate confrontation). Structure: identify all enemies, rank them, take down systematically (small fish to big boss). Each revenge: planning phase (find weakness, set trap) → execution (spring trap, they realize 'you!') → payoff (public humiliation, loss of what they value) → satisfaction. Revenge types: public humiliation (expose at key moment, viral), taking what they value (steal lover, buy company), role reversal (now you're powerless), making them lose everything (reputation, money, family), forcing them to beg (denied or granted with conditions). Face-slapping moments (essential): ex regrets leaving (rejected), doubters proven wrong, enemies beg for mercy (too late), public exposure (reputation destroyed), reversal of fortune, forced public apology. Protagonist power-up: gain skills (martial arts, business), wealth (investments, inheritance), allies (team up with other victims), knowledge of their secrets. Readers want: detailed satisfying revenge, face-slapping, protagonist triumph, poetic justice, enemies brought low. Show cost: becoming what you hate?, isolation, consumed by vengeance."
   },
+
+  "Paranormal": {
+    "focus": "Supernatural beings coexist with modern world, usually hidden. Establish early: which creatures exist, hierarchy, rules, weaknesses, how they hide. Creatures: vampires (blood, immortality, daylight weakness, super strength, covens), werewolves (moon shifts, pack hierarchy, mate bonds, territory), witches (spells, potions, covens, magic costs), fae (deals, glamour, courts, iron weakness), demons (possession, soul deals), ghosts (unfinished business), hunters (humans who know). Powers and limits: what they can/can't do, costs (magic drains life, feeding necessary), weaknesses (silver, salt, iron, sunlight - consistent rules). Hierarchy: ancients more powerful, age matters, territories (vampire owns city, pack controls forest), councils. Romance elements: mate bonds (destined, instant connection), forbidden love (vampire + werewolf, human + supernatural), danger of intimacy (might drain/turn/harm), protective possessiveness ('mine'). Conflicts: hiding from humans (close calls, hunters), supernatural politics (territory wars, old grudges), prophecies, forbidden love, human in danger, power struggles. Include: supernatural locations (vampire clubs, pack compounds, witch shops), transformation scenes (turning, shifting), feeding/power needs, modern tech (vampires text, werewolves have security). Readers want: discovering hidden world, forbidden romance with danger, badass powers, chosen one/special, found family (pack/coven), mate bonds, epic faction battles."
+  },
+
+  "System": {
+    "focus": "Game-like progression with visible stats and constant rewards. Show UI in text: [STATUS], <Quest>, **LEVEL UP!**. Progression visible: [Lv.1 Novice] → [Lv.50 Expert] → [Lv.100 Legend]. Show exact numbers: STR: 10→500, Skill [Fireball] Lv.1→10 (damage 50→500). Mechanics: status screen (Level, HP, MP, STR, AGI, INT stats), skills (active/passive, cooldowns, levels), inventory (spatial storage, equipment), quest log (main/side/daily/hidden), shop (buy/sell, gacha). Leveling: early fast (multiple per chapter), mid slower (compensate with rare skills/items), breakthrough levels (10, 25, 50, 100) unlock new abilities. XP sources: killing monsters (higher level = more XP, rare = huge XP), quests (huge rewards), training. Skills: starting → learned → evolved (Fireball → Greater Fireball → Meteor), combination skills, hidden OP skills. Items: rarity tiers (Common-white, Rare-blue, Epic-purple, Legendary-gold), equipment slots, stats (+10 STR, +15% crit), enhancement (+1, +2... risk breaking). Quests: Main (story, huge rewards), Side (optional, good rewards), Daily (repeatable, grind), Hidden (unique rewards). Dungeons: difficulty levels (Easy/Normal/Hard/Hell), boss fights (HP bar, phases), loot drops. System personality: voice that guides (sassy, mysterious). Combat: show damage numbers (Crit! -1,247 HP!), combos, buffs/debuffs, cooldowns. Readers want: frequent level-ups, becoming OP, rare loot drops, ranking up (surpass rivals), numbers going up, unlocking secrets, face-slapping (low rank defeats high rank), strategic builds. Pace: level up every chapter early, new skill every few chapters, boss every 5-10 chapters."
+  },
+
+  "Reborn": {
+    "focus": "Second chance using future knowledge. Structure: Brief prologue (tragic first timeline death/failure) → wake up at regression point (age 16-25 or key moment) → realization ('I'm back!', checking date) → determination ('not this time'). Protagonist remembers everything: personal events, world events, stocks, tragedies, who betrayed, opportunities missed. Core appeals: fixing tragedies (save family who died, prevent accident, stop betrayal early), early investments (buy property before boom, invest before IPO, Bitcoin, bet on outcomes - get rich), fixing relationships (appreciate neglected parent, befriend future important person, avoid toxic relationship), revenge (expose traitor early, steal betrayer's opportunities), self-improvement (study knowing what matters, develop valuable skills). Emotional core: regret → determination, second chance at happiness, weight of knowing future. Knowledge types: world events (disasters, when/where), personal events (father's heart attack date, when accident happens), opportunities (businesses before they boom, trends), people's futures (who's trustworthy, who betrays). Challenges: can't explain how you know (labeled crazy), butterfly effect (changes create new problems), new obstacles, emotional burden (watching events coming, can't save everyone). Acting on knowledge: subtle changes (gradual, 'lucky guesses'), play dumb (pretend learning first time), strategic reveals (build credibility). Shocking others: too mature for age, uncanny predictions ('how did you know?!'), advanced skills, changed personality. Readers want: 'not this time' moments, shocking with predictions, changing fate (preventing death, early success), revenge on betrayers (expose before they betray), getting rich (using knowledge), saving loved ones, butterfly effects explored, face-slapping doubters. Common scenarios: school regression (ace tests, befriend future important people), investment genius (kid buying stocks, rich before 20), preventing death (save parent), revenge on betrayer (systematic takedown), relationship fix (appreciate family this time)."
+  },
+
+  "LGBTQ+": {
+    "focus": "Queer relationships and identities central, treated authentically. Characters fully realized - queerness important but not only trait. Show diversity: lesbians, bi/pan, trans, non-binary, ace/aro, people of color, different bodies. Romance has same beats as any romance: attraction, tension, obstacles, vulnerability, intimacy. Don't make queerness the only conflict - normal problems too (career, adventure, personal growth). Coming out: if relevant (not required), show as personal journey, fear and hope, ongoing process (every new person), support systems matter. Navigating discrimination: if part of story (can skip for pure joy), show impact (microaggressions, barriers) but balance with resilience, don't make it trauma porn, include acceptance moments. Queer joy: found family (friends become family), queer spaces (Pride, clubs, safe spaces), celebration, mundane happiness (just existing, normal life). Relationship dynamics: coming out as couple, navigating in straight world, communication crucial, found family's role. Types: romance (falling in love, happy ending), coming of age (discovering identity, first relationship), established couple (normal problems), genre with queer leads (quest with lesbian hero, sci-fi with trans captain). Specific identities: diverse gay men (not stereotypes), lesbians (visibility, not fetishized), bi/pan (valid always, not phase), trans (proper pronouns, transition personal, not broken), non-binary (they/them, valid), ace/aro (valid, different relationship types). Avoid: bury your gays (killing for tragedy), predatory stereotypes, trans deception trope, token queer, queerbaiting. Authentic details: queer culture (Pride history, icons, media), in-jokes, dating realities (smaller pool, apps, gaydar), chosen family importance. Readers want: authentic rep, happy/hopeful endings, diverse queer characters, satisfying romance, normalcy (not just trauma), community and found family."
+  },
+
   "Fanfiction": {
-    "authors": ["Rainbow Rowell", "Marissa Meyer", "Naomi Novik"],
-    "styles": [
-      "Write in Rainbow Rowell's fandom-aware style celebrating fan culture. Use meta-commentary, characters who love fictional worlds, and blend reality with fan passion.",
-      "Write in Marissa Meyer's fairy tale retelling style with familiar stories reimagined. Give classic characters new agency, blend genres, and surprise readers with fresh takes on old tales.",
-      "Write in Naomi Novik's transformative fanwork style that honors source material while telling new stories. Focus on character relationships, fix-it narratives, and exploring what-if scenarios."
-    ],
-    "used": [0, 0, 0]
+    "focus": "Playing in established universe with beloved characters. Respect canon (know source deeply, accurate voices, world rules) but diverge freely (AU, what-if, fix-it). Readers know characters - dig deeper, explore undeveloped relationships, give new challenges. Types: Canon divergence (what if X didn't happen? explore butterfly effects), AU (same characters, different world - high school AU, coffee shop AU, fantasy AU), missing scenes (fill canon gaps, between episodes), post-canon (continue after ending, where are they now), pre-canon (backstory, how they met), crossover (different fandoms meet), shipping (romance - develop canon ships or explore non-canon), fix-it (undo deaths, bad endings, save relationships), whump (hurt/comfort, character injured/traumatized then cared for). Character dynamics: use established relationships (friends, rivals, family), develop unexplored potential (barely interacted in canon, enemies to allies, friends to more), stay true to voices (how they talk, consistent reactions), explore deeper psychology. Include: canon callbacks (references fans recognize), inside jokes, favorite character moments, addressing 'what fans wanted'. Common tropes: enemies to lovers, fake dating, forced proximity (one bed, road trip), mutual pining (both want each other, think it's unrequited), hurt/comfort (one injured, other cares), domestic fluff (established couple daily life). Readers want: more of what they love, closure canon didn't provide, characters together in ways canon didn't deliver, familiar yet fresh, 'yes this is exactly how they'd react', shipping satisfaction, fix wrongs from canon. Balance: familiar enough to recognize, surprising enough to engage. Use canon strengths: settings fans love, established dynamics, inside knowledge, character voices perfect."
   }
 }

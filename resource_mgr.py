@@ -1,24 +1,87 @@
 """
 资源管理模块 - 负责分配风格和人名
+支持并发安全的资源分配
 """
 import json
 import os
+import sys
 import re
+import threading
+import time
 from datetime import datetime
 
 
-STYLES_FILE = 'data/styles.json'
-NAMES_FILE = 'data/names.json'
-SUMMARY_FILE = 'data/summary.json'
+def get_resource_path(relative_path):
+    """获取资源文件的绝对路径（支持PyInstaller打包）
+
+    macOS .app 双击启动时，会将资源文件复制到用户应用支持目录
+
+    Args:
+        relative_path: 相对路径，如 'data/styles.json'
+
+    Returns:
+        绝对路径
+    """
+    # 检查是否是打包环境
+    if getattr(sys, 'frozen', False):
+        # 打包环境：使用应用支持目录存储可写文件
+        app_name = "OutlineGenerator"
+
+        # macOS应用支持目录
+        if sys.platform == 'darwin':
+            support_dir = os.path.expanduser(f'~/Library/Application Support/{app_name}')
+        elif sys.platform == 'win32':
+            support_dir = os.path.join(os.getenv('APPDATA'), app_name)
+        else:
+            support_dir = os.path.expanduser(f'~/.{app_name}')
+
+        # 用户数据文件路径
+        user_path = os.path.join(support_dir, relative_path)
+
+        # 如果用户文件已存在，直接使用
+        if os.path.exists(user_path):
+            return user_path
+
+        # 第一次运行，从打包资源复制
+        try:
+            bundled_path = os.path.join(sys._MEIPASS, relative_path)
+
+            if os.path.exists(bundled_path):
+                # 确保目标目录存在
+                os.makedirs(os.path.dirname(user_path), exist_ok=True)
+
+                # 复制到用户目录
+                import shutil
+                shutil.copy2(bundled_path, user_path)
+                print(f"✓ 已复制资源文件到应用支持目录: {relative_path}")
+                return user_path
+            else:
+                print(f"⚠️ 打包资源不存在: {bundled_path}")
+                return user_path
+        except Exception as e:
+            print(f"❌ 复制资源文件失败: {e}")
+            # 返回打包路径作为后备（只读）
+            return os.path.join(sys._MEIPASS, relative_path)
+
+    else:
+        # 开发环境：使用当前目录
+        return os.path.join(os.getcwd(), relative_path)
+
+
+STYLES_FILE = get_resource_path('data/styles.json')
+NAMES_FILE = get_resource_path('data/names_1.json')
+SUMMARY_FILE = get_resource_path('data/summary.json')
+LOCK_FILE = get_resource_path('data/.resource_lock')
 
 
 class ResourceManager:
-    """资源管理器"""
+    """资源管理器（并发安全）"""
 
     def __init__(self):
         self.styles = self.load_styles()
         self.names = self.load_names()
         self.summary = self.load_summary()
+        self._lock = threading.Lock()  # 内存锁
 
     def load_styles(self):
         """加载风格库"""
@@ -184,3 +247,76 @@ class ResourceManager:
     def get_available_genres(self):
         """获取所有可用的类型"""
         return list(self.styles.keys())
+
+    def select_names(self, male_count=10, female_count=10):
+        """从names_1.json中选择使用次数最少的人名（并发安全）
+
+        Args:
+            male_count: 需要的男性名字数量
+            female_count: 需要的女性名字数量
+
+        Returns:
+            包含选中人名的字典 {'male': [...], 'female': [...]}
+        """
+        with self._lock:
+            # 重新加载最新数据（防止其他进程修改）
+            self.names = self.load_names()
+
+            # 获取男性名字（按used排序）
+            male_names = sorted(self.names['male'], key=lambda x: x['used'])
+            selected_male = male_names[:male_count]
+
+            # 获取女性名字（按used排序）
+            female_names = sorted(self.names['female'], key=lambda x: x['used'])
+            selected_female = female_names[:female_count]
+
+            # 更新使用次数（标记为已预留）
+            for name in selected_male:
+                name['used'] += 1
+            for name in selected_female:
+                name['used'] += 1
+
+            # 立即保存更新（锁定这些人名）
+            self.save_names()
+
+            return {
+                'male': selected_male,
+                'female': selected_female
+            }
+
+    def format_names_for_prompt(self, selected_names):
+        """格式化人名列表为Prompt字符串
+
+        Args:
+            selected_names: select_names()的返回值
+
+        Returns:
+            格式化的字符串，例如 "Marcus Sterling, Alexander Cross, ..."
+        """
+        male_str = ", ".join([n['fullname'] for n in selected_names['male']])
+        female_str = ", ".join([n['fullname'] for n in selected_names['female']])
+
+        return {
+            'male_names': male_str,
+            'female_names': female_str
+        }
+
+    def select_style(self, genre):
+        """获取类型的focus说明（新版本不再选择作者风格）
+
+        Args:
+            genre: 类型名称，如 'Romance', 'Horror'
+
+        Returns:
+            包含 genre_focus 的字典
+            例如: {'genre_focus': 'Romantic chemistry drives everything...'}
+        """
+        if genre not in self.styles:
+            raise ValueError(f"类型 '{genre}' 不存在")
+
+        genre_data = self.styles[genre]
+
+        # 新版本直接返回focus字段
+        return {
+            'genre_focus': genre_data.get('focus', '')
+        }
