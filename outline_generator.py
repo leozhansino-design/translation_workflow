@@ -2462,16 +2462,34 @@ Max Tokens: {task.config['max_tokens']}
             cover_path = os.path.join(folder, 'cover.png')
             print(f"⬇️  下载图片到: {cover_path}")
 
-            # 修复Mac上的SSL证书验证问题
-            try:
-                # 创建SSL上下文，禁用证书验证
-                ssl_context = ssl._create_unverified_context()
-                urllib.request.urlretrieve(image_url, cover_path, context=ssl_context)
-            except TypeError:
-                # 旧版本Python不支持context参数，直接下载
-                urllib.request.urlretrieve(image_url, cover_path)
+            # 修复Mac上的SSL证书验证问题 - 使用urlopen而不是urlretrieve
+            ssl_context = ssl._create_unverified_context()
 
-            print(f"💾 封面已保存: {cover_path}")
+            try:
+                # 使用urlopen + SSL上下文下载
+                with urllib.request.urlopen(image_url, context=ssl_context) as response:
+                    image_data = response.read()
+
+                # 写入文件
+                with open(cover_path, 'wb') as f:
+                    f.write(image_data)
+
+                print(f"💾 封面已保存: {cover_path}")
+
+            except Exception as download_error:
+                print(f"❌ 下载失败: {download_error}")
+                # 尝试不使用SSL上下文（作为后备）
+                try:
+                    print(f"🔄 尝试不验证SSL...")
+                    import urllib.request
+                    req = urllib.request.Request(image_url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, context=ssl_context) as response:
+                        image_data = response.read()
+                    with open(cover_path, 'wb') as f:
+                        f.write(image_data)
+                    print(f"💾 封面已保存（使用后备方法）: {cover_path}")
+                except Exception as e2:
+                    raise Exception(f"图片下载失败: {e2}")
 
             # 可选：生成缩略图 (300x400)
             try:
