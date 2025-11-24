@@ -1,3 +1,5 @@
 openai>=1.0.0
 pyinstaller>=5.0.0
-tkinter
+pillow
+requests
+certifi
