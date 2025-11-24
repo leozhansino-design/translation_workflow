@@ -37,13 +37,21 @@ def clean_build_dirs():
     print("✓ 清理完成\n")
 
 
-def build():
-    """构建可执行文件"""
+def build(debug_mode=False):
+    """构建可执行文件
+
+    Args:
+        debug_mode: 如果为True，生成带控制台的版本用于调试
+    """
     system = platform.system()
 
     print(f"{'='*60}")
     print(f"  小说翻译工具 - 打包程序")
     print(f"  目标平台: {system}")
+    if debug_mode:
+        print(f"  模式: 调试模式 (带控制台)")
+    else:
+        print(f"  模式: 正式版本")
     print(f"{'='*60}\n")
 
     # 检查依赖
@@ -74,7 +82,20 @@ def build():
         'uuid',
         'datetime',
         'glob',
-        'shutil'
+        'shutil',
+        'traceback',
+        'time',
+        'urllib',
+        'urllib.request',
+        # 项目模块
+        'config',
+        'resource_mgr',
+        'prompt_manager',
+        'universal_api',
+        'utils',
+        'writer_worker',
+        'writer_worker_v2',
+        'outline_worker',
     ]
 
     # 数据文件（使用正确的分隔符）
@@ -107,18 +128,25 @@ def build():
         cmd = [
             sys.executable, '-m', 'PyInstaller',
             '--name', name,
-            '--onefile',
             '--clean',  # 清理临时文件
         ]
 
-        # Windows使用窗口模式，避免控制台弹出
-        if system == 'Windows':
-            cmd.append('--windowed')
-            cmd.append('--noconsole')
-        elif system == 'Darwin':  # Mac
-            cmd.append('--windowed')
-        else:  # Linux
-            cmd.append('--console')
+        # 调试模式：使用--onedir和--console查看错误
+        # 正式版本：使用--onefile和--windowed
+        if debug_mode:
+            cmd.append('--onedir')  # 调试时使用目录模式
+            cmd.append('--console')  # 显示控制台
+            print(f"  ⚠️  调试模式：生成文件夹结构，显示控制台")
+        else:
+            cmd.append('--onefile')  # 正式版打包成单文件
+            # Windows和Mac使用窗口模式，避免控制台弹出
+            if system == 'Windows':
+                cmd.append('--windowed')
+                cmd.append('--noconsole')
+            elif system == 'Darwin':  # Mac
+                cmd.append('--windowed')
+            else:  # Linux
+                cmd.append('--console')
 
         # 添加hidden imports
         for imp in hidden_imports:
@@ -191,8 +219,15 @@ def build():
 
 
 if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='打包小说翻译工具')
+    parser.add_argument('--debug', action='store_true',
+                        help='调试模式：生成带控制台的版本，用于查看错误信息')
+    args = parser.parse_args()
+
     try:
-        if not build():
+        if not build(debug_mode=args.debug):
             sys.exit(1)
     except KeyboardInterrupt:
         print("\n\n⚠️  构建已取消")

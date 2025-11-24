@@ -11,20 +11,32 @@ import time
 from datetime import datetime
 
 
-def get_resource_path(relative_path):
+def get_resource_path(relative_path, writable=False):
     """获取资源文件的绝对路径（支持PyInstaller打包）
 
-    macOS .app 双击启动时，会将资源文件复制到用户应用支持目录
+    macOS .app 双击启动时，对于可写文件会复制到用户应用支持目录
+    对于只读文件（如names_1.json），直接使用打包资源以提高启动速度
 
     Args:
         relative_path: 相对路径，如 'data/styles.json'
+        writable: 是否需要写入权限（True=复制到用户目录，False=直接使用打包资源）
 
     Returns:
         绝对路径
     """
     # 检查是否是打包环境
     if getattr(sys, 'frozen', False):
-        # 打包环境：使用应用支持目录存储可写文件
+        bundled_path = os.path.join(sys._MEIPASS, relative_path)
+
+        # 如果是只读资源（如names_1.json），直接使用打包资源以提高速度
+        if not writable:
+            if os.path.exists(bundled_path):
+                return bundled_path
+            else:
+                print(f"⚠️ 打包资源不存在: {bundled_path}")
+                return bundled_path
+
+        # 对于可写资源，使用应用支持目录
         app_name = "OutlineGenerator"
 
         # macOS应用支持目录
@@ -42,18 +54,22 @@ def get_resource_path(relative_path):
         if os.path.exists(user_path):
             return user_path
 
-        # 第一次运行，从打包资源复制
+        # 第一次运行，从打包资源复制（仅小文件）
         try:
-            bundled_path = os.path.join(sys._MEIPASS, relative_path)
-
             if os.path.exists(bundled_path):
+                # 检查文件大小，避免复制大文件导致启动延迟
+                file_size = os.path.getsize(bundled_path)
+                if file_size > 1024 * 1024:  # > 1MB
+                    print(f"⚠️  {relative_path} 较大 ({file_size/1024/1024:.1f}MB)，使用打包资源（只读）")
+                    return bundled_path
+
                 # 确保目标目录存在
                 os.makedirs(os.path.dirname(user_path), exist_ok=True)
 
                 # 复制到用户目录
                 import shutil
                 shutil.copy2(bundled_path, user_path)
-                print(f"✓ 已复制资源文件到应用支持目录: {relative_path}")
+                print(f"✓ 已复制资源文件: {relative_path}")
                 return user_path
             else:
                 print(f"⚠️ 打包资源不存在: {bundled_path}")
@@ -61,17 +77,20 @@ def get_resource_path(relative_path):
         except Exception as e:
             print(f"❌ 复制资源文件失败: {e}")
             # 返回打包路径作为后备（只读）
-            return os.path.join(sys._MEIPASS, relative_path)
+            return bundled_path
 
     else:
         # 开发环境：使用当前目录
         return os.path.join(os.getcwd(), relative_path)
 
 
-STYLES_FILE = get_resource_path('data/styles.json')
-NAMES_FILE = get_resource_path('data/names_1.json')
-SUMMARY_FILE = get_resource_path('data/summary.json')
-LOCK_FILE = get_resource_path('data/.resource_lock')
+# 资源文件路径
+# names_1.json很大(~100MB)，使用只读模式避免启动延迟
+# styles.json和summary.json需要写入，使用可写模式
+STYLES_FILE = get_resource_path('data/styles.json', writable=True)
+NAMES_FILE = get_resource_path('data/names_1.json', writable=False)  # 只读，避免复制大文件
+SUMMARY_FILE = get_resource_path('data/summary.json', writable=True)
+LOCK_FILE = get_resource_path('data/.resource_lock', writable=True)
 
 
 class ResourceManager:
