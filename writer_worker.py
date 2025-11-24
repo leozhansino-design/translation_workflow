@@ -37,7 +37,7 @@ class WriterWorker:
         self.prompt_mgr = PromptManager()
         self.client = None
         self.project_folder = None
-        self.progress_file = f'tasks/{task_id}/progress.json'
+        self.progress_file = os.path.join('tasks', task_id, 'progress.json')
 
         # 统计
         self.total_tokens = 0
@@ -225,7 +225,7 @@ class WriterWorker:
     def save_prompt_log(self, batch_start, batch_end, system_prompt, prompt_vars):
         """保存每个批次的Prompt日志"""
         # 创建prompts目录
-        prompts_dir = f'tasks/{self.task_id}/prompts'
+        prompts_dir = os.path.join('tasks', self.task_id, 'prompts')
         os.makedirs(prompts_dir, exist_ok=True)
 
         # 生成文件名

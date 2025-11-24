@@ -34,7 +34,7 @@ class OutlineWorker:
         self.resource_mgr = ResourceManager()
         self.prompt_mgr = PromptManager()
         self.client = None
-        self.progress_file = f'tasks/{task_id}/progress.json'
+        self.progress_file = os.path.join('tasks', task_id, 'progress.json')
 
     def update_progress(self, status, message=""):
         """更新进度文件"""
@@ -121,7 +121,7 @@ class OutlineWorker:
             system_prompt = self.prompt_mgr.render_outline_prompt(prompt_vars)
 
             # 保存Prompt到文件（用于调试）
-            prompt_file = f'tasks/{self.task_id}/prompt.txt'
+            prompt_file = os.path.join('tasks', self.task_id, 'prompt.txt')
             with open(prompt_file, 'w', encoding='utf-8') as f:
                 f.write(f"{'='*70}\n")
                 f.write(f"大纲生成 Prompt\n")
@@ -235,7 +235,7 @@ class OutlineWorker:
             except json.JSONDecodeError as e:
                 print(f"⚠️ JSON解析失败: {str(e)}")
                 # 保存原始响应
-                raw_file = f'tasks/{self.task_id}/raw_response.txt'
+                raw_file = os.path.join('tasks', self.task_id, 'raw_response.txt')
                 with open(raw_file, 'w', encoding='utf-8') as f:
                     f.write(result_text)
                 self.update_progress('failed', f'JSON解析失败，原始响应已保存到 {raw_file}')

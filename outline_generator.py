@@ -984,15 +984,13 @@ class OutlineGeneratorWithQueue:
             return
 
         try:
-            # 在系统默认查看器中打开图片
-            import platform
-            system = platform.system()
-            if system == 'Darwin':
-                os.system(f'open "{task.cover_path}"')
-            elif system == 'Windows':
-                os.system(f'start "" "{task.cover_path}"')
+            # 在系统默认查看器中打开图片 - 使用subprocess.Popen()更安全
+            if sys.platform == 'win32':
+                os.startfile(task.cover_path)
+            elif sys.platform == 'darwin':
+                subprocess.Popen(['open', task.cover_path])
             else:
-                os.system(f'xdg-open "{task.cover_path}"')
+                subprocess.Popen(['xdg-open', task.cover_path])
         except Exception as e:
             messagebox.showerror("错误", f"打开封面失败: {str(e)}")
 
@@ -2448,7 +2446,14 @@ Max Tokens: {task.config['max_tokens']}
             # 可选：生成缩略图 (300x400)
             try:
                 img = Image.open(cover_path)
-                img_resized = img.resize((300, 400), Image.Resampling.LANCZOS)
+                # 兼容新旧版本的Pillow (10.0+ vs <10.0)
+                try:
+                    # Pillow 10.0+ 使用 Image.Resampling.LANCZOS
+                    resample_filter = Image.Resampling.LANCZOS
+                except AttributeError:
+                    # 旧版本 Pillow 使用 Image.LANCZOS
+                    resample_filter = Image.LANCZOS
+                img_resized = img.resize((300, 400), resample_filter)
                 thumbnail_path = os.path.join(folder, 'cover_300x400.jpg')
                 img_resized.save(thumbnail_path, quality=95)
                 print(f"📐 缩略图已保存: {thumbnail_path}")

@@ -135,7 +135,7 @@ class WriterWorkerV2:
         # 初始化
         self.project_folder = None
         self.outline_file = None
-        self.progress_file = f'tasks/{task_id}/progress.json'
+        self.progress_file = os.path.join('tasks', task_id, 'progress.json')
         self.prompt_mgr = PromptManager()  # Prompt管理器
 
         # 统计
