@@ -87,6 +87,8 @@ def build(debug_mode=False):
         'time',
         'urllib',
         'urllib.request',
+        'ssl',
+        'certifi',
         # 项目模块
         'config',
         'resource_mgr',

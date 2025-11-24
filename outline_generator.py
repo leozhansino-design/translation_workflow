@@ -14,6 +14,13 @@ import uuid
 from datetime import datetime
 from openai import OpenAI
 
+# 修复Mac上的SSL证书验证问题 - 全局设置
+import ssl
+try:
+    ssl._create_default_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+
 from config import config
 from resource_mgr import ResourceManager
 from prompt_manager import PromptManager
