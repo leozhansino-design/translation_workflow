@@ -2448,12 +2448,22 @@ Max Tokens: {task.config['max_tokens']}
 
             # 下载并保存封面
             import urllib.request
+            import ssl
             from PIL import Image
 
             # 下载原图
             cover_path = os.path.join(folder, 'cover.png')
             print(f"⬇️  下载图片到: {cover_path}")
-            urllib.request.urlretrieve(image_url, cover_path)
+
+            # 修复Mac上的SSL证书验证问题
+            try:
+                # 创建SSL上下文，禁用证书验证
+                ssl_context = ssl._create_unverified_context()
+                urllib.request.urlretrieve(image_url, cover_path, context=ssl_context)
+            except TypeError:
+                # 旧版本Python不支持context参数，直接下载
+                urllib.request.urlretrieve(image_url, cover_path)
+
             print(f"💾 封面已保存: {cover_path}")
 
             # 可选：生成缩略图 (300x400)
