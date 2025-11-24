@@ -64,12 +64,17 @@ def build():
         'openai',
         'openai.types',
         'openai.types.chat',
+        'PIL',
+        'PIL.Image',
+        'PIL._tkinter_finder',
         'json',
         're',
         'threading',
         'subprocess',
         'uuid',
-        'datetime'
+        'datetime',
+        'glob',
+        'shutil'
     ]
 
     # 数据文件（使用正确的分隔符）
@@ -78,6 +83,10 @@ def build():
         ('data/styles.json', 'data'),
         ('data/names_1.json', 'data'),
     ]
+
+    # 检查并添加summary.json（如果存在）
+    if os.path.exists('data/summary.json'):
+        data_files.append(('data/summary.json', 'data'))
 
     # 主程序入口
     entry_points = [
@@ -122,6 +131,9 @@ def build():
 
         # 添加其他必需的模块
         cmd.extend(['--collect-all', 'openai'])
+
+        # 添加PIL/Pillow支持
+        cmd.extend(['--collect-submodules', 'PIL'])
 
         # 修复Tkinter打包问题 - 收集Tcl/Tk数据文件
         if system == 'Windows':

@@ -496,6 +496,10 @@ class OutlineGeneratorWithQueue:
 
         if file_path:
             try:
+                # 规范化路径 - 确保在Mac/Windows上都正确
+                file_path = os.path.abspath(os.path.normpath(file_path))
+                print(f"🔍 选择的文件: {file_path}")
+
                 # 提取类型
                 genre = extract_genre_from_filename(file_path)
 
@@ -571,6 +575,10 @@ class OutlineGeneratorWithQueue:
             return
 
         try:
+            # 规范化路径 - 确保在Mac/Windows上都正确
+            file_path = os.path.abspath(os.path.normpath(file_path))
+            print(f"🔍 导入的文件: {file_path}")
+
             # 从文件名提取书名和类型
             filename = os.path.basename(file_path)
             match = re.match(r'(.+?)_([A-Za-z+\-]+)\.txt$', filename)
@@ -2219,8 +2227,13 @@ Max Tokens: {task.config['max_tokens']}
 
     def add_cover_folder(self):
         """添加outline文件夹"""
-        folder = filedialog.askdirectory(title="选择Outline文件夹", initialdir="novels_for_translation")
+        # 设置初始目录 - 如果不存在则使用当前目录
+        initial_dir = os.path.abspath("novels_for_translation") if os.path.exists("novels_for_translation") else os.getcwd()
+
+        folder = filedialog.askdirectory(title="选择Outline文件夹", initialdir=initial_dir)
         if folder:
+            # 规范化路径 - 重要！确保路径在Mac/Windows上都正确
+            folder = os.path.abspath(os.path.normpath(folder))
             print(f"🔍 选择的文件夹: {folder}")
 
             # 验证文件夹包含必要文件（_full_outline.txt 或 _writing_prompt.txt）

@@ -552,10 +552,20 @@ class WritingToolWindow:
 
     def select_outline_folder(self):
         """选择大纲文件夹 - 自动检测章节数"""
-        folder = filedialog.askdirectory(title="选择大纲文件夹", initialdir="novels_for_translation")
+        # 设置初始目录 - 如果不存在则使用当前目录
+        initial_dir = os.path.abspath("novels_for_translation") if os.path.exists("novels_for_translation") else os.getcwd()
+
+        folder = filedialog.askdirectory(title="选择大纲文件夹", initialdir=initial_dir)
         if folder:
+            # 规范化路径 - 重要！确保路径在Mac/Windows上都正确
+            folder = os.path.abspath(os.path.normpath(folder))
+            print(f"🔍 选择的文件夹: {folder}")
+
             # 验证文件夹包含_writing_prompt.txt
-            if not os.path.exists(os.path.join(folder, '_writing_prompt.txt')):
+            writing_prompt_path = os.path.join(folder, '_writing_prompt.txt')
+            print(f"🔍 检查文件: {writing_prompt_path}")
+
+            if not os.path.exists(writing_prompt_path):
                 messagebox.showwarning("警告", "所选文件夹不包含 _writing_prompt.txt 文件")
                 return
 
