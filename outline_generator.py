@@ -116,6 +116,11 @@ class OutlineGeneratorWithQueue:
         self.cover_tasks = []  # 封面任务列表
         self.cover_task_frames = {}  # cover_task_id -> frame widget
 
+        # 分页设置
+        self.outline_current_page = 0  # 大纲当前页
+        self.cover_current_page = 0  # 封面当前页
+        self.tasks_per_page = 8  # 每页任务数
+
         # 当前配置
         self.current_source_file = None
         self.current_genre = None
@@ -430,6 +435,15 @@ class OutlineGeneratorWithQueue:
             font=("Arial", 8)
         ).pack(side=tk.RIGHT, padx=5, pady=5)
 
+        # 大纲分页控制
+        outline_pagination = tk.Frame(outline_column, bg="#e0e0e0")
+        outline_pagination.pack(fill=tk.X, padx=2, pady=2)
+
+        tk.Button(outline_pagination, text="◀", command=self.outline_previous_page, width=3).pack(side=tk.LEFT, padx=2)
+        self.outline_page_label = tk.Label(outline_pagination, text="1/1 页", bg="#e0e0e0", font=("Arial", 8))
+        self.outline_page_label.pack(side=tk.LEFT, padx=10, expand=True)
+        tk.Button(outline_pagination, text="▶", command=self.outline_next_page, width=3).pack(side=tk.RIGHT, padx=2)
+
         # 左列滚动区域
         outline_canvas = tk.Canvas(outline_column, bg="white")
         outline_scrollbar = ttk.Scrollbar(outline_column, orient="vertical", command=outline_canvas.yview)
@@ -493,6 +507,15 @@ class OutlineGeneratorWithQueue:
             width=10,
             font=("Arial", 8)
         ).pack(side=tk.RIGHT, padx=5, pady=5)
+
+        # 封面分页控制
+        cover_pagination = tk.Frame(cover_column, bg="#e0e0e0")
+        cover_pagination.pack(fill=tk.X, padx=2, pady=2)
+
+        tk.Button(cover_pagination, text="◀", command=self.cover_previous_page, width=3).pack(side=tk.LEFT, padx=2)
+        self.cover_page_label = tk.Label(cover_pagination, text="1/1 页", bg="#e0e0e0", font=("Arial", 8))
+        self.cover_page_label.pack(side=tk.LEFT, padx=10, expand=True)
+        tk.Button(cover_pagination, text="▶", command=self.cover_next_page, width=3).pack(side=tk.RIGHT, padx=2)
 
         # 右列滚动区域
         cover_canvas = tk.Canvas(cover_column, bg="white")
@@ -2681,6 +2704,99 @@ Max Tokens: {task.config['max_tokens']}
                 return (False, f"图片处理失败: {error_msg}")
             else:
                 return (False, error_msg)
+
+    def refresh_outline_tasks_display(self):
+        """刷新大纲任务显示 - 支持分页"""
+        # 清空当前显示
+        for task_id, frame in list(self.task_frames.items()):
+            frame.destroy()
+        self.task_frames.clear()
+
+        if not self.tasks:
+            self.empty_label.pack()
+            self._update_outline_pagination_label()
+            return
+
+        # 计算分页
+        total_tasks = len(self.tasks)
+        total_pages = (total_tasks + self.tasks_per_page - 1) // self.tasks_per_page
+
+        if self.outline_current_page >= total_pages:
+            self.outline_current_page = max(0, total_pages - 1)
+
+        start_idx = self.outline_current_page * self.tasks_per_page
+        end_idx = min(start_idx + self.tasks_per_page, total_tasks)
+
+        # 只显示当前页的任务
+        for i in range(start_idx, end_idx):
+            task = self.tasks[i]
+            self.add_task_to_ui(task)
+
+        self._update_outline_pagination_label()
+
+    def outline_previous_page(self):
+        if self.outline_current_page > 0:
+            self.outline_current_page -= 1
+            self.refresh_outline_tasks_display()
+
+    def outline_next_page(self):
+        total_pages = (len(self.tasks) + self.tasks_per_page - 1) // self.tasks_per_page
+        if self.outline_current_page < total_pages - 1:
+            self.outline_current_page += 1
+            self.refresh_outline_tasks_display()
+
+    def _update_outline_pagination_label(self):
+        total = len(self.tasks)
+        if total == 0:
+            self.outline_page_label.config(text="1/1 页")
+            return
+        pages = (total + self.tasks_per_page - 1) // self.tasks_per_page
+        self.outline_page_label.config(text=f"{self.outline_current_page + 1}/{pages} 页 ({total}个)")
+
+    def refresh_cover_tasks_display(self):
+        """刷新封面任务显示 - 支持分页"""
+        for task_id, frame in list(self.cover_task_frames.items()):
+            frame.destroy()
+        self.cover_task_frames.clear()
+
+        if not self.cover_tasks:
+            self.cover_empty_label.pack()
+            self._update_cover_pagination_label()
+            return
+
+        total_tasks = len(self.cover_tasks)
+        total_pages = (total_tasks + self.tasks_per_page - 1) // self.tasks_per_page
+
+        if self.cover_current_page >= total_pages:
+            self.cover_current_page = max(0, total_pages - 1)
+
+        start_idx = self.cover_current_page * self.tasks_per_page
+        end_idx = min(start_idx + self.tasks_per_page, total_tasks)
+
+        for i in range(start_idx, end_idx):
+            task = self.cover_tasks[i]
+            self.add_cover_task_to_ui(task)
+
+        self._update_cover_pagination_label()
+
+    def cover_previous_page(self):
+        if self.cover_current_page > 0:
+            self.cover_current_page -= 1
+            self.refresh_cover_tasks_display()
+
+    def cover_next_page(self):
+        total_pages = (len(self.cover_tasks) + self.tasks_per_page - 1) // self.tasks_per_page
+        if self.cover_current_page < total_pages - 1:
+            self.cover_current_page += 1
+            self.refresh_cover_tasks_display()
+
+    def _update_cover_pagination_label(self):
+        total = len(self.cover_tasks)
+        if total == 0:
+            self.cover_page_label.config(text="1/1 页")
+            return
+        pages = (total + self.tasks_per_page - 1) // self.tasks_per_page
+        self.cover_page_label.config(text=f"{self.cover_current_page + 1}/{pages} 页 ({total}个)")
 
     def run(self):
         """运行应用"""
