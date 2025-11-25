@@ -652,7 +652,10 @@ class OutlineGeneratorWithQueue:
         from utils import extract_genre_from_filename, validate_genre
 
         txt_files = glob.glob(os.path.join(folder, "*.txt"))
+        print(f"  扫描到 {len(txt_files)} 个 .txt 文件")
+
         valid_files = []
+        skipped_files = []
 
         for file_path in txt_files:
             try:
@@ -670,15 +673,32 @@ class OutlineGeneratorWithQueue:
 
             except ValueError as e:
                 print(f"  ⚠️  跳过: {os.path.basename(file_path)} - {e}")
+                skipped_files.append(f"{os.path.basename(file_path)}: {str(e)}")
 
         print(f"\n扫描完成: 找到 {len(valid_files)} 个有效文件")
 
         if not valid_files:
+            # 显示详细的错误信息
+            if skipped_files:
+                error_details = "\n".join(skipped_files[:5])  # 只显示前5个
+                if len(skipped_files) > 5:
+                    error_details += f"\n... 还有 {len(skipped_files) - 5} 个文件"
+                messagebox.showwarning(
+                    "未找到有效文件",
+                    f"扫描了 {len(txt_files)} 个文件，都被跳过了\n\n"
+                    f"跳过的文件:\n{error_details}\n\n"
+                    f"文件格式要求: [书名]_[类型].txt\n"
+                    f"可用类型: {', '.join(self.resource_mgr.get_available_genres()[:8])}..."
+                )
+            else:
+                messagebox.showwarning("未找到文件", f"文件夹中没有找到 .txt 文件")
             self.file_label.config(text="❌ 未找到有效文件", fg="red")
             return
 
         # 为每个文件创建任务，随机分配章节数
         added_count = 0
+        failed_tasks = []
+
         for file_info in valid_files:
             try:
                 # 随机选择章节数
@@ -703,16 +723,43 @@ class OutlineGeneratorWithQueue:
                 print(f"  ✅ 已添加: {file_info['name']} (要求 {chapter_count} 章)")
 
             except Exception as e:
-                print(f"  ❌ 添加失败: {file_info['name']}, 错误: {e}")
+                error_msg = f"{file_info['name']}: {str(e)}"
+                print(f"  ❌ 添加失败: {error_msg}")
+                failed_tasks.append(error_msg)
 
         # 刷新显示
         self.refresh_outline_tasks_display()
 
         print(f"\n✅ 批量添加完成: 成功添加 {added_count}/{len(valid_files)} 个任务")
-        self.file_label.config(
-            text=f"✅ 已批量添加 {added_count} 个任务 (章节范围 {min_chapters}-{max_chapters})",
-            fg="green"
-        )
+
+        # 显示结果摘要
+        if added_count > 0:
+            self.file_label.config(
+                text=f"✅ 已批量添加 {added_count} 个任务 (章节范围 {min_chapters}-{max_chapters})",
+                fg="green"
+            )
+            if failed_tasks:
+                # 有成功也有失败，显示警告
+                error_details = "\n".join(failed_tasks[:3])
+                if len(failed_tasks) > 3:
+                    error_details += f"\n... 还有 {len(failed_tasks) - 3} 个失败"
+                messagebox.showwarning(
+                    "部分添加成功",
+                    f"成功添加: {added_count} 个任务\n"
+                    f"添加失败: {len(failed_tasks)} 个任务\n\n"
+                    f"失败详情:\n{error_details}"
+                )
+        else:
+            # 全部失败
+            self.file_label.config(text="❌ 添加任务失败", fg="red")
+            error_details = "\n".join(failed_tasks[:5])
+            if len(failed_tasks) > 5:
+                error_details += f"\n... 还有 {len(failed_tasks) - 5} 个失败"
+            messagebox.showerror(
+                "添加任务失败",
+                f"找到 {len(valid_files)} 个有效文件，但创建任务全部失败\n\n"
+                f"失败详情:\n{error_details}"
+            )
 
     def add_to_queue(self):
         """添加任务到队列"""
