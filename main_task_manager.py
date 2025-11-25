@@ -178,6 +178,7 @@ class WritingToolWindow:
         self.outline_folder_var = tk.StringVar(value="未选择")
         tk.Label(folder_frame, textvariable=self.outline_folder_var, fg="gray").pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
         tk.Button(folder_frame, text="📂 选择", command=self.select_outline_folder, width=10).pack(side=tk.RIGHT, padx=5)
+        tk.Button(folder_frame, text="📁 批量", command=self.select_outline_folder_batch, width=10, bg="#4CAF50", fg="white").pack(side=tk.RIGHT, padx=5)
 
         # 章节范围和批次
         range_frame = tk.Frame(add_task_frame)
@@ -566,7 +567,8 @@ class WritingToolWindow:
             print(f"🔍 检查文件: {writing_prompt_path}")
 
             if not os.path.exists(writing_prompt_path):
-                messagebox.showwarning("警告", "所选文件夹不包含 _writing_prompt.txt 文件")
+                print(f"⚠️  警告: 所选文件夹不包含 _writing_prompt.txt 文件")
+                self.outline_folder_var.set("❌ 无效文件夹")
                 return
 
             # 自动检测章节数（扫描chapter_*_prompt.txt文件）
@@ -594,32 +596,120 @@ class WritingToolWindow:
                     self.end_chapter_var.set(max_chapter)
 
                     print(f"✅ 自动检测到 {total_chapters} 个章节 (1-{max_chapter})")
-                    messagebox.showinfo(
-                        "章节自动检测",
-                        f"检测到 {total_chapters} 个章节大纲\n\n"
-                        f"已自动设置:\n"
-                        f"  起始章节: 1\n"
-                        f"  结束章节: {max_chapter}\n\n"
-                        f"可以在下方修改后再添加任务"
-                    )
+                    self.outline_folder_var.set(f"{os.path.basename(folder)} ({total_chapters}章)")
                 else:
-                    messagebox.showwarning("警告", "未找到有效的章节大纲文件")
+                    print(f"⚠️  警告: 未找到有效的章节大纲文件")
+                    self.outline_folder_var.set("❌ 无章节文件")
                     return
             else:
-                messagebox.showwarning("警告", "文件夹中没有chapter_*_prompt.txt文件")
+                print(f"⚠️  警告: 文件夹中没有chapter_*_prompt.txt文件")
+                self.outline_folder_var.set("❌ 无章节文件")
                 return
 
-            self.outline_folder_var.set(os.path.basename(folder))
             self.selected_outline_folder = folder
+
+    def select_outline_folder_batch(self):
+        """批量选择大纲文件夹 - 扫描父文件夹下所有子文件夹并自动添加任务"""
+        # 设置初始目录
+        initial_dir = os.path.abspath("novels_for_translation") if os.path.exists("novels_for_translation") else os.getcwd()
+
+        parent_folder = filedialog.askdirectory(
+            title="选择父文件夹（将自动扫描所有子文件夹并添加任务）",
+            initialdir=initial_dir
+        )
+
+        if not parent_folder:
+            return
+
+        if not self.api_key_var.get():
+            print("⚠️  警告: 请先输入API Key")
+            return
+
+        # 规范化路径
+        parent_folder = os.path.abspath(os.path.normpath(parent_folder))
+        print(f"\n📁 批量扫描文件夹: {parent_folder}")
+
+        # 扫描所有子文件夹
+        valid_folders = []
+        total_scanned = 0
+
+        for root, dirs, files in os.walk(parent_folder):
+            total_scanned += 1
+
+            # 检查是否包含_writing_prompt.txt
+            if '_writing_prompt.txt' in files:
+                # 检查是否有章节文件
+                import glob
+                chapter_files = glob.glob(os.path.join(root, 'chapter_*_prompt.txt'))
+
+                if chapter_files:
+                    folder_path = os.path.abspath(os.path.normpath(root))
+
+                    # 提取章节信息
+                    chapter_nums = []
+                    for file in chapter_files:
+                        filename = os.path.basename(file)
+                        try:
+                            num = int(filename.split('_')[1])
+                            chapter_nums.append(num)
+                        except (IndexError, ValueError):
+                            continue
+
+                    if chapter_nums:
+                        max_chapter = max(chapter_nums)
+                        total_chapters = len(chapter_nums)
+
+                        valid_folders.append({
+                            'path': folder_path,
+                            'name': os.path.basename(folder_path),
+                            'chapters': total_chapters,
+                            'max_chapter': max_chapter
+                        })
+                        print(f"  ✅ 找到: {os.path.basename(folder_path)} ({total_chapters}章)")
+
+        print(f"\n扫描完成: 共扫描 {total_scanned} 个文件夹，找到 {len(valid_folders)} 个有效的大纲文件夹")
+
+        if valid_folders:
+            # 自动添加所有任务
+            added_count = 0
+            for folder_info in valid_folders:
+                try:
+                    # 构建配置
+                    config = {
+                        'api_key': self.api_key_var.get(),
+                        'base_url': self.base_url_var.get(),
+                        'model': self.model_var.get(),
+                        'start_chapter': 1,
+                        'end_chapter': folder_info['max_chapter'],
+                        'batch_size': self.batch_size_var.get(),
+                    }
+
+                    # 创建任务
+                    task = WritingTask(folder_info['path'], config)
+                    self.tasks.append(task)
+                    added_count += 1
+                    print(f"  ✅ 已添加任务: {task.title} (1-{folder_info['max_chapter']}章)")
+                except Exception as e:
+                    print(f"  ❌ 添加失败: {folder_info['name']}, 错误: {e}")
+
+            # 刷新界面
+            self.refresh_task_list()
+
+            print(f"\n✅ 批量添加完成: 成功添加 {added_count}/{len(valid_folders)} 个任务")
+            self.outline_folder_var.set(f"✅ 已添加 {added_count} 个任务")
+        else:
+            print(f"⚠️  未找到有效文件夹")
+            self.outline_folder_var.set("❌ 未找到有效文件夹")
 
     def add_task(self):
         """添加任务到队列"""
         if not hasattr(self, 'selected_outline_folder'):
-            messagebox.showwarning("警告", "请先选择大纲文件夹")
+            print("⚠️  警告: 请先选择大纲文件夹")
+            self.outline_folder_var.set("❌ 请先选择文件夹")
             return
 
         if not self.api_key_var.get():
-            messagebox.showwarning("警告", "请输入API Key")
+            print("⚠️  警告: 请输入API Key")
             return
 
         # 构建配置
@@ -643,7 +733,7 @@ class WritingToolWindow:
         # 刷新界面
         self.refresh_task_list()
 
-        messagebox.showinfo("成功", f"任务已添加：{task.title}")
+        print(f"✅ 任务已添加：{task.title}")
 
     def refresh_task_list(self):
         """刷新任务列表"""
@@ -974,10 +1064,8 @@ Now write Chapter {next_chapter} based on the outline above."""
 
         # 如果是completed或failed状态，询问是否重新开始
         if task.status in ['completed', 'failed']:
-            print(f"  ⚠️ 任务状态为 {task.status}，弹出确认对话框")
-            if not messagebox.askyesno("确认", f"任务状态: {task.status}，是否重新开始？"):
-                print("  ❌ 用户取消重新开始")
-                return
+            print(f"  ⚠️ 任务状态为 {task.status}，重新开始")
+            # 直接重新开始，不再弹出确认对话框
             # 重置状态
             print("  ✅ 用户确认，重置任务状态")
             task.progress = 0
@@ -1057,7 +1145,7 @@ Now write Chapter {next_chapter} based on the outline above."""
         # 启动进度监控（每2秒更新一次UI）
         self._start_progress_monitoring(task)
 
-        messagebox.showinfo("成功", f"任务已启动：{task.title}\n\n所有任务都在此窗口中显示\n可以同时添加多个任务")
+        print(f"✅ 任务已启动：{task.title}")
         self.refresh_task_list()
 
     def _start_progress_monitoring(self, task):
@@ -1095,12 +1183,12 @@ Now write Chapter {next_chapter} based on the outline above."""
 
     def restart_task(self, task):
         """重新生成（从头开始）"""
-        if messagebox.askyesno("确认", "确定要从头重新生成吗？\n已生成的章节将被覆盖"):
-            task.current_chapter = 0
-            task.progress = 0
-            task.cost = 0.0
-            task.status = 'pending'
-            self.refresh_task_list()
+        print(f"🔄 重新生成任务: {task.title}")
+        task.current_chapter = 0
+        task.progress = 0
+        task.cost = 0.0
+        task.status = 'pending'
+        self.refresh_task_list()
 
     def open_folder(self, task):
         """打开文件夹"""
@@ -1122,9 +1210,9 @@ Now write Chapter {next_chapter} based on the outline above."""
 
     def delete_task(self, index):
         """删除任务"""
-        if messagebox.askyesno("确认", "确定要删除这个任务吗？\n注意：不会删除已生成的文件"):
-            del self.tasks[index]
-            self.refresh_task_list()
+        print(f"🗑️ 删除任务 #{index + 1}")
+        del self.tasks[index]
+        self.refresh_task_list()
 
     def run(self):
         """运行应用"""
