@@ -1324,12 +1324,31 @@ Now write Chapter {next_chapter} based on the outline above."""
         pass
 
     def restart_task(self, task):
-        """重新生成（从头开始）"""
-        print(f"🔄 重新生成任务: {task.title}")
+        """重启任务（清除状态和进度，相当于重新开始）"""
+        print(f"🔄 重启任务: {task.title}")
+
+        # 清理进度文件
+        if hasattr(task, 'task_id') and task.task_id:
+            progress_file = f"tasks/{task.task_id}/progress.json"
+            if os.path.exists(progress_file):
+                try:
+                    os.remove(progress_file)
+                    print(f"  🗑️ 已删除进度文件: {progress_file}")
+                except Exception as e:
+                    print(f"  ⚠️ 删除进度文件失败: {e}")
+
+            # 清理task_id
+            delattr(task, 'task_id')
+
+        # 重置任务状态
         task.current_chapter = 0
         task.progress = 0
         task.cost = 0.0
         task.status = 'pending'
+        task.started_at = None
+        task.worker_thread = None
+
+        print(f"  ✅ 任务已重置为初始状态")
         self.refresh_task_list()
 
     def open_folder(self, task):

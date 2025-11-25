@@ -959,6 +959,15 @@ class OutlineGeneratorWithQueue:
         start_btn.pack(side=tk.LEFT, padx=2)
         task_container.start_btn = start_btn  # 保存引用
 
+        # 重启按钮
+        tk.Button(
+            button_frame,
+            text="🔄 重启",
+            command=lambda: self.restart_outline_task(task),
+            width=8,
+            font=("Arial", 8)
+        ).pack(side=tk.LEFT, padx=2)
+
         # 打开文件夹按钮
         folder_btn = tk.Button(
             button_frame,
@@ -1073,6 +1082,15 @@ class OutlineGeneratorWithQueue:
         )
         start_btn.pack(side=tk.LEFT, padx=2)
         task_container.start_btn = start_btn  # 保存引用
+
+        # 重启按钮
+        tk.Button(
+            button_frame,
+            text="🔄 重启",
+            command=lambda: self.restart_cover_task(task),
+            width=8,
+            font=("Arial", 8)
+        ).pack(side=tk.LEFT, padx=2)
 
         # 查看封面按钮
         view_btn = tk.Button(
@@ -1239,6 +1257,31 @@ class OutlineGeneratorWithQueue:
                 self.window.after(0, update_ui_error)
 
         threading.Thread(target=generate_thread, daemon=True).start()
+
+    def restart_cover_task(self, task):
+        """重启封面任务（清除状态和输出，相当于重新开始）"""
+        print(f"🔄 重启封面任务: {task.title}")
+
+        # 重置任务状态
+        task.status = 'pending'
+        task.started_at = None
+        task.completed_at = None
+        task.cover_path = None
+
+        # 更新UI（如果框架存在）
+        if task.task_id in self.cover_task_frames:
+            container = self.cover_task_frames[task.task_id]
+            if hasattr(container, 'status_label'):
+                container.status_label.config(text="⏸ pending", fg="orange")
+            if hasattr(container, 'start_btn'):
+                container.start_btn.config(text="▶️ 开始", state=tk.NORMAL)
+            if hasattr(container, 'view_btn'):
+                container.view_btn.config(state=tk.DISABLED)
+            if hasattr(container, 'details_label'):
+                details_text = f"类型: {task.genre}  |  模型: {task.config.get('model', 'dall-e-3')}"
+                container.details_label.config(text=details_text)
+
+        print(f"  ✅ 任务已重置为初始状态")
 
     def view_cover(self, task):
         """查看生成的封面"""
@@ -1732,6 +1775,28 @@ Max Tokens: {task.config['max_tokens']}
                 data['chapters'].append(chapter_data)
 
         return data
+
+    def restart_outline_task(self, task):
+        """重启大纲任务（清除状态和输出，相当于重新开始）"""
+        print(f"🔄 重启大纲任务: {os.path.basename(task.source_file)}")
+
+        # 重置任务状态
+        task.status = 'pending'
+        task.started_at = None
+        task.completed_at = None
+        task.output_folder = None
+
+        # 更新UI（如果框架存在）
+        if task.task_id in self.task_frames:
+            frame = self.task_frames[task.task_id]
+            frame.status_label.config(text="⏸ pending", fg="orange")
+            frame.start_btn.config(text="▶️ 开始", state=tk.NORMAL)
+            frame.folder_btn.config(state=tk.DISABLED)
+            frame.details_label.config(
+                text=f"类型: {task.genre}  |  模型: {task.config['model']}"
+            )
+
+        print(f"  ✅ 任务已重置为初始状态")
 
     def _on_task_completed(self, task):
         """任务完成回调"""
