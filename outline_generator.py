@@ -588,14 +588,21 @@ class OutlineGeneratorWithQueue:
 
             # 从文件名提取书名和类型
             filename = os.path.basename(file_path)
-            match = re.match(r'(.+?)_([A-Za-z+\-]+)\.txt$', filename)
 
-            if not match:
-                messagebox.showerror("错误", "文件名格式不正确！\n正确格式：书名_类型.txt\n例如：MyBook_Romance.txt")
+            # 使用统一的类型提取函数（自动处理大小写）
+            try:
+                genre = extract_genre_from_filename(file_path)
+            except ValueError as e:
+                messagebox.showerror("错误", str(e))
                 return
 
-            book_title = match.group(1)
-            genre = match.group(2)
+            # 提取书名
+            match = re.match(r'(.+?)_([A-Za-z+\-]+)\.txt$', filename)
+            if match:
+                book_title = match.group(1)
+            else:
+                # 如果正则失败，使用文件名去掉扩展名和类型
+                book_title = filename.replace(f'_{genre}.txt', '').replace(f'_{genre.lower()}.txt', '').replace(f'_{genre.upper()}.txt', '')
 
             # 验证类型
             available_genres = self.resource_mgr.get_available_genres()
