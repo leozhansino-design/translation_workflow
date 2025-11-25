@@ -312,17 +312,6 @@ class OutlineGeneratorWithQueue:
             width=12
         ).grid(row=3, column=1, sticky=tk.W, pady=5, padx=5)
 
-        tk.Label(task_frame, text="要求字数:").grid(row=3, column=2, sticky=tk.W, pady=5, padx=(20, 5))
-        self.char_count_var = tk.IntVar(value=2000)
-        tk.Spinbox(
-            task_frame,
-            from_=1000,
-            to=5000,
-            increment=100,
-            textvariable=self.char_count_var,
-            width=8
-        ).grid(row=3, column=3, sticky=tk.W, pady=5, padx=5)
-
         # 第四行：添加到队列按钮
         button_frame = tk.Frame(task_frame)
         button_frame.grid(row=4, column=0, columnspan=4, pady=10)
@@ -1828,10 +1817,11 @@ Max Tokens: {task.config['max_tokens']}
         print(f"🗑️ 清空 {len(self.cover_tasks)} 个封面任务")
         for task in self.cover_tasks[:]:
             if task['task_id'] in self.cover_task_frames:
-                    self.cover_task_frames[task['task_id']].destroy()
-                    del self.cover_task_frames[task['task_id']]
-            self.cover_tasks.clear()
-            self.cover_empty_label.pack()
+                self.cover_task_frames[task['task_id']].destroy()
+                del self.cover_task_frames[task['task_id']]
+
+        self.cover_tasks.clear()
+        self.cover_empty_label.pack()
 
     def test_api_connection(self):
         """测试API连接 - 使用UniversalAPIClient（兼容Gemini和GPT）"""

@@ -79,7 +79,9 @@ DEFAULT_OUTLINE_PROMPT = """你是一个英语母语网文创作者，将附件�
 
 4. **语言风格**：地道英语口语，避免中式英语
 
-5. **Chapter Title Rules** 🎯:
+5. **章节字数目标**：每章7000-10000字符
+
+6. **Chapter Title Rules** 🎯:
    - NO "The [Noun]" or abstract nouns alone
    - Mix 6 formats:
      (1) Objects: "Broken Phone"
@@ -198,7 +200,7 @@ Make every chapter impossible to put down. Readers should NEED to click "next ch
 
 【REQUIREMENTS】
 - English only
-- 10,000+ characters per chapter
+- 7,000-10,000 characters per chapter
 - Western settings (US/UK/Europe)
 
 【CORE RULE: Follow the Outline】
@@ -337,7 +339,7 @@ Chapter Outline:
 【FORMAT】
 Chapter {n}: [Title]
 
-[Content - 10,000+ characters]
+[Content - 7,000-10,000 characters]
 
 IMPORTANT OUTPUT RULES:
 - Output ONLY the chapter title and content
@@ -382,8 +384,10 @@ DEFAULT_COVER_PROMPT = """Create a creative bestseller book cover image for this
 
 **Visual Style:**
 - Based on the complete outline above, create a unique and compelling book cover
+- **Choose the artistic style that best fits the story**: You can decide between realistic/photographic style or abstract/artistic/illustrative style based on what works best for this specific story and genre
 - Capture the essence, mood, and key themes of the story
 - Design should appeal to {genre} readers
+- Avoid generic, cookie-cutter designs - make each cover unique and story-specific
 - Create a professional, bestseller-quality cover that stands out
 
 **Technical Specifications:**
