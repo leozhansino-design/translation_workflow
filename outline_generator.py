@@ -221,8 +221,16 @@ class OutlineGeneratorWithQueue:
 
         tk.Button(
             file_select_frame,
-            text="选择文件",
+            text="📂 选择文件",
             command=self.select_file
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            file_select_frame,
+            text="📁 批量添加",
+            command=self.batch_add_files,
+            bg="#4CAF50",
+            fg="white"
         ).pack(side=tk.LEFT, padx=5)
 
         self.genre_label = tk.Label(file_select_frame, text="", fg="blue", font=("Arial", 10, "bold"))
@@ -265,7 +273,35 @@ class OutlineGeneratorWithQueue:
             width=8
         ).grid(row=1, column=3, sticky=tk.W, pady=5, padx=5)
 
-        tk.Label(task_frame, text="Max Tokens:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        # 批量章节范围（用于批量添加时随机选择）
+        tk.Label(task_frame, text="批量章节范围:", fg="#666").grid(row=2, column=2, sticky=tk.W, pady=5, padx=(20, 5))
+
+        range_frame = tk.Frame(task_frame)
+        range_frame.grid(row=2, column=3, sticky=tk.W, pady=5, padx=5)
+
+        self.batch_chapter_min_var = tk.IntVar(value=20)
+        tk.Spinbox(
+            range_frame,
+            from_=5,
+            to=200,
+            increment=5,
+            textvariable=self.batch_chapter_min_var,
+            width=5
+        ).pack(side=tk.LEFT)
+
+        tk.Label(range_frame, text="-").pack(side=tk.LEFT, padx=2)
+
+        self.batch_chapter_max_var = tk.IntVar(value=30)
+        tk.Spinbox(
+            range_frame,
+            from_=5,
+            to=200,
+            increment=5,
+            textvariable=self.batch_chapter_max_var,
+            width=5
+        ).pack(side=tk.LEFT)
+
+        tk.Label(task_frame, text="Max Tokens:").grid(row=3, column=0, sticky=tk.W, pady=5)
         self.max_tokens_var = tk.IntVar(value=100000)
         tk.Spinbox(
             task_frame,
@@ -274,11 +310,22 @@ class OutlineGeneratorWithQueue:
             increment=10000,
             textvariable=self.max_tokens_var,
             width=12
-        ).grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
+        ).grid(row=3, column=1, sticky=tk.W, pady=5, padx=5)
 
-        # 第三行：添加到队列按钮
+        tk.Label(task_frame, text="要求字数:").grid(row=3, column=2, sticky=tk.W, pady=5, padx=(20, 5))
+        self.char_count_var = tk.IntVar(value=2000)
+        tk.Spinbox(
+            task_frame,
+            from_=1000,
+            to=5000,
+            increment=100,
+            textvariable=self.char_count_var,
+            width=8
+        ).grid(row=3, column=3, sticky=tk.W, pady=5, padx=5)
+
+        # 第四行：添加到队列按钮
         button_frame = tk.Frame(task_frame)
-        button_frame.grid(row=3, column=0, columnspan=4, pady=10)
+        button_frame.grid(row=4, column=0, columnspan=4, pady=10)
 
         tk.Button(
             button_frame,
@@ -586,10 +633,103 @@ class OutlineGeneratorWithQueue:
                 self.current_source_file = None
                 self.current_genre = None
 
+    def batch_add_files(self):
+        """批量添加文件到任务队列"""
+        initial_dir = self._get_default_directory()
+
+        folder = filedialog.askdirectory(
+            title="选择包含小说文件的文件夹（格式：书名_类型.txt）",
+            initialdir=initial_dir
+        )
+
+        if not folder:
+            return
+
+        folder = os.path.abspath(os.path.normpath(folder))
+        print(f"\n📁 批量扫描文件夹: {folder}")
+
+        # 获取章节范围
+        min_chapters = self.batch_chapter_min_var.get()
+        max_chapters = self.batch_chapter_max_var.get()
+
+        if min_chapters > max_chapters:
+            print(f"⚠️  章节范围错误: {min_chapters}-{max_chapters}")
+            self.file_label.config(text="❌ 章节范围错误", fg="red")
+            return
+
+        # 扫描所有txt文件
+        import glob
+        import random
+        from utils import extract_genre_from_filename, validate_genre
+
+        txt_files = glob.glob(os.path.join(folder, "*.txt"))
+        valid_files = []
+
+        for file_path in txt_files:
+            try:
+                # 提取并验证类型
+                genre = extract_genre_from_filename(file_path)
+                available_genres = self.resource_mgr.get_available_genres()
+                validate_genre(genre, available_genres)
+
+                valid_files.append({
+                    'path': file_path,
+                    'genre': genre,
+                    'name': os.path.basename(file_path)
+                })
+                print(f"  ✅ 找到: {os.path.basename(file_path)} ({genre})")
+
+            except ValueError as e:
+                print(f"  ⚠️  跳过: {os.path.basename(file_path)} - {e}")
+
+        print(f"\n扫描完成: 找到 {len(valid_files)} 个有效文件")
+
+        if not valid_files:
+            self.file_label.config(text="❌ 未找到有效文件", fg="red")
+            return
+
+        # 为每个文件创建任务，随机分配章节数
+        added_count = 0
+        for file_info in valid_files:
+            try:
+                # 随机选择章节数
+                chapter_count = random.randint(min_chapters, max_chapters)
+
+                # 创建任务
+                task_id = str(uuid.uuid4())
+                config_params = {
+                    'api_key': self.api_key_var.get(),
+                    'base_url': self.base_url_var.get(),
+                    'model': self.model_var.get(),
+                    'male_count': self.male_count_var.get(),
+                    'female_count': self.female_count_var.get(),
+                    'chapter_count': chapter_count,  # 随机章节数
+                    'max_tokens': self.max_tokens_var.get(),
+                }
+
+                task = OutlineTask(task_id, file_info['path'], file_info['genre'], config_params)
+                self.tasks.append(task)
+
+                added_count += 1
+                print(f"  ✅ 已添加: {file_info['name']} (要求 {chapter_count} 章)")
+
+            except Exception as e:
+                print(f"  ❌ 添加失败: {file_info['name']}, 错误: {e}")
+
+        # 刷新显示
+        self.refresh_outline_tasks_display()
+
+        print(f"\n✅ 批量添加完成: 成功添加 {added_count}/{len(valid_files)} 个任务")
+        self.file_label.config(
+            text=f"✅ 已批量添加 {added_count} 个任务 (章节范围 {min_chapters}-{max_chapters})",
+            fg="green"
+        )
+
     def add_to_queue(self):
         """添加任务到队列"""
         if not self.current_source_file:
-            messagebox.showwarning("警告", "请先选择原文文件")
+            print("⚠️  警告: 请先选择原文文件")
+            self.file_label.config(text="❌ 请先选择文件", fg="red")
             return
 
         if not self.api_key_var.get():
@@ -612,14 +752,10 @@ class OutlineGeneratorWithQueue:
         task = OutlineTask(task_id, self.current_source_file, self.current_genre, config_params)
         self.tasks.append(task)
 
-        # 添加到UI
-        self.add_task_to_ui(task)
+        # 刷新显示（支持分页）
+        self.refresh_outline_tasks_display()
 
-        # 隐藏空队列提示
-        if self.empty_label.winfo_exists():
-            self.empty_label.pack_forget()
-
-        messagebox.showinfo("成功", f"任务已添加到队列\n文件: {os.path.basename(self.current_source_file)}")
+        print(f"✅ 任务已添加: {os.path.basename(self.current_source_file)}")
 
     def import_web_outline(self):
         """导入网页版生成的大纲（格式：BookTitle_Genre.txt）"""
@@ -2513,9 +2649,6 @@ Max Tokens: {task.config['max_tokens']}
                 # 添加到任务列表
                 self.cover_tasks.append(task)
 
-                # 添加到UI
-                self.add_cover_task_to_ui(task)
-
                 created_count += 1
                 print(f"✅ 创建封面任务: {folder_basename}")
 
@@ -2524,13 +2657,16 @@ Max Tokens: {task.config['max_tokens']}
                 import traceback
                 traceback.print_exc()
 
+        # 刷新显示（支持分页）
+        self.refresh_cover_tasks_display()
+
         # 显示结果
         result_msg = f"已创建 {created_count} 个封面任务"
         if skipped_count > 0:
             result_msg += f"，跳过 {skipped_count} 个重复任务"
 
         self.cover_status_label.config(text=f"✅ {result_msg}", fg="green")
-        messagebox.showinfo("任务创建完成", result_msg + "\n\n点击任务卡片的'开始'按钮来生成封面")
+        print(f"📋 {result_msg}")
 
     def _read_outline_info(self, folder):
         """读取outline文件夹信息"""
