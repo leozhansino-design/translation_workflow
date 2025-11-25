@@ -897,12 +897,21 @@ class OutlineGeneratorWithQueue:
             anchor="w"
         ).pack(side=tk.LEFT)
 
+        # 根据任务状态设置颜色和图标
+        status_colors = {
+            'pending': ('orange', '⏸'),
+            'running': ('blue', '🔄'),
+            'completed': ('green', '✅'),
+            'failed': ('red', '❌')
+        }
+        color, icon = status_colors.get(task.status, ('orange', '⏸'))
+
         status_label = tk.Label(
             title_frame,
-            text=f"⏸ {task.status}",
+            text=f"{icon} {task.status}",
             font=("Arial", 9),
             bg="#f5f5f5",
-            fg="orange"
+            fg=color
         )
         status_label.pack(side=tk.LEFT, padx=8)
         task_container.status_label = status_label  # 保存引用
@@ -1001,12 +1010,21 @@ class OutlineGeneratorWithQueue:
             anchor="w"
         ).pack(side=tk.LEFT)
 
+        # 根据任务状态设置颜色和图标
+        status_colors = {
+            'pending': ('orange', '⏸'),
+            'running': ('blue', '🔄'),
+            'completed': ('green', '✅'),
+            'failed': ('red', '❌')
+        }
+        color, icon = status_colors.get(task.status, ('orange', '⏸'))
+
         status_label = tk.Label(
             title_frame,
-            text=f"⏸ {task.status}",
+            text=f"{icon} {task.status}",
             font=("Arial", 9),
             bg="#f5f5f5",
-            fg="orange"
+            fg=color
         )
         status_label.pack(side=tk.LEFT, padx=8)
         task_container.status_label = status_label  # 保存引用
@@ -1717,26 +1735,30 @@ Max Tokens: {task.config['max_tokens']}
 
     def _on_task_completed(self, task):
         """任务完成回调"""
-        frame = self.task_frames[task.task_id]
-        frame.status_label.config(text="✅ 完成", fg="green")
-        frame.start_btn.config(text="🔄 重新生成", state=tk.NORMAL)
-        frame.folder_btn.config(state=tk.NORMAL)
+        # 只在UI框架存在时更新
+        if task.task_id in self.task_frames:
+            frame = self.task_frames[task.task_id]
+            frame.status_label.config(text="✅ 完成", fg="green")
+            frame.start_btn.config(text="🔄 重新生成", state=tk.NORMAL)
+            frame.folder_btn.config(state=tk.NORMAL)
 
-        messagebox.showinfo(
-            "任务完成",
-            f"任务完成！\n文件: {os.path.basename(task.source_file)}\n输出: {task.output_folder}"
-        )
+            messagebox.showinfo(
+                "任务完成",
+                f"任务完成！\n文件: {os.path.basename(task.source_file)}\n输出: {task.output_folder}"
+            )
 
     def _on_task_failed(self, task, error_msg):
         """任务失败回调"""
-        frame = self.task_frames[task.task_id]
-        frame.status_label.config(text="❌ 失败", fg="red")
-        frame.start_btn.config(state=tk.NORMAL)
+        # 只在UI框架存在时更新
+        if task.task_id in self.task_frames:
+            frame = self.task_frames[task.task_id]
+            frame.status_label.config(text="❌ 失败", fg="red")
+            frame.start_btn.config(state=tk.NORMAL)
 
-        messagebox.showerror(
-            "任务失败",
-            f"任务执行失败\n文件: {os.path.basename(task.source_file)}\n错误: {error_msg}"
-        )
+            messagebox.showerror(
+                "任务失败",
+                f"任务执行失败\n文件: {os.path.basename(task.source_file)}\n错误: {error_msg}"
+            )
 
     def _update_task_status(self, task, status_text):
         """更新任务状态显示"""
