@@ -77,6 +77,10 @@ class WritingToolWindow:
         self.current_page = 0  # 当前页码（从0开始）
         self.tasks_per_page = 8  # 每页任务数
 
+        # 全局进度监控
+        self.progress_monitor_running = False  # 监控是否正在运行
+        self.progress_update_interval = 5000  # 5秒更新一次（毫秒）
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -1251,44 +1255,73 @@ Now write Chapter {next_chapter} based on the outline above."""
         thread = threading.Thread(target=_run_task, daemon=True)
         thread.start()
 
-        # 启动进度监控（每2秒更新一次UI）
-        self._start_progress_monitoring(task)
+        # 启动全局进度监控（如果还未启动）
+        if not self.progress_monitor_running:
+            self._start_global_progress_monitor()
 
         print(f"✅ 任务已启动：{task.title}")
         self.refresh_task_list()
 
-    def _start_progress_monitoring(self, task):
-        """监控任务进度并更新UI"""
-        def _check_progress():
-            if hasattr(task, 'task_id'):
-                progress_file = f"tasks/{task.task_id}/progress.json"
+    def _start_global_progress_monitor(self):
+        """启动全局进度监控 - 所有任务统一每5秒更新一次"""
+        if self.progress_monitor_running:
+            return
 
-                if os.path.exists(progress_file):
-                    try:
-                        with open(progress_file, 'r', encoding='utf-8') as f:
-                            progress = json.load(f)
+        self.progress_monitor_running = True
+        print(f"🔄 启动全局进度监控（每{self.progress_update_interval/1000}秒更新）")
 
-                        # 更新task对象（从progress.json读取最新状态）
-                        task.current_chapter = progress.get('current_chapter', 0)
-                        task.progress = (task.current_chapter / task.total_chapters) * 100 if task.total_chapters > 0 else 0
+        def _update_all_progress():
+            if not self.progress_monitor_running:
+                return
 
-                        # 更新状态（如果worker已经完成）
-                        progress_status = progress.get('status', 'in_progress')
-                        if progress_status in ['completed', 'failed']:
-                            task.status = progress_status
+            # 检查是否有运行中的任务
+            has_running_tasks = any(t.status == 'in_progress' for t in self.tasks)
 
-                        # 刷新UI
-                        self.window.after(0, self.refresh_task_list)
+            if has_running_tasks:
+                # 批量更新所有任务进度
+                updated = False
+                for task in self.tasks:
+                    if task.status == 'in_progress' and hasattr(task, 'task_id'):
+                        progress_file = f"tasks/{task.task_id}/progress.json"
+                        if os.path.exists(progress_file):
+                            try:
+                                with open(progress_file, 'r', encoding='utf-8') as f:
+                                    progress = json.load(f)
 
-                    except:
-                        pass
+                                # 更新task对象
+                                old_chapter = task.current_chapter
+                                task.current_chapter = progress.get('current_chapter', 0)
+                                task.progress = (task.current_chapter / task.total_chapters) * 100 if task.total_chapters > 0 else 0
 
-                # 如果任务还在进行，2秒后再次检查
-                if task.status == 'in_progress':
-                    self.window.after(2000, _check_progress)
+                                # 检查状态变化
+                                progress_status = progress.get('status', 'in_progress')
+                                if progress_status in ['completed', 'failed']:
+                                    task.status = progress_status
+                                    updated = True
+                                elif old_chapter != task.current_chapter:
+                                    updated = True
+
+                            except:
+                                pass
+
+                # 只有当有变化时才刷新UI（减少不必要的刷新）
+                if updated:
+                    self.window.after(0, self.refresh_task_list)
+
+                # 继续监控
+                self.window.after(self.progress_update_interval, _update_all_progress)
+            else:
+                # 没有运行中的任务，停止监控
+                print("⏸️ 无运行中任务，停止全局进度监控")
+                self.progress_monitor_running = False
 
         # 1秒后开始第一次检查
-        self.window.after(1000, _check_progress)
+        self.window.after(1000, _update_all_progress)
+
+    def _start_progress_monitoring(self, task):
+        """监控任务进度并更新UI - 已弃用，使用全局监控代替"""
+        # 这个方法保留但不再使用，由 _start_global_progress_monitor 代替
+        pass
 
     def restart_task(self, task):
         """重新生成（从头开始）"""
