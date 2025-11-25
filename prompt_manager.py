@@ -72,7 +72,7 @@ DEFAULT_OUTLINE_PROMPT = """# ADDICTIVE WEB NOVEL OUTLINE GENERATOR
 - 可以**增删情节**以适应目标章节数
 - 可以**调整人物**以增强戏剧性
 - **目标：让读者无法停止点击"下一章"**
-- **重要：你必须根据故事内容，从17种Genre中自动选择最合适的类型**
+- **重要：你必须根据故事内容，从16种Genre中自动选择最合适的类型**
 
 ---
 
@@ -145,9 +145,9 @@ DEFAULT_OUTLINE_PROMPT = """# ADDICTIVE WEB NOVEL OUTLINE GENERATOR
 
 ---
 
-## 【17种Genre分类说明】
+## 【16种Genre分类说明】
 
-你必须从以下17种类型中选择一个最合适的：
+你必须从以下16种类型中选择一个最合适的：
 
 1. **Fantasy**（奇幻） - 魔法、异世界、龙等元素
 2. **Urban**（都市） - 现代都市、总裁、豪门、商战
@@ -165,11 +165,10 @@ DEFAULT_OUTLINE_PROMPT = """# ADDICTIVE WEB NOVEL OUTLINE GENERATOR
 14. **Revenge**（复仇） - 复仇为主线
 15. **Fanfiction**（同人） - 基于原著的二次创作
 16. **Humor**（幽默） - 搞笑、沙雕、喜剧
-17. **General**（综合） - 不属于以上类型或混合多种类型
 
 ---
 
-## 【17种Genre写作指南】
+## 【16种Genre写作指南】
 
 ### 1. Fantasy（奇幻）
 **爽点重点**：魔法觉醒、等级提升、战斗胜利、宝物获得
@@ -267,9 +266,6 @@ DEFAULT_OUTLINE_PROMPT = """# ADDICTIVE WEB NOVEL OUTLINE GENERATOR
 **节奏**：每500字一个笑点
 **每章必有**：至少3个笑点
 **避免**：尴尬冷笑话（要自然好笑）
-
-### 17. General（综合）
-**适配任何类型**：识别原故事类型，套用对应规则，或混合多种类型
 
 ---
 
@@ -435,7 +431,7 @@ Chapter 4: 打脸x1, 甜蜜x2, 获得x2 = 5个 ✓✓
 写法要煽情、有冲击力，用疑问句/感叹句结尾制造悬念]
 
 ===== CATEGORY =====
-[从17个类型中选一个主类型：Fantasy/Urban/Romance/Sci-Fi/Mystery/Historical/Adventure/Horror/Crime/LGBTQ+/Paranormal/System/Reborn/Revenge/Fanfiction/Humor/General]
+[从16个类型中选一个主类型：Fantasy/Urban/Romance/Sci-Fi/Mystery/Historical/Adventure/Horror/Crime/LGBTQ+/Paranormal/System/Reborn/Revenge/Fanfiction/Humor]
 
 ===== TAGS =====
 [最多20个，用#和逗号，如：#SlowBurn, #ForcedProximity, #AlphaMale, #SecondChance, #RagsToRiches, #FakeRelationship]
@@ -518,7 +514,7 @@ Chapter 2: [标题]
 3. **前3章最关键**，必须快节奏+高爽点，否则读者流失
 4. **每章都要满足读者**，不要"铺垫章"
 5. **Hook是生命线**，每章结尾必须让人想点下一章
-6. **从17种Genre中自动选择**最适合的类型，填入CATEGORY字段
+6. **从16种Genre中自动选择**最适合的类型，填入CATEGORY字段
 
 **你的目标：让读者停不下来！**
 
