@@ -741,9 +741,13 @@ class WritingToolWindow:
                         'api_key': self.api_key_var.get(),
                         'base_url': self.base_url_var.get(),
                         'model': self.model_var.get(),
+                        'temperature': self.temperature_var.get(),
+                        'max_tokens': self.max_tokens_var.get(),
                         'start_chapter': 1,
                         'end_chapter': folder_info['max_chapter'],
                         'batch_size': self.batch_size_var.get(),
+                        'outline_file': folder_info['path'],  # 大纲文件夹路径
+                        'project_folder': folder_info['path']  # 写作到大纲文件夹
                     }
 
                     # 创建任务
