@@ -708,7 +708,7 @@ class OutlineGeneratorWithQueue:
                 task_id = str(uuid.uuid4())
                 config_params = {
                     'api_key': self.api_key_var.get(),
-                    'base_url': self.base_url_var.get(),
+                    'base_url': 'https://yunwuapi.com',
                     'model': self.model_var.get(),
                     'male_count': self.male_count_var.get(),
                     'female_count': self.female_count_var.get(),
