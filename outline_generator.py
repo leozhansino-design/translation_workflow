@@ -1362,26 +1362,31 @@ Max Tokens: {task.config['max_tokens']}
     def start_task(self, task):
         """开始执行任务"""
         if task.status == 'running':
-            messagebox.showinfo("提示", "任务正在运行中")
+            # 只在有UI框架时显示提示
+            if task.task_id in self.task_frames:
+                messagebox.showinfo("提示", "任务正在运行中")
             return
 
         if task.status == 'completed':
-            if not messagebox.askyesno("确认", "任务已完成，是否重新生成？"):
-                return
+            # 只在有UI框架时询问
+            if task.task_id in self.task_frames:
+                if not messagebox.askyesno("确认", "任务已完成，是否重新生成？"):
+                    return
 
         # 更新状态
         task.status = 'running'
         task.started_at = datetime.now()
 
-        # 更新UI
-        frame = self.task_frames[task.task_id]
-        frame.status_label.config(text="🔄 运行中", fg="blue")
-        frame.start_btn.config(state=tk.DISABLED)
+        # 更新UI（如果框架存在）
+        if task.task_id in self.task_frames:
+            frame = self.task_frames[task.task_id]
+            frame.status_label.config(text="🔄 运行中", fg="blue")
+            frame.start_btn.config(state=tk.DISABLED)
 
-        # 更新详情显示开始时间
-        frame.details_label.config(
-            text=f"类型: {task.genre}  |  模型: {task.config['model']}  |  开始时间: {task.started_at.strftime('%H:%M:%S')}"
-        )
+            # 更新详情显示开始时间
+            frame.details_label.config(
+                text=f"类型: {task.genre}  |  模型: {task.config['model']}  |  开始时间: {task.started_at.strftime('%H:%M:%S')}"
+            )
 
         # 在新线程中执行
         thread = threading.Thread(target=self._execute_task, args=(task,), daemon=True)
