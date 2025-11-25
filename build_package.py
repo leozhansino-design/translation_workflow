@@ -103,6 +103,7 @@ def build(debug_mode=False):
     # 数据文件（使用正确的分隔符）
     separator = ';' if system == 'Windows' else ':'
     data_files = [
+        ('data/prompts.json', 'data'),
         ('data/styles.json', 'data'),
         ('data/names_1.json', 'data'),
     ]
