@@ -73,6 +73,10 @@ class WritingToolWindow:
         self.task_containers = {}  # 任务卡片引用
         self.prompt_mgr = PromptManager()  # Prompt管理器
 
+        # 分页设置
+        self.current_page = 0  # 当前页码（从0开始）
+        self.tasks_per_page = 8  # 每页任务数
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -202,6 +206,32 @@ class WritingToolWindow:
         # 任务队列
         queue_frame = tk.LabelFrame(self.window, text="📋 任务队列", padx=5, pady=5)
         queue_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # 分页控制栏
+        pagination_frame = tk.Frame(queue_frame, bg="#f0f0f0")
+        pagination_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        tk.Button(
+            pagination_frame,
+            text="◀ 上一页",
+            command=self.previous_page,
+            width=10
+        ).pack(side=tk.LEFT, padx=5)
+
+        self.page_label = tk.Label(
+            pagination_frame,
+            text="第 1/1 页 (0 个任务)",
+            font=("Arial", 10, "bold"),
+            bg="#f0f0f0"
+        )
+        self.page_label.pack(side=tk.LEFT, padx=20, expand=True)
+
+        tk.Button(
+            pagination_frame,
+            text="下一页 ▶",
+            command=self.next_page,
+            width=10
+        ).pack(side=tk.RIGHT, padx=5)
 
         # Canvas + Scrollbar
         self.canvas = tk.Canvas(queue_frame, bg="white")
@@ -757,7 +787,7 @@ class WritingToolWindow:
         print(f"✅ 任务已添加：{task.title}")
 
     def refresh_task_list(self):
-        """刷新任务列表"""
+        """刷新任务列表 - 支持分页"""
         # 清空
         for widget in self.tasks_frame.winfo_children():
             widget.destroy()
@@ -765,11 +795,28 @@ class WritingToolWindow:
 
         if not self.tasks:
             self.show_empty_state()
+            self._update_pagination_label()
             return
 
-        # 创建任务卡片
-        for i, task in enumerate(self.tasks):
+        # 计算分页
+        total_tasks = len(self.tasks)
+        total_pages = (total_tasks + self.tasks_per_page - 1) // self.tasks_per_page
+
+        # 确保当前页在有效范围内
+        if self.current_page >= total_pages:
+            self.current_page = max(0, total_pages - 1)
+
+        # 计算当前页的任务范围
+        start_idx = self.current_page * self.tasks_per_page
+        end_idx = min(start_idx + self.tasks_per_page, total_tasks)
+
+        # 只显示当前页的任务
+        for i in range(start_idx, end_idx):
+            task = self.tasks[i]
             self._create_task_card(task, i)
+
+        # 更新分页标签
+        self._update_pagination_label()
 
     def _create_task_card(self, task, index):
         """创建任务卡片"""
@@ -1234,6 +1281,37 @@ Now write Chapter {next_chapter} based on the outline above."""
         print(f"🗑️ 删除任务 #{index + 1}")
         del self.tasks[index]
         self.refresh_task_list()
+
+    def previous_page(self):
+        """上一页"""
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.refresh_task_list()
+
+    def next_page(self):
+        """下一页"""
+        total_pages = (len(self.tasks) + self.tasks_per_page - 1) // self.tasks_per_page
+        if self.current_page < total_pages - 1:
+            self.current_page += 1
+            self.refresh_task_list()
+
+    def _update_pagination_label(self):
+        """更新分页标签"""
+        total_tasks = len(self.tasks)
+        if total_tasks == 0:
+            self.page_label.config(text="第 1/1 页 (0 个任务)")
+            return
+
+        total_pages = (total_tasks + self.tasks_per_page - 1) // self.tasks_per_page
+        current_page_display = self.current_page + 1
+
+        start_idx = self.current_page * self.tasks_per_page
+        end_idx = min(start_idx + self.tasks_per_page, total_tasks)
+
+        self.page_label.config(
+            text=f"第 {current_page_display}/{total_pages} 页 "
+                 f"(共 {total_tasks} 个任务，显示 {start_idx + 1}-{end_idx})"
+        )
 
     def run(self):
         """运行应用"""
