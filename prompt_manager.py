@@ -384,11 +384,15 @@ DEFAULT_COVER_PROMPT = """Create a creative bestseller book cover image for this
 
 **Visual Style:**
 - Based on the complete outline above, create a unique and compelling book cover
-- **Choose the artistic style that best fits the story**: You can decide between realistic/photographic style or abstract/artistic/illustrative style based on what works best for this specific story and genre
+- **Style Choice**: You can decide between realistic/photographic style or abstract/artistic/illustrative style based on what works best for this specific story and genre
+- **Character Design** (CRITICAL): If the cover includes characters, their appearance MUST match the story:
+  * Face features, expressions, and overall look should reflect the character described in the outline
+  * Clothing, accessories, and styling must be consistent with the plot, setting, and time period
+  * Character designs should be unique to THIS story - avoid generic, cookie-cutter character appearances
+  * This prompt will be reused for many different stories, so make each character design distinctive and story-specific
 - Capture the essence, mood, and key themes of the story
 - Design should appeal to {genre} readers
-- Avoid generic, cookie-cutter designs - make each cover unique and story-specific
-- Create a professional, bestseller-quality cover that stands out
+- Create a professional, bestseller-quality cover that stands out with atmosphere and emotional impact
 
 **Technical Specifications:**
 - Image dimensions: 300 x 400 pixels (portrait orientation)

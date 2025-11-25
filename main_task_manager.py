@@ -118,7 +118,7 @@ class WritingToolWindow:
 
         # Model
         tk.Label(config_frame, text="Model:", width=12, anchor='w').grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.model_var = tk.StringVar(value="gpt-5.1")
+        self.model_var = tk.StringVar(value="gpt-5-mini")
         model_combo = ttk.Combobox(config_frame, textvariable=self.model_var, width=47)
         model_combo['values'] = ["gpt-5.1", "gpt-5-mini", "gemini-2.5-pro", "gemini-3-pro-preview"]
         model_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
