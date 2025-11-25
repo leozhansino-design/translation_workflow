@@ -226,6 +226,17 @@ class WritingToolWindow:
         )
         self.page_label.pack(side=tk.LEFT, padx=20, expand=True)
 
+        # 添加全部开始按钮
+        tk.Button(
+            pagination_frame,
+            text="▶️ 全部开始",
+            command=self.start_all_tasks,
+            bg="#4CAF50",
+            fg="white",
+            width=12,
+            font=("Arial", 9, "bold")
+        ).pack(side=tk.RIGHT, padx=10)
+
         tk.Button(
             pagination_frame,
             text="下一页 ▶",
@@ -1116,6 +1127,27 @@ Now write Chapter {next_chapter} based on the outline above."""
         self.window.clipboard_append(text)
         messagebox.showinfo("成功", f"已复制 {len(text):,} 字符到剪贴板")
 
+    def start_all_tasks(self):
+        """一键开始所有待处理的任务"""
+        if not self.tasks:
+            messagebox.showinfo("提示", "没有任务")
+            return
+
+        pending_tasks = [t for t in self.tasks if t.status == 'pending']
+        if not pending_tasks:
+            messagebox.showinfo("提示", "所有任务都已开始或完成")
+            return
+
+        print(f"\n🚀 全部开始: 共 {len(pending_tasks)} 个待处理任务")
+        for task in pending_tasks:
+            try:
+                self.start_task(task)
+                time.sleep(0.5)  # 稍微延迟避免同时启动太多
+            except Exception as e:
+                print(f"❌ 启动失败: {task.title}, 错误: {e}")
+                import traceback
+                traceback.print_exc()
+
     def start_task(self, task):
         """启动任务 - 直接运行worker（不用subprocess，避免exe打包问题）"""
         print(f"\n{'='*70}")
@@ -1123,6 +1155,11 @@ Now write Chapter {next_chapter} based on the outline above."""
         print(f"  任务: {task.title}")
         print(f"  当前状态: {task.status}")
         print(f"  当前进度: {task.current_chapter}/{task.total_chapters}")
+        print(f"  配置检查:")
+        print(f"    - api_key: {'存在' if task.config.get('api_key') else '❌ 缺失'}")
+        print(f"    - base_url: {task.config.get('base_url', '❌ 缺失')}")
+        print(f"    - model: {task.config.get('model', '❌ 缺失')}")
+        print(f"    - outline_file: {task.config.get('outline_file', '❌ 缺失')}")
         print(f"{'='*70}\n")
 
         if task.status == 'in_progress':
