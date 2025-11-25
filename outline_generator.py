@@ -325,6 +325,14 @@ class OutlineGeneratorWithQueue:
 
         tk.Button(
             folder_select_frame,
+            text="📁 批量添加",
+            command=self.add_cover_folder_batch,
+            bg="#4CAF50",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            folder_select_frame,
             text="🗑️ 清空",
             command=self.clear_cover_folders
         ).pack(side=tk.LEFT, padx=5)
@@ -2268,6 +2276,69 @@ Max Tokens: {task.config['max_tokens']}
                 self._update_cover_folders_label()
             else:
                 print(f"  ⚠️ 文件夹已存在于列表中")
+
+    def add_cover_folder_batch(self):
+        """批量添加outline文件夹（扫描父文件夹下的所有子文件夹）"""
+        # 设置初始目录
+        initial_dir = os.path.abspath("novels_for_translation") if os.path.exists("novels_for_translation") else os.getcwd()
+
+        parent_folder = filedialog.askdirectory(
+            title="选择父文件夹（将自动扫描所有子文件夹）",
+            initialdir=initial_dir
+        )
+
+        if not parent_folder:
+            return
+
+        # 规范化路径
+        parent_folder = os.path.abspath(os.path.normpath(parent_folder))
+        print(f"\n📁 批量扫描文件夹: {parent_folder}")
+
+        # 扫描所有子文件夹
+        valid_folders = []
+        total_scanned = 0
+
+        for root, dirs, files in os.walk(parent_folder):
+            total_scanned += 1
+
+            # 检查是否包含必要文件
+            has_full_outline = '_full_outline.txt' in files
+            has_writing_prompt = '_writing_prompt.txt' in files
+
+            if has_full_outline or has_writing_prompt:
+                folder_path = os.path.abspath(os.path.normpath(root))
+
+                # 避免重复添加
+                if folder_path not in self.cover_folders and folder_path not in valid_folders:
+                    valid_folders.append(folder_path)
+                    print(f"  ✅ 找到: {os.path.basename(folder_path)}")
+
+        print(f"\n扫描完成: 共扫描 {total_scanned} 个文件夹，找到 {len(valid_folders)} 个有效的outline文件夹")
+
+        if valid_folders:
+            # 添加到列表
+            added_count = 0
+            for folder in valid_folders:
+                if folder not in self.cover_folders:
+                    self.cover_folders.append(folder)
+                    added_count += 1
+
+            self._update_cover_folders_label()
+
+            messagebox.showinfo(
+                "批量添加完成",
+                f"扫描文件夹: {os.path.basename(parent_folder)}\n"
+                f"扫描总数: {total_scanned} 个文件夹\n"
+                f"找到有效: {len(valid_folders)} 个\n"
+                f"新增添加: {added_count} 个\n"
+                f"当前总数: {len(self.cover_folders)} 个"
+            )
+        else:
+            messagebox.showwarning(
+                "未找到有效文件夹",
+                f"在 {os.path.basename(parent_folder)} 中未找到包含\n"
+                f"_full_outline.txt 或 _writing_prompt.txt 的子文件夹"
+            )
 
     def clear_cover_folders(self):
         """清空选择的文件夹"""
