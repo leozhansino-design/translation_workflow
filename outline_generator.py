@@ -19,9 +19,7 @@ from resource_mgr import ResourceManager
 from prompt_manager import PromptManager
 from universal_api import UniversalAPIClient
 from utils import (
-    extract_genre_from_filename,
     extract_title_from_filename,
-    validate_genre,
     parse_json_from_llm_response,
     get_work_directory
 )
@@ -111,7 +109,6 @@ class OutlineGeneratorWithQueue:
 
         # 当前配置
         self.current_source_file = None
-        self.current_genre = None
 
         # 初始化界面
         self.setup_ui()
@@ -201,7 +198,7 @@ class OutlineGeneratorWithQueue:
 
         self.file_label = tk.Label(
             file_select_frame,
-            text="未选择文件（格式：书名_类型.txt）",
+            text="未选择文件（任意txt文件，AI自动识别类型）",
             fg="gray",
             font=("Arial", 9)
         )
@@ -488,7 +485,7 @@ class OutlineGeneratorWithQueue:
         self.cover_empty_label.pack()
 
     def select_file(self):
-        """选择源文件"""
+        """选择源文件（不再需要特定文件名格式，AI自动识别类型）"""
         file_path = filedialog.askopenfilename(
             title="选择原文文件",
             filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
@@ -496,33 +493,35 @@ class OutlineGeneratorWithQueue:
 
         if file_path:
             try:
-                # 提取类型
-                genre = extract_genre_from_filename(file_path)
-
-                # 验证类型
-                available_genres = self.resource_mgr.get_available_genres()
-                validate_genre(genre, available_genres)
-
-                # 保存数据
+                # 保存数据（不再需要提取genre，AI会自动选择）
                 self.current_source_file = file_path
-                self.current_genre = genre
 
-                # 计算字数
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    char_count = len(content)
+                # 计算字数 - 尝试多种编码
+                content = None
+                encodings_to_try = ['utf-8', 'gbk', 'gb2312', 'latin1', 'cp1252']
+                for encoding in encodings_to_try:
+                    try:
+                        with open(file_path, 'r', encoding=encoding) as f:
+                            content = f.read()
+                        break
+                    except (UnicodeDecodeError, UnicodeError):
+                        continue
+
+                if content is None:
+                    raise ValueError("无法读取文件，请检查文件编码")
+
+                char_count = len(content)
 
                 # 更新界面
                 self.file_label.config(
                     text=f"{os.path.basename(file_path)} ({char_count:,} 字符)",
                     fg="black"
                 )
-                self.genre_label.config(text=f"类型: {genre}")
+                self.genre_label.config(text="类型: AI自动识别")
 
-            except ValueError as e:
-                messagebox.showerror("文件名错误", str(e))
+            except Exception as e:
+                messagebox.showerror("文件错误", str(e))
                 self.current_source_file = None
-                self.current_genre = None
 
     def add_to_queue(self):
         """添加任务到队列"""
@@ -534,7 +533,7 @@ class OutlineGeneratorWithQueue:
             messagebox.showwarning("警告", "请输入API Key")
             return
 
-        # 创建任务
+        # 创建任务（genre设为None，AI会自动选择）
         task_id = f"outline_{uuid.uuid4().hex[:8]}"
 
         config_params = {
@@ -547,7 +546,7 @@ class OutlineGeneratorWithQueue:
             'max_tokens': self.max_tokens_var.get(),
         }
 
-        task = OutlineTask(task_id, self.current_source_file, self.current_genre, config_params)
+        task = OutlineTask(task_id, self.current_source_file, "Auto", config_params)
         self.tasks.append(task)
 
         # 添加到UI
@@ -560,10 +559,10 @@ class OutlineGeneratorWithQueue:
         messagebox.showinfo("成功", f"任务已添加到队列\n文件: {os.path.basename(self.current_source_file)}")
 
     def import_web_outline(self):
-        """导入网页版生成的大纲（格式：BookTitle_Genre.txt）"""
+        """导入网页版生成的大纲（任意txt文件，从内容提取genre）"""
         # 选择文件
         file_path = filedialog.askopenfilename(
-            title="选择网页版大纲文件（格式：书名_类型.txt）",
+            title="选择网页版大纲文件",
             filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
         )
 
@@ -571,22 +570,17 @@ class OutlineGeneratorWithQueue:
             return
 
         try:
-            # 从文件名提取书名和类型
+            # 获取文件名作为书名
             filename = os.path.basename(file_path)
+            book_title = os.path.splitext(filename)[0]
+
+            # 尝试从文件名提取类型（旧格式兼容：书名_类型.txt）
             match = re.match(r'(.+?)_([A-Za-z+\-]+)\.txt$', filename)
-
-            if not match:
-                messagebox.showerror("错误", "文件名格式不正确！\n正确格式：书名_类型.txt\n例如：MyBook_Romance.txt")
-                return
-
-            book_title = match.group(1)
-            genre = match.group(2)
-
-            # 验证类型
-            available_genres = self.resource_mgr.get_available_genres()
-            if genre not in available_genres:
-                messagebox.showerror("错误", f"类型'{genre}'不存在！\n可用类型：{', '.join(available_genres)}")
-                return
+            if match:
+                book_title = match.group(1)
+                genre = match.group(2)
+            else:
+                genre = "Auto"  # AI生成的大纲会包含CATEGORY字段
 
             # 读取文件内容
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -669,7 +663,7 @@ class OutlineGeneratorWithQueue:
         # 动态显示的详情标签
         details_label = tk.Label(
             details_frame,
-            text=f"类型: {task.genre}  |  模型: {task.config['model']}",
+            text=f"类型: AI自动识别  |  模型: {task.config['model']}",
             font=("Arial", 8),
             bg="#f5f5f5",
             fg="gray"
@@ -1054,19 +1048,15 @@ class OutlineGeneratorWithQueue:
             else:
                 content_preview = content
 
-            # 选择名字和风格
+            # 选择名字（不再需要风格，AI自动选择类型）
             selected_names = self.resource_mgr.select_names(
                 task.config['male_count'],
                 task.config['female_count']
             )
             names_formatted = self.resource_mgr.format_names_for_prompt(selected_names)
 
-            selected_style = self.resource_mgr.select_style(task.genre)
-
-            # 构建Prompt变量
+            # 构建Prompt变量（不再需要genre和genre_focus，AI自动决定）
             prompt_vars = {
-                'genre': task.genre,
-                'genre_focus': selected_style['genre_focus'],
                 'male_names': names_formatted['male_names'],
                 'female_names': names_formatted['female_names'],
                 'end_chapter': task.config.get('chapter_count', 15),
@@ -1088,7 +1078,7 @@ class OutlineGeneratorWithQueue:
 元数据 (Metadata)
 {'='*70}
 文件: {os.path.basename(task.source_file)}
-类型: {task.genre}
+类型: AI自动识别
 模型: {task.config['model']}
 要求章节数: {task.config.get('chapter_count', 15)}
 Max Tokens: {task.config['max_tokens']}
@@ -1096,9 +1086,6 @@ Max Tokens: {task.config['max_tokens']}
 选择的人名:
 男性: {names_formatted['male_names']}
 女性: {names_formatted['female_names']}
-
-类型重点 ({task.genre}):
-{selected_style['genre_focus'][:200]}...
 """
 
             # 缓存Prompt
@@ -1135,7 +1122,7 @@ Max Tokens: {task.config['max_tokens']}
 
         # 更新详情显示开始时间
         frame.details_label.config(
-            text=f"类型: {task.genre}  |  模型: {task.config['model']}  |  开始时间: {task.started_at.strftime('%H:%M:%S')}"
+            text=f"类型: AI自动识别  |  模型: {task.config['model']}  |  开始时间: {task.started_at.strftime('%H:%M:%S')}"
         )
 
         # 在新线程中执行
@@ -1166,12 +1153,8 @@ Max Tokens: {task.config['max_tokens']}
             )
             names_formatted = self.resource_mgr.format_names_for_prompt(selected_names)
 
-            selected_style = self.resource_mgr.select_style(task.genre)
-
-            # 构建Prompt
+            # 构建Prompt（不再需要genre和style，AI自动决定）
             prompt_vars = {
-                'genre': task.genre,
-                'genre_focus': selected_style['genre_focus'],
                 'male_names': names_formatted['male_names'],
                 'female_names': names_formatted['female_names'],
                 'end_chapter': task.config.get('chapter_count', 15),
