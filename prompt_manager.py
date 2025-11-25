@@ -72,7 +72,7 @@ DEFAULT_OUTLINE_PROMPT = """# ADDICTIVE WEB NOVEL OUTLINE GENERATOR
 - 可以**增删情节**以适应目标章节数
 - 可以**调整人物**以增强戏剧性
 - **目标：让读者无法停止点击"下一章"**
-- **重要：你必须根据故事内容，从16种Genre中自动选择最合适的类型**
+- **重要：你必须根据故事内容，从18种Genre中自动选择最合适的类型**
 
 ---
 
@@ -145,9 +145,9 @@ DEFAULT_OUTLINE_PROMPT = """# ADDICTIVE WEB NOVEL OUTLINE GENERATOR
 
 ---
 
-## 【16种Genre分类说明】
+## 【18种Genre分类说明】
 
-你必须从以下16种类型中选择一个最合适的：
+你必须从以下18种类型中选择一个最合适的：
 
 1. **Fantasy**（奇幻） - 魔法、异世界、龙等元素
 2. **Urban**（都市） - 现代都市、总裁、豪门、商战
@@ -159,16 +159,18 @@ DEFAULT_OUTLINE_PROMPT = """# ADDICTIVE WEB NOVEL OUTLINE GENERATOR
 8. **Horror**（恐怖） - 鬼怪、恐怖、惊悚
 9. **Crime**（犯罪） - 犯罪、警察、黑帮
 10. **LGBTQ+**（同志） - 同性恋情、性少数群体
-11. **Paranormal**（超自然） - 吸血鬼、狼人、超能力
-12. **System**（系统流） - 中国特有的系统文，主角有系统开挂，完成任务获得奖励
-13. **Reborn**（重生） - 重生回到过去，利用先知改命
-14. **Revenge**（复仇） - 复仇为主线
-15. **Fanfiction**（同人） - 基于原著的二次创作
-16. **Humor**（幽默） - 搞笑、沙雕、喜剧
+11. **Paranormal**（超自然） - 超能力、灵异、鬼魂、通灵
+12. **Werewolf**（狼人） - 狼人变身、狼族、月圆之夜、狼人社会
+13. **Vampire**（吸血鬼） - 吸血鬼、血族、永生、吸血鬼社会
+14. **System**（系统流） - 中国特有的系统文，主角有系统开挂，完成任务获得奖励
+15. **Reborn**（重生） - 重生回到过去，利用先知改命
+16. **Revenge**（复仇） - 复仇为主线
+17. **Fanfiction**（同人） - 基于原著的二次创作
+18. **Humor**（幽默） - 搞笑、沙雕、喜剧
 
 ---
 
-## 【16种Genre写作指南】
+## 【18种Genre写作指南】
 
 ### 1. Fantasy（奇幻）
 **爽点重点**：魔法觉醒、等级提升、战斗胜利、宝物获得
@@ -231,37 +233,64 @@ DEFAULT_OUTLINE_PROMPT = """# ADDICTIVE WEB NOVEL OUTLINE GENERATOR
 **避免**：刻意强调身份（自然融入故事）
 
 ### 11. Paranormal（超自然）
-**爽点重点**：能力觉醒、超自然战斗、神秘揭示、命运改变
+**爽点重点**：超能力觉醒、灵异发现、鬼魂交流、通灵揭秘
 **节奏**：1-2章内能力觉醒，快速进入超自然世界
-**每章必有**：超能力使用或神秘发现
+**每章必有**：超能力使用或灵异事件
 **避免**：能力太复杂（简单直观易理解）
 
-### 12. System（系统流）
+### 12. Werewolf（狼人）
+**爽点重点**：首次变身、狼族力量、月圆觉醒、狼群认可
+**节奏**：前3章完成首次变身，建立狼人身份
+**每章必有**：狼性展示或狼族互动
+**避免**：过多狼人设定说明（通过行动展示）
+**范例**：
+```
+The moon rose. His bones cracked.
+Pain. Then power.
+Fur erupted across his skin. His senses exploded—every scent, every sound.
+He wasn't human anymore.
+He was free.
+```
+
+### 13. Vampire（吸血鬼）
+**爽点重点**：吸血转化、永生力量、血族权力、黑夜统治
+**节奏**：第1章转化或揭示身份，快速进入血族世界
+**每章必有**：吸血鬼能力展示或血族政治
+**避免**：闪闪发光的吸血鬼（要有危险感）
+**范例**：
+```
+His fangs extended. Instinct took over.
+The blood hit his tongue. Heat. Power. Life.
+Her heartbeat slowed. His strength surged.
+This was what he was now. Predator.
+```
+
+### 14. System（系统流）
 **爽点重点**：任务完成、奖励获得、等级提升、商城兑换
 **节奏**：第1章系统出现，每章1-2个任务
 **每章必有**：系统奖励或升级
 **避免**：系统废话太多（简洁提示即可）
 **说明**：中国特有的系统文，主角获得系统（别人看不到），完成任务就给奖励，给主角开挂
 
-### 13. Reborn（重生）
+### 15. Reborn（重生）
 **爽点重点**：先知优势、复仇成功、改变命运、提前布局
 **节奏**：第1章快速重生并开始行动
 **每章必有**：利用重生知识的桥段
 **避免**：过度回忆前世（点到即止）
 
-### 14. Revenge（复仇）
+### 16. Revenge（复仇）
 **爽点重点**：报仇成功、仇人受罚、真相大白、正义伸张
 **节奏**：每5章解决一个仇人
 **每章必有**：复仇进展或仇人受挫
 **避免**：主角只挨打（要有反击）
 
-### 15. Fanfiction（同人）
+### 17. Fanfiction（同人）
 **爽点重点**：原著互动、角色性格还原、剧情合理改编、粉丝期待满足
 **节奏**：3章内进入原著情节
 **每章必有**：原著角色出场或经典场景致敬
 **避免**：OOC（人物崩坏）
 
-### 16. Humor（幽默）
+### 18. Humor（幽默）
 **爽点重点**：搞笑桥段、反差萌、吐槽犀利、荒诞有趣
 **节奏**：每500字一个笑点
 **每章必有**：至少3个笑点
@@ -431,7 +460,7 @@ Chapter 4: 打脸x1, 甜蜜x2, 获得x2 = 5个 ✓✓
 写法要煽情、有冲击力，用疑问句/感叹句结尾制造悬念]
 
 ===== CATEGORY =====
-[从16个类型中选一个主类型：Fantasy/Urban/Romance/Sci-Fi/Mystery/Historical/Adventure/Horror/Crime/LGBTQ+/Paranormal/System/Reborn/Revenge/Fanfiction/Humor]
+[从18个类型中选一个主类型：Fantasy/Urban/Romance/Sci-Fi/Mystery/Historical/Adventure/Horror/Crime/LGBTQ+/Paranormal/Werewolf/Vampire/System/Reborn/Revenge/Fanfiction/Humor]
 
 ===== TAGS =====
 [最多20个，用#和逗号，如：#SlowBurn, #ForcedProximity, #AlphaMale, #SecondChance, #RagsToRiches, #FakeRelationship]
@@ -514,7 +543,7 @@ Chapter 2: [标题]
 3. **前3章最关键**，必须快节奏+高爽点，否则读者流失
 4. **每章都要满足读者**，不要"铺垫章"
 5. **Hook是生命线**，每章结尾必须让人想点下一章
-6. **从16种Genre中自动选择**最适合的类型，填入CATEGORY字段
+6. **从18种Genre中自动选择**最适合的类型，填入CATEGORY字段
 
 **你的目标：让读者停不下来！**
 
@@ -594,7 +623,7 @@ DEFAULT_WRITER_PROMPT = """# ADDICTIVE WEB NOVEL WRITER
 
 ---
 
-## 【16种Genre写作风格】
+## 【18种Genre写作风格】
 
 ### 1. Fantasy（奇幻）
 **文风**：史诗感+动作感，战斗描写要清晰快速
@@ -735,8 +764,8 @@ His father didn't speak. The silence stretched.
 ### 11. Paranormal（超自然）
 **文风**：神秘+现代，超自然要合理化
 **对话风格**：惊讶+适应，有幽默感
-**必须元素**：能力觉醒、超自然战斗
-**爽点侧重**：新能力、战胜敌人、命运改变
+**必须元素**：超能力觉醒、灵异事件、鬼魂互动
+**爽点侧重**：新能力、灵异揭秘、超自然胜利
 **范例**：
 ```
 Fire erupted from her hands. She screamed.
@@ -745,7 +774,35 @@ The flames didn't burn. They danced, controlled.
 "You're a pyrokinetic." The stranger stepped from shadows. "Welcome to the world."
 ```
 
-### 12. System（系统流）
+### 12. Werewolf（狼人）
+**文风**：原始+野性，变身描写要有冲击力
+**对话风格**：直接、本能，狼性与人性冲突
+**必须元素**：变身场景、狼族社会、月圆之夜
+**爽点侧重**：首次变身、狼性力量、狼群地位
+**范例**：
+```
+The moon pulled at him. His bones shifted.
+Pain ripped through his body. Then—freedom.
+His senses exploded. Every scent told a story.
+The wolf inside wasn't a curse.
+It was power. Raw and unstoppable.
+```
+
+### 13. Vampire（吸血鬼）
+**文风**：优雅+危险，吸血场景要性感又致命
+**对话风格**：古老智慧，暗含威胁
+**必须元素**：吸血转化、血族政治、永生代价
+**爽点侧重**：吸血力量、血族权力、永恒魅力
+**范例**：
+```
+His fangs pierced her neck. Her gasp—pain or pleasure?
+The blood flooded his mouth. Hot. Sweet. Intoxicating.
+Her pulse weakened. His strength surged.
+"Welcome to forever," he whispered.
+She'd never be the same. Neither would he.
+```
+
+### 14. System（系统流）
 **文风**：游戏化、数据化、轻松感
 **对话风格**：系统提示简洁，人物对话轻松
 **必须元素**：任务、奖励、升级面板
@@ -760,7 +817,7 @@ The flames didn't burn. They danced, controlled.
 "Let's try this again." He cracked his knuckles.
 ```
 
-### 13. Reborn（重生）
+### 15. Reborn（重生）
 **文风**：紧迫+爽快，利用信息差
 **对话风格**：主角有先知感，话中有话
 **必须元素**：预知、改变、提前布局
@@ -773,7 +830,7 @@ The flames didn't burn. They danced, controlled.
 "It won't tank."
 ```
 
-### 14. Revenge（复仇）
+### 16. Revenge（复仇）
 **文风**：冷硬、计算、情绪克制后爆发
 **对话风格**：威胁感、讽刺、冷静反击
 **必须元素**：计划、报复、仇人遭报应
@@ -787,7 +844,7 @@ She dropped the folder. Photos spilled out. Crimes. Evidence. Proof.
 "Your turn to burn."
 ```
 
-### 15. Fanfiction（同人）
+### 17. Fanfiction（同人）
 **文风**：保持原著风格+加入自己创意
 **对话风格**：还原原著角色语气
 **必须元素**：原著角色、经典场景、合理改编
@@ -804,7 +861,7 @@ Hermione gaped. "Did you just—"
 "Ignored him? Yeah." Harry grinned. "Feels good."
 ```
 
-### 16. Humor（幽默）
+### 18. Humor（幽默）
 **文风**：轻松、快节奏、梗密集
 **对话风格**：吐槽、反转、荒诞
 **必须元素**：笑点、反差萌、自嘲
@@ -1250,7 +1307,9 @@ Chapter X: [Title]
 | Horror | 恐怖/逃生/真相 | 纯吓人无剧情 |
 | Crime | 计划/行动/正义 | 纯理论推理 |
 | LGBTQ+ | 认同/勇气/甜蜜 | 刻意强调身份 |
-| Paranormal | 能力/战斗/命运 | 能力太复杂 |
+| Paranormal | 超能力/灵异/鬼魂 | 能力太复杂 |
+| Werewolf | 变身/狼性/狼群 | 过多设定说明 |
+| Vampire | 吸血/血族/永生 | 闪闪发光的吸血鬼 |
 | System | 任务/奖励/升级 | 系统废话太多 |
 | Reborn | 先知/改命/复仇 | 过度回忆前世 |
 | Revenge | 报复/真相/正义 | 主角只挨打 |
