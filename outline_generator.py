@@ -420,6 +420,16 @@ class OutlineGeneratorWithQueue:
             font=("Arial", 8)
         ).pack(side=tk.RIGHT, padx=5, pady=5)
 
+        tk.Button(
+            outline_header,
+            text="▶️ 全部开始",
+            command=self.start_all_outline_tasks,
+            bg="#4CAF50",
+            fg="white",
+            width=10,
+            font=("Arial", 8)
+        ).pack(side=tk.RIGHT, padx=5, pady=5)
+
         # 左列滚动区域
         outline_canvas = tk.Canvas(outline_column, bg="white")
         outline_scrollbar = ttk.Scrollbar(outline_column, orient="vertical", command=outline_canvas.yview)
@@ -471,6 +481,16 @@ class OutlineGeneratorWithQueue:
             bg="#f44336",
             fg="white",
             width=8,
+            font=("Arial", 8)
+        ).pack(side=tk.RIGHT, padx=5, pady=5)
+
+        tk.Button(
+            cover_header,
+            text="▶️ 全部开始",
+            command=self.start_all_cover_tasks,
+            bg="#4CAF50",
+            fg="white",
+            width=10,
             font=("Arial", 8)
         ).pack(side=tk.RIGHT, padx=5, pady=5)
 
@@ -1585,34 +1605,70 @@ Max Tokens: {task.config['max_tokens']}
             # 显示空提示
             self.empty_label.pack()
 
+    def start_all_outline_tasks(self):
+        """一键开始所有大纲任务"""
+        if not self.tasks:
+            print("⚠️  没有大纲任务")
+            return
+
+        pending_tasks = [t for t in self.tasks if t.status == 'pending']
+        if not pending_tasks:
+            print("⚠️  所有大纲任务都已开始或完成")
+            return
+
+        print(f"🚀 开始 {len(pending_tasks)} 个大纲任务")
+        for task in pending_tasks:
+            try:
+                self.start_task(task)
+            except Exception as e:
+                print(f"❌ 启动失败: {task.genre}, 错误: {e}")
+
     def clear_outline_tasks(self):
         """清空大纲任务"""
         running_tasks = [t for t in self.tasks if t.status == 'running']
         if running_tasks:
-            messagebox.showwarning("警告", "有大纲任务正在运行中")
+            print("⚠️  有大纲任务正在运行中")
             return
 
         if not self.tasks:
-            messagebox.showinfo("提示", "大纲队列已经是空的")
+            print("⚠️  大纲队列已经是空的")
             return
 
-        if messagebox.askyesno("确认", f"确定要清空所有 {len(self.tasks)} 个大纲任务吗？"):
-            for task in self.tasks[:]:
-                if task.task_id in self.task_frames:
-                    self.task_frames[task.task_id].destroy()
-                    del self.task_frames[task.task_id]
-            self.tasks.clear()
-            self.empty_label.pack()
+        print(f"🗑️ 清空 {len(self.tasks)} 个大纲任务")
+        for task in self.tasks[:]:
+            if task.task_id in self.task_frames:
+                self.task_frames[task.task_id].destroy()
+                del self.task_frames[task.task_id]
+        self.tasks.clear()
+        self.empty_label.pack()
+
+    def start_all_cover_tasks(self):
+        """一键开始所有封面任务"""
+        if not self.cover_tasks:
+            print("⚠️  没有封面任务")
+            return
+
+        pending_tasks = [t for t in self.cover_tasks if t.get('status') == 'pending']
+        if not pending_tasks:
+            print("⚠️  所有封面任务都已开始或完成")
+            return
+
+        print(f"🚀 开始 {len(pending_tasks)} 个封面任务")
+        for task in pending_tasks:
+            try:
+                self.start_cover_task(task)
+            except Exception as e:
+                print(f"❌ 启动失败: {task.get('outline_info', {}).get('title', 'Unknown')}, 错误: {e}")
 
     def clear_cover_tasks(self):
         """清空封面任务"""
         if not self.cover_tasks:
-            messagebox.showinfo("提示", "封面队列已经是空的")
+            print("⚠️  封面队列已经是空的")
             return
 
-        if messagebox.askyesno("确认", f"确定要清空所有 {len(self.cover_tasks)} 个封面任务吗？"):
-            for task in self.cover_tasks[:]:
-                if task['task_id'] in self.cover_task_frames:
+        print(f"🗑️ 清空 {len(self.cover_tasks)} 个封面任务")
+        for task in self.cover_tasks[:]:
+            if task['task_id'] in self.cover_task_frames:
                     self.cover_task_frames[task['task_id']].destroy()
                     del self.cover_task_frames[task['task_id']]
             self.cover_tasks.clear()
@@ -2247,10 +2303,32 @@ Max Tokens: {task.config['max_tokens']}
         except Exception as e:
             messagebox.showerror("错误", f"预览Prompt失败:\n{str(e)}")
 
+    def _get_default_directory(self):
+        """获取默认目录 - 优先使用用户文档目录"""
+        # Windows: C:\Users\用户名\Documents\OutlineGenerator
+        # Mac/Linux: ~/Documents/OutlineGenerator
+        if sys.platform == 'win32':
+            docs_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'OutlineGenerator')
+        else:
+            docs_dir = os.path.expanduser('~/Documents/OutlineGenerator')
+
+        # 检查多个可能的目录
+        possible_dirs = [
+            docs_dir,
+            os.path.abspath("novels_for_translation"),
+            os.getcwd()
+        ]
+
+        for directory in possible_dirs:
+            if os.path.exists(directory):
+                return directory
+
+        # 如果都不存在，返回用户文档目录（即使不存在也返回，方便创建）
+        return docs_dir
+
     def add_cover_folder(self):
         """添加outline文件夹"""
-        # 设置初始目录 - 如果不存在则使用当前目录
-        initial_dir = os.path.abspath("novels_for_translation") if os.path.exists("novels_for_translation") else os.getcwd()
+        initial_dir = self._get_default_directory()
 
         folder = filedialog.askdirectory(title="选择Outline文件夹", initialdir=initial_dir)
         if folder:
@@ -2279,8 +2357,7 @@ Max Tokens: {task.config['max_tokens']}
 
     def add_cover_folder_batch(self):
         """批量添加outline文件夹（扫描父文件夹下的所有子文件夹）"""
-        # 设置初始目录
-        initial_dir = os.path.abspath("novels_for_translation") if os.path.exists("novels_for_translation") else os.getcwd()
+        initial_dir = self._get_default_directory()
 
         parent_folder = filedialog.askdirectory(
             title="选择父文件夹（将自动扫描所有子文件夹）",

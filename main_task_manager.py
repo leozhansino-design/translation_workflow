@@ -551,10 +551,32 @@ class WritingToolWindow:
             width=15
         ).pack(side=tk.RIGHT, padx=5)
 
+    def _get_default_directory(self):
+        """获取默认目录 - 优先使用用户文档目录"""
+        # Windows: C:\Users\用户名\Documents\OutlineGenerator
+        # Mac/Linux: ~/Documents/OutlineGenerator
+        if sys.platform == 'win32':
+            docs_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'OutlineGenerator')
+        else:
+            docs_dir = os.path.expanduser('~/Documents/OutlineGenerator')
+
+        # 检查多个可能的目录
+        possible_dirs = [
+            docs_dir,
+            os.path.abspath("novels_for_translation"),
+            os.getcwd()
+        ]
+
+        for directory in possible_dirs:
+            if os.path.exists(directory):
+                return directory
+
+        # 如果都不存在，返回用户文档目录
+        return docs_dir
+
     def select_outline_folder(self):
         """选择大纲文件夹 - 自动检测章节数"""
-        # 设置初始目录 - 如果不存在则使用当前目录
-        initial_dir = os.path.abspath("novels_for_translation") if os.path.exists("novels_for_translation") else os.getcwd()
+        initial_dir = self._get_default_directory()
 
         folder = filedialog.askdirectory(title="选择大纲文件夹", initialdir=initial_dir)
         if folder:
@@ -610,8 +632,7 @@ class WritingToolWindow:
 
     def select_outline_folder_batch(self):
         """批量选择大纲文件夹 - 扫描父文件夹下所有子文件夹并自动添加任务"""
-        # 设置初始目录
-        initial_dir = os.path.abspath("novels_for_translation") if os.path.exists("novels_for_translation") else os.getcwd()
+        initial_dir = self._get_default_directory()
 
         parent_folder = filedialog.askdirectory(
             title="选择父文件夹（将自动扫描所有子文件夹并添加任务）",
