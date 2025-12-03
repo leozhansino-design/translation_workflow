@@ -1221,12 +1221,6 @@ Now write Chapter {next_chapter} based on the outline above."""
 
         print(f"🗑️ 清空 {len(self.tasks)} 个写作任务")
 
-        # 删除UI中的任务卡片
-        for task in self.tasks[:]:
-            if task.task_id in self.task_widgets:
-                self.task_widgets[task.task_id].destroy()
-                del self.task_widgets[task.task_id]
-
         # 清空任务列表
         self.tasks.clear()
 
