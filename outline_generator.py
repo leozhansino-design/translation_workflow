@@ -1444,12 +1444,14 @@ Max Tokens: {task.config['max_tokens']}
             )
             names_formatted = self.resource_mgr.format_names_for_prompt(selected_names)
 
-            selected_style = self.resource_mgr.select_style(task.genre)
+            # 随机选择风格（不再基于genre）
+            import random
+            available_genres = list(self.resource_mgr.styles.keys())
+            random_genre = random.choice(available_genres)
+            selected_style = self.resource_mgr.select_style(random_genre)
 
-            # 构建Prompt
+            # 构建Prompt（不包含genre，AI会自动判断）
             prompt_vars = {
-                'genre': task.genre,
-                'genre_focus': selected_style['genre_focus'],
                 'male_names': names_formatted['male_names'],
                 'female_names': names_formatted['female_names'],
                 'end_chapter': task.config.get('chapter_count', 15),
@@ -1574,9 +1576,9 @@ Max Tokens: {task.config['max_tokens']}
         with open(os.path.join(output_folder, 'tags.txt'), 'w', encoding='utf-8') as f:
             f.write(parsed_data.get('tags', '') or '')
 
-        # 4. 保存 category.txt
+        # 4. 保存 category.txt (genre由AI判断并存储在parsed_data中)
         with open(os.path.join(output_folder, 'category.txt'), 'w', encoding='utf-8') as f:
-            f.write(task.genre)
+            f.write(parsed_data.get('genre', 'Unknown') or 'Unknown')
 
         # 5. 保存 age.txt
         with open(os.path.join(output_folder, 'age.txt'), 'w', encoding='utf-8') as f:
@@ -1875,7 +1877,7 @@ Max Tokens: {task.config['max_tokens']}
             try:
                 self.start_task(task)
             except Exception as e:
-                print(f"❌ 启动失败: {task.genre}, 错误: {e}")
+                print(f"❌ 启动失败: {os.path.basename(task.source_file)}, 错误: {e}")
 
     def clear_outline_tasks(self):
         """清空大纲任务"""
