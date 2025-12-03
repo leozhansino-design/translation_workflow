@@ -39,6 +39,10 @@ def get_work_directory():
 def extract_genre_from_filename(filename):
     """从文件名提取类型
 
+    DEPRECATED: This function is deprecated. Genre detection is now handled automatically
+    by the AI during outline generation. Use this function only for importing legacy
+    web-generated outlines.
+
     Args:
         filename: 文件名，格式为 [书名]_[类型].txt
 
@@ -91,6 +95,9 @@ def extract_title_from_filename(filename):
 
 def validate_genre(genre, available_genres):
     """验证类型是否在可用列表中
+
+    DEPRECATED: This function is deprecated. Genre validation is no longer needed
+    as the AI automatically determines the genre from 18 available categories.
 
     Args:
         genre: 要验证的类型

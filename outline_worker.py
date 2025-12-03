@@ -9,10 +9,10 @@ import sys
 from datetime import datetime
 from openai import OpenAI
 
+import random
 from resource_mgr import ResourceManager
 from prompt_manager import PromptManager
 from utils import (
-    extract_genre_from_filename,
     extract_title_from_filename,
     parse_json_from_llm_response,
     call_api_with_http_client
@@ -74,12 +74,11 @@ class OutlineWorker:
             if content is None:
                 raise ValueError(f"无法读取文件，尝试了以下编码均失败: {', '.join(encodings_to_try)}")
 
-            # 提取类型和书名
-            genre = extract_genre_from_filename(source_file)
+            # 提取书名（不再要求文件名包含类型）
             original_title = extract_title_from_filename(source_file)
 
-            print(f"✓ 类型: {genre}")
             print(f"✓ 书名: {original_title}")
+            print(f"✓ AI将自动从18个类型中判断最合适的类型")
 
             # 选择人名
             male_count = self.config.get('male_count', 10)
@@ -89,26 +88,28 @@ class OutlineWorker:
 
             print(f"✓ 选择人名: {male_count}个男性, {female_count}个女性")
 
-            # 选择风格
-            genre_data = self.resource_mgr.styles[genre]
+            # 随机选择风格（不再基于类型，因为AI会自行判断类型）
+            # 从所有可用类型中随机选一个类型，再从该类型中选择使用次数最少的风格
+            available_genres = list(self.resource_mgr.styles.keys())
+            random_genre = random.choice(available_genres)
+            genre_data = self.resource_mgr.styles[random_genre]
             counts = genre_data['used']
             min_idx = counts.index(min(counts))
             style = genre_data['styles'][min_idx]
             author = genre_data['authors'][min_idx]
 
             # 更新风格使用次数
-            self.resource_mgr.styles[genre]['used'][min_idx] += 1
+            self.resource_mgr.styles[random_genre]['used'][min_idx] += 1
             self.resource_mgr.save_styles()
 
-            print(f"✓ 选择风格: {author}")
+            print(f"✓ 选择风格: {author} (来自{random_genre}类型)")
 
-            # 构建Prompt变量
+            # 构建Prompt变量（不再包含genre，AI会自动判断）
             start_ch = self.config.get('start_chapter', 1)
             end_ch = self.config.get('end_chapter', 100)
             total_chapters = end_ch - start_ch + 1
 
             prompt_vars = {
-                'genre': genre,
                 'male_names': names_formatted['male_names'],
                 'female_names': names_formatted['female_names'],
                 'style': style,
@@ -195,7 +196,6 @@ class OutlineWorker:
                     'source_file': source_file,
                     'original_title': original_title,
                     'chapter_range': [start_ch, end_ch],
-                    'genre': genre,
                     'selected_names': selected_names,
                     'style': style,
                     'author': author,

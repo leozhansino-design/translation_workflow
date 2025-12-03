@@ -26,9 +26,7 @@ from resource_mgr import ResourceManager
 from prompt_manager import PromptManager
 from universal_api import UniversalAPIClient
 from utils import (
-    extract_genre_from_filename,
     extract_title_from_filename,
-    validate_genre,
     parse_json_from_llm_response,
     get_work_directory
 )
@@ -37,10 +35,9 @@ from utils import (
 class OutlineTask:
     """大纲生成任务"""
 
-    def __init__(self, task_id, source_file, genre, config_params):
+    def __init__(self, task_id, source_file, config_params):
         self.task_id = task_id
         self.source_file = source_file
-        self.genre = genre
         self.config = config_params
         self.status = 'pending'  # pending, running, completed, failed
         self.created_at = datetime.now()
@@ -53,7 +50,6 @@ class OutlineTask:
         return {
             'task_id': self.task_id,
             'source_file': self.source_file,
-            'genre': self.genre,
             'config': self.config,
             'status': self.status,
             'created_at': self.created_at.isoformat(),
@@ -70,7 +66,7 @@ class CoverTask:
         self.task_id = task_id
         self.outline_folder = outline_folder
         self.title = title
-        self.genre = genre
+        self.genre = genre  # Genre from AI-generated outline
         self.blurb = blurb
         self.config = config_params
         self.status = 'pending'  # pending, running, completed, failed
@@ -123,7 +119,6 @@ class OutlineGeneratorWithQueue:
 
         # 当前配置
         self.current_source_file = None
-        self.current_genre = None
 
         # 初始化界面
         self.setup_ui()
@@ -233,8 +228,7 @@ class OutlineGeneratorWithQueue:
             fg="white"
         ).pack(side=tk.LEFT, padx=5)
 
-        self.genre_label = tk.Label(file_select_frame, text="", fg="blue", font=("Arial", 10, "bold"))
-        self.genre_label.pack(side=tk.LEFT, padx=10)
+        # AI will auto-detect genre from 18 categories
 
         # 第二行：参数配置
         tk.Label(task_frame, text="人名数量:").grid(row=1, column=0, sticky=tk.W, pady=5)
@@ -594,16 +588,8 @@ class OutlineGeneratorWithQueue:
                 file_path = os.path.abspath(os.path.normpath(file_path))
                 print(f"🔍 选择的文件: {file_path}")
 
-                # 提取类型
-                genre = extract_genre_from_filename(file_path)
-
-                # 验证类型
-                available_genres = self.resource_mgr.get_available_genres()
-                validate_genre(genre, available_genres)
-
                 # 保存数据
                 self.current_source_file = file_path
-                self.current_genre = genre
 
                 # 计算字数
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -615,12 +601,10 @@ class OutlineGeneratorWithQueue:
                     text=f"{os.path.basename(file_path)} ({char_count:,} 字符)",
                     fg="black"
                 )
-                self.genre_label.config(text=f"类型: {genre}")
 
-            except ValueError as e:
-                messagebox.showerror("文件名错误", str(e))
+            except Exception as e:
+                messagebox.showerror("文件错误", str(e))
                 self.current_source_file = None
-                self.current_genre = None
 
     def batch_add_files(self):
         """批量添加文件到任务队列"""
@@ -649,49 +633,31 @@ class OutlineGeneratorWithQueue:
         # 扫描所有txt文件
         import glob
         import random
-        from utils import extract_genre_from_filename, validate_genre
 
         txt_files = glob.glob(os.path.join(folder, "*.txt"))
         print(f"  扫描到 {len(txt_files)} 个 .txt 文件")
 
         valid_files = []
-        skipped_files = []
 
         for file_path in txt_files:
             try:
-                # 提取并验证类型
-                genre = extract_genre_from_filename(file_path)
-                available_genres = self.resource_mgr.get_available_genres()
-                validate_genre(genre, available_genres)
+                # 检查文件是否可读
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    f.read(100)  # 读取前100字符测试
 
                 valid_files.append({
                     'path': file_path,
-                    'genre': genre,
                     'name': os.path.basename(file_path)
                 })
-                print(f"  ✅ 找到: {os.path.basename(file_path)} ({genre})")
+                print(f"  ✅ 找到: {os.path.basename(file_path)}")
 
-            except ValueError as e:
+            except Exception as e:
                 print(f"  ⚠️  跳过: {os.path.basename(file_path)} - {e}")
-                skipped_files.append(f"{os.path.basename(file_path)}: {str(e)}")
 
         print(f"\n扫描完成: 找到 {len(valid_files)} 个有效文件")
 
         if not valid_files:
-            # 显示详细的错误信息
-            if skipped_files:
-                error_details = "\n".join(skipped_files[:5])  # 只显示前5个
-                if len(skipped_files) > 5:
-                    error_details += f"\n... 还有 {len(skipped_files) - 5} 个文件"
-                messagebox.showwarning(
-                    "未找到有效文件",
-                    f"扫描了 {len(txt_files)} 个文件，都被跳过了\n\n"
-                    f"跳过的文件:\n{error_details}\n\n"
-                    f"文件格式要求: [书名]_[类型].txt\n"
-                    f"可用类型: {', '.join(self.resource_mgr.get_available_genres()[:8])}..."
-                )
-            else:
-                messagebox.showwarning("未找到文件", f"文件夹中没有找到 .txt 文件")
+            messagebox.showwarning("未找到文件", f"文件夹中没有找到可读的 .txt 文件")
             self.file_label.config(text="❌ 未找到有效文件", fg="red")
             return
 
@@ -716,7 +682,7 @@ class OutlineGeneratorWithQueue:
                     'max_tokens': self.max_tokens_var.get(),
                 }
 
-                task = OutlineTask(task_id, file_info['path'], file_info['genre'], config_params)
+                task = OutlineTask(task_id, file_info['path'], config_params)
                 self.tasks.append(task)
 
                 added_count += 1
@@ -785,7 +751,7 @@ class OutlineGeneratorWithQueue:
             'max_tokens': self.max_tokens_var.get(),
         }
 
-        task = OutlineTask(task_id, self.current_source_file, self.current_genre, config_params)
+        task = OutlineTask(task_id, self.current_source_file, config_params)
         self.tasks.append(task)
 
         # 刷新显示（支持分页）
@@ -794,10 +760,10 @@ class OutlineGeneratorWithQueue:
         print(f"✅ 任务已添加: {os.path.basename(self.current_source_file)}")
 
     def import_web_outline(self):
-        """导入网页版生成的大纲（格式：BookTitle_Genre.txt）"""
+        """导入网页版生成的大纲"""
         # 选择文件
         file_path = filedialog.askopenfilename(
-            title="选择网页版大纲文件（格式：书名_类型.txt）",
+            title="选择网页版大纲文件",
             filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
         )
 
@@ -809,29 +775,17 @@ class OutlineGeneratorWithQueue:
             file_path = os.path.abspath(os.path.normpath(file_path))
             print(f"🔍 导入的文件: {file_path}")
 
-            # 从文件名提取书名和类型
+            # 从文件名提取书名
             filename = os.path.basename(file_path)
+            book_title = os.path.splitext(filename)[0]
 
-            # 使用统一的类型提取函数（自动处理大小写）
+            # 尝试从文件名提取类型（可选）
+            from utils import extract_genre_from_filename
             try:
                 genre = extract_genre_from_filename(file_path)
-            except ValueError as e:
-                messagebox.showerror("错误", str(e))
-                return
-
-            # 提取书名
-            match = re.match(r'(.+?)_([A-Za-z+\-]+)\.txt$', filename)
-            if match:
-                book_title = match.group(1)
-            else:
-                # 如果正则失败，使用文件名去掉扩展名和类型
-                book_title = filename.replace(f'_{genre}.txt', '').replace(f'_{genre.lower()}.txt', '').replace(f'_{genre.upper()}.txt', '')
-
-            # 验证类型
-            available_genres = self.resource_mgr.get_available_genres()
-            if genre not in available_genres:
-                messagebox.showerror("错误", f"类型'{genre}'不存在！\n可用类型：{', '.join(available_genres)}")
-                return
+            except:
+                # 如果文件名没有genre，使用None（会从内容中读取）
+                genre = None
 
             # 读取文件内容
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -840,6 +794,17 @@ class OutlineGeneratorWithQueue:
             if not result_text.strip():
                 messagebox.showerror("错误", "文件内容为空！")
                 return
+
+            # 如果文件名中没有genre，尝试从内容中提取
+            if not genre:
+                # 尝试从JSON内容中提取genre
+                try:
+                    import json
+                    from utils import parse_json_from_llm_response
+                    outline_data = parse_json_from_llm_response(result_text)
+                    genre = outline_data.get('genre', 'Unknown')
+                except:
+                    genre = 'Unknown'
 
             # 创建虚拟任务对象（用于复用保存逻辑）
             class WebOutlineTask:
@@ -923,7 +888,7 @@ class OutlineGeneratorWithQueue:
         # 动态显示的详情标签
         details_label = tk.Label(
             details_frame,
-            text=f"类型: {task.genre}  |  模型: {task.config['model']}",
+            text=f"模型: {task.config['model']}  |  AI将自动判断类型",
             font=("Arial", 8),
             bg="#f5f5f5",
             fg="gray"
@@ -1043,7 +1008,7 @@ class OutlineGeneratorWithQueue:
         details_frame.pack(fill=tk.X, pady=(3, 0))
 
         # 初始详情文本（不显示开始时间）
-        details_text = f"类型: {task.genre}  |  模型: {task.config.get('model', 'dall-e-3')}"
+        details_text = f"模型: {task.config.get('model', 'dall-e-3')}"
 
         details_label = tk.Label(
             details_frame,
@@ -1186,7 +1151,7 @@ class OutlineGeneratorWithQueue:
             # 更新详情标签（添加开始时间）
             if hasattr(container, 'details_label'):
                 start_time_str = task.started_at.strftime('%H:%M:%S')
-                details_text = f"类型: {task.genre}  |  模型: {task.config.get('model', 'dall-e-3')}  |  开始: {start_time_str}"
+                details_text = f"模型: {task.config.get('model', 'dall-e-3')}  |  开始: {start_time_str}"
                 container.details_label.config(text=details_text)
 
             # 禁用开始按钮
@@ -1278,7 +1243,7 @@ class OutlineGeneratorWithQueue:
             if hasattr(container, 'view_btn'):
                 container.view_btn.config(state=tk.DISABLED)
             if hasattr(container, 'details_label'):
-                details_text = f"类型: {task.genre}  |  模型: {task.config.get('model', 'dall-e-3')}"
+                details_text = f"模型: {task.config.get('model', 'dall-e-3')}"
                 container.details_label.config(text=details_text)
 
         print(f"  ✅ 任务已重置为初始状态")
@@ -1367,12 +1332,14 @@ class OutlineGeneratorWithQueue:
             )
             names_formatted = self.resource_mgr.format_names_for_prompt(selected_names)
 
-            selected_style = self.resource_mgr.select_style(task.genre)
+            # 随机选择风格（不再基于genre）
+            import random
+            available_genres = list(self.resource_mgr.styles.keys())
+            random_genre = random.choice(available_genres)
+            selected_style = self.resource_mgr.select_style(random_genre)
 
-            # 构建Prompt变量
+            # 构建Prompt变量（不包含genre，AI会自动判断）
             prompt_vars = {
-                'genre': task.genre,
-                'genre_focus': selected_style['genre_focus'],
                 'male_names': names_formatted['male_names'],
                 'female_names': names_formatted['female_names'],
                 'end_chapter': task.config.get('chapter_count', 15),
@@ -1394,7 +1361,7 @@ class OutlineGeneratorWithQueue:
 元数据 (Metadata)
 {'='*70}
 文件: {os.path.basename(task.source_file)}
-类型: {task.genre}
+类型: AI将从18个类型中自动判断
 模型: {task.config['model']}
 要求章节数: {task.config.get('chapter_count', 15)}
 Max Tokens: {task.config['max_tokens']}
@@ -1403,7 +1370,7 @@ Max Tokens: {task.config['max_tokens']}
 男性: {names_formatted['male_names']}
 女性: {names_formatted['female_names']}
 
-类型重点 ({task.genre}):
+参考写作风格 (随机选自{random_genre}):
 {selected_style['genre_focus'][:200]}...
 """
 
@@ -1446,7 +1413,7 @@ Max Tokens: {task.config['max_tokens']}
 
             # 更新详情显示开始时间
             frame.details_label.config(
-                text=f"类型: {task.genre}  |  模型: {task.config['model']}  |  开始时间: {task.started_at.strftime('%H:%M:%S')}"
+                text=f"模型: {task.config['model']}  |  开始时间: {task.started_at.strftime('%H:%M:%S')}"
             )
 
         # 在新线程中执行
@@ -1793,7 +1760,7 @@ Max Tokens: {task.config['max_tokens']}
             frame.start_btn.config(text="▶️ 开始", state=tk.NORMAL)
             frame.folder_btn.config(state=tk.DISABLED)
             frame.details_label.config(
-                text=f"类型: {task.genre}  |  模型: {task.config['model']}"
+                text=f"模型: {task.config['model']}  |  AI将自动判断类型"
             )
 
         print(f"  ✅ 任务已重置为初始状态")
