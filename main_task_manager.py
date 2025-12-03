@@ -230,7 +230,17 @@ class WritingToolWindow:
         )
         self.page_label.pack(side=tk.LEFT, padx=20, expand=True)
 
-        # 添加全部开始按钮
+        # 添加全部开始和清空按钮
+        tk.Button(
+            pagination_frame,
+            text="🗑️ 清空",
+            command=self.clear_all_tasks,
+            bg="#f44336",
+            fg="white",
+            width=10,
+            font=("Arial", 9, "bold")
+        ).pack(side=tk.RIGHT, padx=5)
+
         tk.Button(
             pagination_frame,
             text="▶️ 全部开始",
@@ -239,7 +249,7 @@ class WritingToolWindow:
             fg="white",
             width=12,
             font=("Arial", 9, "bold")
-        ).pack(side=tk.RIGHT, padx=10)
+        ).pack(side=tk.RIGHT, padx=5)
 
         tk.Button(
             pagination_frame,
@@ -1155,6 +1165,42 @@ Now write Chapter {next_chapter} based on the outline above."""
                 print(f"❌ 启动失败: {task.title}, 错误: {e}")
                 import traceback
                 traceback.print_exc()
+
+        print(f"✅ 已启动 {len(pending_tasks)} 个任务")
+
+    def clear_all_tasks(self):
+        """清空所有任务"""
+        if not self.tasks:
+            messagebox.showinfo("提示", "任务队列已经是空的")
+            return
+
+        # 检查是否有运行中的任务
+        running_tasks = [t for t in self.tasks if t.status == 'in_progress']
+        if running_tasks:
+            messagebox.showwarning("无法清空", f"有 {len(running_tasks)} 个任务正在运行中，请先等待完成或停止")
+            return
+
+        # 确认对话框
+        if not messagebox.askyesno("确认清空", f"确定要清空 {len(self.tasks)} 个写作任务吗？\n\n注意：已完成的章节文件不会被删除"):
+            return
+
+        print(f"🗑️ 清空 {len(self.tasks)} 个写作任务")
+
+        # 删除UI中的任务卡片
+        for task in self.tasks[:]:
+            if task.task_id in self.task_widgets:
+                self.task_widgets[task.task_id].destroy()
+                del self.task_widgets[task.task_id]
+
+        # 清空任务列表
+        self.tasks.clear()
+
+        # 重置分页
+        self.current_page = 0
+
+        # 刷新显示
+        self.refresh_display()
+        print("✅ 写作任务已清空")
 
     def start_task(self, task):
         """启动任务 - 直接运行worker（不用subprocess，避免exe打包问题）"""

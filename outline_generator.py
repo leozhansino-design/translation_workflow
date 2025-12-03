@@ -1883,11 +1883,15 @@ Max Tokens: {task.config['max_tokens']}
         """清空大纲任务"""
         running_tasks = [t for t in self.tasks if t.status == 'running']
         if running_tasks:
-            print("⚠️  有大纲任务正在运行中")
+            messagebox.showwarning("无法清空", f"有 {len(running_tasks)} 个任务正在运行中，请先等待完成")
             return
 
         if not self.tasks:
-            print("⚠️  大纲队列已经是空的")
+            messagebox.showinfo("提示", "大纲队列已经是空的")
+            return
+
+        # 确认对话框
+        if not messagebox.askyesno("确认清空", f"确定要清空 {len(self.tasks)} 个大纲任务吗？"):
             return
 
         print(f"🗑️ 清空 {len(self.tasks)} 个大纲任务")
@@ -1896,30 +1900,45 @@ Max Tokens: {task.config['max_tokens']}
                 self.task_frames[task.task_id].destroy()
                 del self.task_frames[task.task_id]
         self.tasks.clear()
-        self.empty_label.pack()
+
+        # 刷新显示
+        self.refresh_outline_tasks_display()
+        print("✅ 大纲任务已清空")
 
     def start_all_cover_tasks(self):
         """一键开始所有封面任务"""
         if not self.cover_tasks:
-            print("⚠️  没有封面任务")
+            messagebox.showinfo("提示", "没有封面任务")
             return
 
         pending_tasks = [t for t in self.cover_tasks if t.get('status') == 'pending']
         if not pending_tasks:
-            print("⚠️  所有封面任务都已开始或完成")
+            messagebox.showinfo("提示", "所有封面任务都已开始或完成")
             return
 
         print(f"🚀 开始 {len(pending_tasks)} 个封面任务")
         for task in pending_tasks:
             try:
-                self.start_cover_task(task)
+                self.start_cover_generation(task)
             except Exception as e:
                 print(f"❌ 启动失败: {task.get('outline_info', {}).get('title', 'Unknown')}, 错误: {e}")
+
+        print(f"✅ 已启动 {len(pending_tasks)} 个封面任务")
 
     def clear_cover_tasks(self):
         """清空封面任务"""
         if not self.cover_tasks:
-            print("⚠️  封面队列已经是空的")
+            messagebox.showinfo("提示", "封面队列已经是空的")
+            return
+
+        # 检查是否有运行中的任务
+        running_tasks = [t for t in self.cover_tasks if t.get('status') == 'running']
+        if running_tasks:
+            messagebox.showwarning("无法清空", f"有 {len(running_tasks)} 个任务正在运行中，请先等待完成")
+            return
+
+        # 确认对话框
+        if not messagebox.askyesno("确认清空", f"确定要清空 {len(self.cover_tasks)} 个封面任务吗？"):
             return
 
         print(f"🗑️ 清空 {len(self.cover_tasks)} 个封面任务")
@@ -1929,7 +1948,10 @@ Max Tokens: {task.config['max_tokens']}
                 del self.cover_task_frames[task['task_id']]
 
         self.cover_tasks.clear()
-        self.cover_empty_label.pack()
+
+        # 刷新显示
+        self.refresh_cover_tasks_display()
+        print("✅ 封面任务已清空")
 
     def test_api_connection(self):
         """测试API连接 - 使用UniversalAPIClient（兼容Gemini和GPT）"""
