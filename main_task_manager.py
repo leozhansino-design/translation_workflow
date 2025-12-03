@@ -258,6 +258,26 @@ class WritingToolWindow:
             width=10
         ).pack(side=tk.RIGHT, padx=5)
 
+        # 进度条
+        progress_frame = tk.Frame(queue_frame, bg="#f0f0f0", height=30)
+        progress_frame.pack(fill=tk.X, padx=5, pady=5)
+        progress_frame.pack_propagate(False)
+
+        self.progress_label = tk.Label(
+            progress_frame,
+            text="进度: 0/0 (0%)",
+            font=("Arial", 9, "bold"),
+            bg="#f0f0f0"
+        )
+        self.progress_label.pack(side=tk.LEFT, padx=10)
+
+        self.progress_bar = ttk.Progressbar(
+            progress_frame,
+            mode='determinate',
+            length=200
+        )
+        self.progress_bar.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
+
         # Canvas + Scrollbar
         self.canvas = tk.Canvas(queue_frame, bg="white")
         scrollbar = ttk.Scrollbar(queue_frame, orient=tk.VERTICAL, command=self.canvas.yview)
@@ -1168,6 +1188,21 @@ Now write Chapter {next_chapter} based on the outline above."""
 
         print(f"✅ 已启动 {len(pending_tasks)} 个任务")
 
+    def update_progress(self):
+        """更新任务进度条"""
+        total = len(self.tasks)
+        if total == 0:
+            self.progress_label.config(text="进度: 0/0 (0%)")
+            self.progress_bar['value'] = 0
+            return
+
+        completed = len([t for t in self.tasks if t.status == 'completed'])
+        percentage = int((completed / total) * 100)
+
+        self.progress_label.config(text=f"进度: {completed}/{total} ({percentage}%)")
+        self.progress_bar['maximum'] = total
+        self.progress_bar['value'] = completed
+
     def clear_all_tasks(self):
         """清空所有任务"""
         if not self.tasks:
@@ -1198,8 +1233,9 @@ Now write Chapter {next_chapter} based on the outline above."""
         # 重置分页
         self.current_page = 0
 
-        # 刷新显示
+        # 刷新显示和进度条
         self.refresh_display()
+        self.update_progress()
         print("✅ 写作任务已清空")
 
     def start_task(self, task):
@@ -1285,7 +1321,7 @@ Now write Chapter {next_chapter} based on the outline above."""
                 print(f"{'='*70}\n")
 
                 task.status = 'completed'
-                self.window.after(0, self.refresh_task_list)
+                self.window.after(0, lambda: (self.refresh_task_list(), self.update_progress()))
 
             except Exception as e:
                 print(f"\n{'='*70}")
@@ -1294,7 +1330,7 @@ Now write Chapter {next_chapter} based on the outline above."""
                 import traceback
                 traceback.print_exc()
                 task.status = 'failed'
-                self.window.after(0, self.refresh_task_list)
+                self.window.after(0, lambda: (self.refresh_task_list(), self.update_progress()))
 
         # 在新线程中运行
         import threading

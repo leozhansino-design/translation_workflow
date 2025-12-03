@@ -465,6 +465,26 @@ class OutlineGeneratorWithQueue:
             font=("Arial", 8)
         ).pack(side=tk.RIGHT, padx=5, pady=5)
 
+        # 大纲进度条
+        outline_progress_frame = tk.Frame(outline_column, bg="#f0f0f0", height=30)
+        outline_progress_frame.pack(fill=tk.X, padx=2, pady=2)
+        outline_progress_frame.pack_propagate(False)
+
+        self.outline_progress_label = tk.Label(
+            outline_progress_frame,
+            text="进度: 0/0 (0%)",
+            font=("Arial", 9, "bold"),
+            bg="#f0f0f0"
+        )
+        self.outline_progress_label.pack(side=tk.LEFT, padx=10)
+
+        self.outline_progress_bar = ttk.Progressbar(
+            outline_progress_frame,
+            mode='determinate',
+            length=200
+        )
+        self.outline_progress_bar.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
+
         # 大纲分页控制
         outline_pagination = tk.Frame(outline_column, bg="#e0e0e0")
         outline_pagination.pack(fill=tk.X, padx=2, pady=2)
@@ -537,6 +557,26 @@ class OutlineGeneratorWithQueue:
             width=10,
             font=("Arial", 8)
         ).pack(side=tk.RIGHT, padx=5, pady=5)
+
+        # 封面进度条
+        cover_progress_frame = tk.Frame(cover_column, bg="#f0f0f0", height=30)
+        cover_progress_frame.pack(fill=tk.X, padx=2, pady=2)
+        cover_progress_frame.pack_propagate(False)
+
+        self.cover_progress_label = tk.Label(
+            cover_progress_frame,
+            text="进度: 0/0 (0%)",
+            font=("Arial", 9, "bold"),
+            bg="#f0f0f0"
+        )
+        self.cover_progress_label.pack(side=tk.LEFT, padx=10)
+
+        self.cover_progress_bar = ttk.Progressbar(
+            cover_progress_frame,
+            mode='determinate',
+            length=200
+        )
+        self.cover_progress_bar.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
 
         # 封面分页控制
         cover_pagination = tk.Frame(cover_column, bg="#e0e0e0")
@@ -1186,7 +1226,9 @@ class OutlineGeneratorWithQueue:
                                 container.view_btn.config(state=tk.NORMAL)
                             if hasattr(container, 'start_btn'):
                                 container.start_btn.config(state=tk.NORMAL)
-                        messagebox.showinfo("成功", f"封面生成成功！\n{task.title}")
+                        # 更新进度条（不再弹窗）
+                        self.update_cover_progress()
+                        print(f"✅ 封面生成成功: {task.title}")
 
                     self.window.after(0, update_ui_success)
 
@@ -1202,7 +1244,9 @@ class OutlineGeneratorWithQueue:
                                 container.status_label.config(text="❌ failed", fg="red")
                             if hasattr(container, 'start_btn'):
                                 container.start_btn.config(state=tk.NORMAL)
-                        messagebox.showerror("失败", f"封面生成失败:\n{error_msg}")
+                        # 更新进度条（不再弹窗）
+                        self.update_cover_progress()
+                        print(f"❌ 封面生成失败: {task.title} - {error_msg}")
 
                     self.window.after(0, update_ui_failed)
 
@@ -1217,7 +1261,9 @@ class OutlineGeneratorWithQueue:
                             container.status_label.config(text="❌ failed", fg="red")
                         if hasattr(container, 'start_btn'):
                             container.start_btn.config(state=tk.NORMAL)
-                    messagebox.showerror("错误", f"封面生成失败:\n{str(e)}")
+                    # 更新进度条（不再弹窗）
+                    self.update_cover_progress()
+                    print(f"❌ 封面生成错误: {task.title} - {str(e)}")
 
                 self.window.after(0, update_ui_error)
 
@@ -1767,6 +1813,36 @@ Max Tokens: {task.config['max_tokens']}
 
         print(f"  ✅ 任务已重置为初始状态")
 
+    def update_outline_progress(self):
+        """更新大纲任务进度条"""
+        total = len(self.tasks)
+        if total == 0:
+            self.outline_progress_label.config(text="进度: 0/0 (0%)")
+            self.outline_progress_bar['value'] = 0
+            return
+
+        completed = len([t for t in self.tasks if t.status == 'completed'])
+        percentage = int((completed / total) * 100)
+
+        self.outline_progress_label.config(text=f"进度: {completed}/{total} ({percentage}%)")
+        self.outline_progress_bar['maximum'] = total
+        self.outline_progress_bar['value'] = completed
+
+    def update_cover_progress(self):
+        """更新封面任务进度条"""
+        total = len(self.cover_tasks)
+        if total == 0:
+            self.cover_progress_label.config(text="进度: 0/0 (0%)")
+            self.cover_progress_bar['value'] = 0
+            return
+
+        completed = len([t for t in self.cover_tasks if t.get('status') == 'completed'])
+        percentage = int((completed / total) * 100)
+
+        self.cover_progress_label.config(text=f"进度: {completed}/{total} ({percentage}%)")
+        self.cover_progress_bar['maximum'] = total
+        self.cover_progress_bar['value'] = completed
+
     def _on_task_completed(self, task):
         """任务完成回调"""
         # 只在UI框架存在时更新
@@ -1776,10 +1852,9 @@ Max Tokens: {task.config['max_tokens']}
             frame.start_btn.config(text="🔄 重新生成", state=tk.NORMAL)
             frame.folder_btn.config(state=tk.NORMAL)
 
-            messagebox.showinfo(
-                "任务完成",
-                f"任务完成！\n文件: {os.path.basename(task.source_file)}\n输出: {task.output_folder}"
-            )
+        # 更新进度条（不再弹窗）
+        self.update_outline_progress()
+        print(f"✅ 任务完成: {os.path.basename(task.source_file)}")
 
     def _on_task_failed(self, task, error_msg):
         """任务失败回调"""
@@ -1789,10 +1864,9 @@ Max Tokens: {task.config['max_tokens']}
             frame.status_label.config(text="❌ 失败", fg="red")
             frame.start_btn.config(state=tk.NORMAL)
 
-            messagebox.showerror(
-                "任务失败",
-                f"任务执行失败\n文件: {os.path.basename(task.source_file)}\n错误: {error_msg}"
-            )
+        # 更新进度条（不再弹窗）
+        self.update_outline_progress()
+        print(f"❌ 任务失败: {os.path.basename(task.source_file)} - {error_msg}")
 
     def _update_task_status(self, task, status_text):
         """更新任务状态显示"""
@@ -1919,7 +1993,7 @@ Max Tokens: {task.config['max_tokens']}
         print(f"🚀 开始 {len(pending_tasks)} 个封面任务")
         for task in pending_tasks:
             try:
-                self.start_cover_generation(task)
+                self.start_cover_task(task)
             except Exception as e:
                 print(f"❌ 启动失败: {task.get('outline_info', {}).get('title', 'Unknown')}, 错误: {e}")
 
