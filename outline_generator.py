@@ -1836,7 +1836,7 @@ Max Tokens: {task.config['max_tokens']}
             self.cover_progress_bar['value'] = 0
             return
 
-        completed = len([t for t in self.cover_tasks if t.get('status') == 'completed'])
+        completed = len([t for t in self.cover_tasks if t.status == 'completed'])
         percentage = int((completed / total) * 100)
 
         self.cover_progress_label.config(text=f"进度: {completed}/{total} ({percentage}%)")
@@ -1985,7 +1985,7 @@ Max Tokens: {task.config['max_tokens']}
             messagebox.showinfo("提示", "没有封面任务")
             return
 
-        pending_tasks = [t for t in self.cover_tasks if t.get('status') == 'pending']
+        pending_tasks = [t for t in self.cover_tasks if t.status == 'pending']
         if not pending_tasks:
             messagebox.showinfo("提示", "所有封面任务都已开始或完成")
             return
@@ -1995,7 +1995,7 @@ Max Tokens: {task.config['max_tokens']}
             try:
                 self.start_cover_task(task)
             except Exception as e:
-                print(f"❌ 启动失败: {task.get('outline_info', {}).get('title', 'Unknown')}, 错误: {e}")
+                print(f"❌ 启动失败: {task.title}, 错误: {e}")
 
         print(f"✅ 已启动 {len(pending_tasks)} 个封面任务")
 
@@ -2006,7 +2006,7 @@ Max Tokens: {task.config['max_tokens']}
             return
 
         # 检查是否有运行中的任务
-        running_tasks = [t for t in self.cover_tasks if t.get('status') == 'running']
+        running_tasks = [t for t in self.cover_tasks if t.status == 'running']
         if running_tasks:
             messagebox.showwarning("无法清空", f"有 {len(running_tasks)} 个任务正在运行中，请先等待完成")
             return
@@ -2017,9 +2017,9 @@ Max Tokens: {task.config['max_tokens']}
 
         print(f"🗑️ 清空 {len(self.cover_tasks)} 个封面任务")
         for task in self.cover_tasks[:]:
-            if task['task_id'] in self.cover_task_frames:
-                self.cover_task_frames[task['task_id']].destroy()
-                del self.cover_task_frames[task['task_id']]
+            if task.task_id in self.cover_task_frames:
+                self.cover_task_frames[task.task_id].destroy()
+                del self.cover_task_frames[task.task_id]
 
         self.cover_tasks.clear()
 

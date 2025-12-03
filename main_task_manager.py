@@ -1234,7 +1234,7 @@ Now write Chapter {next_chapter} based on the outline above."""
         self.current_page = 0
 
         # 刷新显示和进度条
-        self.refresh_display()
+        self.refresh_task_list()
         self.update_progress()
         print("✅ 写作任务已清空")
 
