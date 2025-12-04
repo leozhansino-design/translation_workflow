@@ -767,9 +767,14 @@ class WritingToolWindow:
 
         if valid_folders:
             # 自动添加所有任务
+            import time
             added_count = 0
             for folder_info in valid_folders:
                 try:
+                    # 为每个任务创建唯一的project_folder，避免多任务冲突
+                    unique_suffix = f"_run_{int(time.time()*1000)}"
+                    unique_project_folder = folder_info['path'] + unique_suffix
+
                     # 构建配置
                     config = {
                         'api_key': self.api_key_var.get(),
@@ -781,11 +786,12 @@ class WritingToolWindow:
                         'end_chapter': folder_info['max_chapter'],
                         'batch_size': self.batch_size_var.get(),
                         'outline_file': folder_info['path'],  # 大纲文件夹路径
-                        'project_folder': folder_info['path']  # 写作到大纲文件夹
+                        'project_folder': unique_project_folder  # 每个任务独立的文件夹
                     }
 
                     # 创建任务
                     task = WritingTask(folder_info['path'], config)
+                    time.sleep(0.001)  # 确保每个任务的时间戳不同
                     self.tasks.append(task)
                     added_count += 1
                     print(f"  ✅ 已添加任务: {task.title} (1-{folder_info['max_chapter']}章)")
@@ -813,6 +819,12 @@ class WritingToolWindow:
             return
 
         # 构建配置
+        import time
+        # 为每个任务创建唯一的project_folder，避免多任务冲突
+        # 格式：outline_folder + _run_时间戳
+        unique_suffix = f"_run_{int(time.time()*1000)}"
+        unique_project_folder = self.selected_outline_folder + unique_suffix
+
         config = {
             'api_key': self.api_key_var.get(),
             'base_url': self.base_url_var.get(),
@@ -823,7 +835,7 @@ class WritingToolWindow:
             'end_chapter': self.end_chapter_var.get(),
             'batch_size': self.batch_size_var.get(),
             'outline_file': self.selected_outline_folder,  # 大纲文件夹
-            'project_folder': self.selected_outline_folder  # 写作到大纲文件夹
+            'project_folder': unique_project_folder  # 每个任务独立的文件夹
         }
 
         # 创建任务
@@ -1313,6 +1325,19 @@ Now write Chapter {next_chapter} based on the outline above."""
                 print(f"\n{'='*70}")
                 print(f"✅ 任务完成: {task.title}")
                 print(f"{'='*70}\n")
+
+                # 读取最终进度文件，确保current_chapter是最新的
+                if hasattr(task, 'task_id'):
+                    progress_file = f"tasks/{task.task_id}/progress.json"
+                    if os.path.exists(progress_file):
+                        try:
+                            with open(progress_file, 'r', encoding='utf-8') as f:
+                                final_progress = json.load(f)
+                            task.current_chapter = final_progress.get('current_chapter', task.current_chapter)
+                            task.progress = (task.current_chapter / task.total_chapters) * 100 if task.total_chapters > 0 else 100
+                            print(f"  📊 最终进度: {task.current_chapter}/{task.total_chapters}")
+                        except Exception as e:
+                            print(f"  ⚠️ 读取最终进度失败: {e}")
 
                 task.status = 'completed'
                 self.window.after(0, lambda: (self.refresh_task_list(), self.update_progress()))

@@ -309,6 +309,8 @@ class WriterWorkerV2:
 
         if 'project_folder' in self.config:
             self.project_folder = self.config['project_folder']
+            # 确保文件夹存在（如果是新的唯一文件夹）
+            os.makedirs(self.project_folder, exist_ok=True)
         else:
             from utils import create_project_folder
             self.project_folder = create_project_folder(
