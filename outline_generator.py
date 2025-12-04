@@ -1975,8 +1975,9 @@ Max Tokens: {task.config['max_tokens']}
                 del self.task_frames[task.task_id]
         self.tasks.clear()
 
-        # 刷新显示
+        # 刷新显示和进度条
         self.refresh_outline_tasks_display()
+        self.update_outline_progress()
         print("✅ 大纲任务已清空")
 
     def start_all_cover_tasks(self):
@@ -2023,8 +2024,9 @@ Max Tokens: {task.config['max_tokens']}
 
         self.cover_tasks.clear()
 
-        # 刷新显示
+        # 刷新显示和进度条
         self.refresh_cover_tasks_display()
+        self.update_cover_progress()
         print("✅ 封面任务已清空")
 
     def test_api_connection(self):

@@ -1289,7 +1289,7 @@ Now write Chapter {next_chapter} based on the outline above."""
             task.current_chapter = 0
             # 清理旧的进度文件
             if hasattr(task, 'task_id'):
-                old_progress = f"tasks/{task.task_id}/progress.json"
+                old_progress = os.path.join('tasks', task.task_id, 'progress.json')
                 if os.path.exists(old_progress):
                     os.remove(old_progress)
                     print(f"  🗑️ 已删除旧进度文件: {old_progress}")
@@ -1322,7 +1322,7 @@ Now write Chapter {next_chapter} based on the outline above."""
                         print(f"  {key}: {value}")
 
                 # 创建任务目录
-                task_dir = f"tasks/{task_id}"
+                task_dir = os.path.join('tasks', task_id)
                 os.makedirs(task_dir, exist_ok=True)
 
                 # 创建临时config文件（worker需要读取）
@@ -1344,7 +1344,7 @@ Now write Chapter {next_chapter} based on the outline above."""
 
                 # 读取最终进度文件，确保current_chapter是最新的
                 if hasattr(task, 'task_id'):
-                    progress_file = f"tasks/{task.task_id}/progress.json"
+                    progress_file = os.path.join('tasks', task.task_id, 'progress.json')
                     if os.path.exists(progress_file):
                         try:
                             with open(progress_file, 'r', encoding='utf-8') as f:
@@ -1400,7 +1400,7 @@ Now write Chapter {next_chapter} based on the outline above."""
                 updated = False
                 for task in self.tasks:
                     if task.status == 'in_progress' and hasattr(task, 'task_id'):
-                        progress_file = f"tasks/{task.task_id}/progress.json"
+                        progress_file = os.path.join('tasks', task.task_id, 'progress.json')
                         if os.path.exists(progress_file):
                             try:
                                 with open(progress_file, 'r', encoding='utf-8') as f:
@@ -1447,7 +1447,7 @@ Now write Chapter {next_chapter} based on the outline above."""
 
         # 清理进度文件
         if hasattr(task, 'task_id') and task.task_id:
-            progress_file = f"tasks/{task.task_id}/progress.json"
+            progress_file = os.path.join('tasks', task.task_id, 'progress.json')
             if os.path.exists(progress_file):
                 try:
                     os.remove(progress_file)
