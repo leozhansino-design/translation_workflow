@@ -1364,6 +1364,20 @@ Now write Chapter {next_chapter} based on the outline above."""
                 print(f"{'='*70}")
                 import traceback
                 traceback.print_exc()
+
+                # 读取最终进度文件，获取失败时的current_chapter
+                if hasattr(task, 'task_id'):
+                    progress_file = os.path.join('tasks', task.task_id, 'progress.json')
+                    if os.path.exists(progress_file):
+                        try:
+                            with open(progress_file, 'r', encoding='utf-8') as f:
+                                final_progress = json.load(f)
+                            task.current_chapter = final_progress.get('current_chapter', task.current_chapter)
+                            task.progress = (task.current_chapter / task.total_chapters) * 100 if task.total_chapters > 0 else 0
+                            print(f"  📊 失败时进度: {task.current_chapter}/{task.total_chapters}")
+                        except Exception as read_error:
+                            print(f"  ⚠️ 读取最终进度失败: {read_error}")
+
                 task.status = 'failed'
                 self.window.after(0, lambda: (self.refresh_task_list(), self.update_progress()))
 

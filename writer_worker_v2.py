@@ -635,7 +635,10 @@ Now write Chapter {chapter_num} based on the outline above."""
             import traceback
             traceback.print_exc()
 
-            self.update_progress('failed', message=f'错误: {str(e)}')
+            self.update_progress('failed', current_chapter=0, message=f'错误: {str(e)}')
+
+            # 重新抛出异常，让主线程知道任务失败了
+            raise
 
 
 def main():
