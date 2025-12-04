@@ -767,14 +767,9 @@ class WritingToolWindow:
 
         if valid_folders:
             # 自动添加所有任务
-            import time
             added_count = 0
             for folder_info in valid_folders:
                 try:
-                    # 为每个任务创建唯一的project_folder，避免多任务冲突
-                    unique_suffix = f"_run_{int(time.time()*1000)}"
-                    unique_project_folder = folder_info['path'] + unique_suffix
-
                     # 构建配置
                     config = {
                         'api_key': self.api_key_var.get(),
@@ -786,12 +781,11 @@ class WritingToolWindow:
                         'end_chapter': folder_info['max_chapter'],
                         'batch_size': self.batch_size_var.get(),
                         'outline_file': folder_info['path'],  # 大纲文件夹路径
-                        'project_folder': unique_project_folder  # 每个任务独立的文件夹
+                        'project_folder': folder_info['path']  # 写作到大纲文件夹（和outline在一起）
                     }
 
                     # 创建任务
                     task = WritingTask(folder_info['path'], config)
-                    time.sleep(0.001)  # 确保每个任务的时间戳不同
                     self.tasks.append(task)
                     added_count += 1
                     print(f"  ✅ 已添加任务: {task.title} (1-{folder_info['max_chapter']}章)")
@@ -819,12 +813,6 @@ class WritingToolWindow:
             return
 
         # 构建配置
-        import time
-        # 为每个任务创建唯一的project_folder，避免多任务冲突
-        # 格式：outline_folder + _run_时间戳
-        unique_suffix = f"_run_{int(time.time()*1000)}"
-        unique_project_folder = self.selected_outline_folder + unique_suffix
-
         config = {
             'api_key': self.api_key_var.get(),
             'base_url': self.base_url_var.get(),
@@ -835,7 +823,7 @@ class WritingToolWindow:
             'end_chapter': self.end_chapter_var.get(),
             'batch_size': self.batch_size_var.get(),
             'outline_file': self.selected_outline_folder,  # 大纲文件夹
-            'project_folder': unique_project_folder  # 每个任务独立的文件夹
+            'project_folder': self.selected_outline_folder  # 写作到大纲文件夹（和outline在一起）
         }
 
         # 创建任务
@@ -1189,16 +1177,23 @@ Now write Chapter {next_chapter} based on the outline above."""
             return
 
         print(f"\n🚀 全部开始: 共 {len(pending_tasks)} 个待处理任务")
+        started_count = 0
+        skipped_count = 0
         for task in pending_tasks:
             try:
-                self.start_task(task)
-                time.sleep(0.5)  # 稍微延迟避免同时启动太多
+                # silent_on_conflict=True 避免批量启动时弹出多个冲突窗口
+                success = self.start_task(task, silent_on_conflict=True)
+                if success:
+                    started_count += 1
+                    time.sleep(0.5)  # 稍微延迟避免同时启动太多
+                else:
+                    skipped_count += 1
             except Exception as e:
                 print(f"❌ 启动失败: {task.title}, 错误: {e}")
                 import traceback
                 traceback.print_exc()
 
-        print(f"✅ 已启动 {len(pending_tasks)} 个任务")
+        print(f"✅ 已启动 {started_count} 个任务" + (f"，跳过 {skipped_count} 个冲突任务" if skipped_count > 0 else ""))
 
     def update_progress(self):
         """更新任务进度条"""
@@ -1244,8 +1239,17 @@ Now write Chapter {next_chapter} based on the outline above."""
         self.update_progress()
         print("✅ 写作任务已清空")
 
-    def start_task(self, task):
-        """启动任务 - 直接运行worker（不用subprocess，避免exe打包问题）"""
+    def start_task(self, task, silent_on_conflict=False):
+        """启动任务 - 直接运行worker（不用subprocess，避免exe打包问题）
+
+        Args:
+            task: 要启动的任务
+            silent_on_conflict: 如果为True，遇到冲突时不弹窗，只打印日志
+
+        Returns:
+            True: 成功启动
+            False: 启动失败或冲突
+        """
         print(f"\n{'='*70}")
         print(f"🎬 start_task() 被调用")
         print(f"  任务: {task.title}")
@@ -1259,9 +1263,21 @@ Now write Chapter {next_chapter} based on the outline above."""
         print(f"{'='*70}\n")
 
         if task.status == 'in_progress':
-            messagebox.showinfo("提示", "任务正在运行中")
+            if not silent_on_conflict:
+                messagebox.showinfo("提示", "任务正在运行中")
             print("  ⏸️ 任务已在运行，返回")
-            return
+            return False
+
+        # 检查是否有其他任务正在使用相同的文件夹（防止并行冲突）
+        task_outline_folder = task.config.get('project_folder', task.outline_folder)
+        for other_task in self.tasks:
+            if other_task != task and other_task.status == 'in_progress':
+                other_folder = other_task.config.get('project_folder', other_task.outline_folder)
+                if task_outline_folder == other_folder:
+                    if not silent_on_conflict:
+                        messagebox.showwarning("冲突", f"该文件夹已有任务正在运行中！\n\n文件夹: {os.path.basename(task_outline_folder)}\n\n请等待其完成后再启动。")
+                    print(f"  ⚠️ 冲突: 文件夹 {task_outline_folder} 已有任务在运行，跳过")
+                    return False
 
         # 如果是completed或failed状态，询问是否重新开始
         if task.status in ['completed', 'failed']:
@@ -1362,6 +1378,7 @@ Now write Chapter {next_chapter} based on the outline above."""
 
         print(f"✅ 任务已启动：{task.title}")
         self.refresh_task_list()
+        return True
 
     def _start_global_progress_monitor(self):
         """启动全局进度监控 - 所有任务统一每5秒更新一次"""
