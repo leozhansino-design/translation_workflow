@@ -110,39 +110,66 @@ class WritingToolWindow:
         config_frame = tk.LabelFrame(self.window, text="⚙️ API配置", padx=15, pady=10)
         config_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        # API Key
-        tk.Label(config_frame, text="API Key:", width=12, anchor='w').grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
-        tk.Entry(config_frame, textvariable=self.api_key_var, show="*", width=50).grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
+        # 预设API配置列表
+        self.api_presets = {
+            "云雾API (yunwuapi.com)": {
+                "api_key": "sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln",
+                "base_url": "https://yunwuapi.com"
+            },
+            "BLTCY API (api.bltcy.ai)": {
+                "api_key": "sk-z4a6qvhXCbfboOyBwL33BR66mJdHTKj5NO4pfIUSkLBm2jGF",
+                "base_url": "https://api.bltcy.ai"
+            },
+            "自定义配置": {
+                "api_key": "",
+                "base_url": ""
+            }
+        }
 
-        # Base URL
-        tk.Label(config_frame, text="Base URL:", width=12, anchor='w').grid(row=1, column=0, sticky=tk.W, pady=5)
+        # API配置选择
+        tk.Label(config_frame, text="API配置:", width=12, anchor='w').grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.api_preset_var = tk.StringVar(value="云雾API (yunwuapi.com)")
+        api_preset_combo = ttk.Combobox(config_frame, textvariable=self.api_preset_var, width=30)
+        api_preset_combo['values'] = list(self.api_presets.keys())
+        api_preset_combo.grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
+        api_preset_combo.bind('<<ComboboxSelected>>', self.on_api_preset_change)
+
+        # API Key
+        tk.Label(config_frame, text="API Key:", width=12, anchor='w').grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
+        tk.Entry(config_frame, textvariable=self.api_key_var, show="*", width=50).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
+
+        # Base URL选择框
+        tk.Label(config_frame, text="Base URL:", width=12, anchor='w').grid(row=2, column=0, sticky=tk.W, pady=5)
         self.base_url_var = tk.StringVar(value="https://yunwuapi.com")
-        tk.Entry(config_frame, textvariable=self.base_url_var, width=50).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
+        base_url_combo = ttk.Combobox(config_frame, textvariable=self.base_url_var, width=47)
+        base_url_combo['values'] = ["https://yunwuapi.com", "https://api.bltcy.ai"]
+        base_url_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
+        base_url_combo['state'] = 'normal'  # 允许手动输入
 
         # Model
-        tk.Label(config_frame, text="Model:", width=12, anchor='w').grid(row=2, column=0, sticky=tk.W, pady=5)
+        tk.Label(config_frame, text="Model:", width=12, anchor='w').grid(row=3, column=0, sticky=tk.W, pady=5)
         self.model_var = tk.StringVar(value="gpt-5-mini")
         model_combo = ttk.Combobox(config_frame, textvariable=self.model_var, width=47)
         model_combo['values'] = ["gpt-5.1", "gpt-5-mini", "gemini-2.5-pro", "gemini-3-pro-preview"]
-        model_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
+        model_combo.grid(row=3, column=1, sticky=tk.W, pady=5, padx=5)
         model_combo['state'] = 'normal'  # 允许手动输入
 
         # Temperature
-        tk.Label(config_frame, text="Temperature:", width=12, anchor='w').grid(row=3, column=0, sticky=tk.W, pady=5)
+        tk.Label(config_frame, text="Temperature:", width=12, anchor='w').grid(row=4, column=0, sticky=tk.W, pady=5)
         self.temperature_var = tk.DoubleVar(value=0.8)
         tk.Scale(config_frame, from_=0, to=1, resolution=0.1, orient=tk.HORIZONTAL,
-                 variable=self.temperature_var, length=300).grid(row=3, column=1, sticky=tk.W, pady=5, padx=5)
+                 variable=self.temperature_var, length=300).grid(row=4, column=1, sticky=tk.W, pady=5, padx=5)
 
         # Max Tokens
-        tk.Label(config_frame, text="Max Tokens:", width=12, anchor='w').grid(row=4, column=0, sticky=tk.W, pady=5)
+        tk.Label(config_frame, text="Max Tokens:", width=12, anchor='w').grid(row=5, column=0, sticky=tk.W, pady=5)
         self.max_tokens_var = tk.IntVar(value=20000)
         tk.Spinbox(config_frame, from_=5000, to=200000, increment=1000,
-                   textvariable=self.max_tokens_var, width=15).grid(row=4, column=1, sticky=tk.W, pady=5, padx=5)
+                   textvariable=self.max_tokens_var, width=15).grid(row=5, column=1, sticky=tk.W, pady=5, padx=5)
 
         # 测试API按钮
         test_frame = tk.Frame(config_frame)
-        test_frame.grid(row=5, column=0, columnspan=2, pady=10)
+        test_frame.grid(row=6, column=0, columnspan=2, pady=10)
 
         tk.Button(
             test_frame,
@@ -308,6 +335,16 @@ class WritingToolWindow:
             bg="white"
         )
         empty_label.pack(pady=50)
+
+    def on_api_preset_change(self, event=None):
+        """当选择预设API配置时，自动填充API Key和Base URL"""
+        preset_name = self.api_preset_var.get()
+        if preset_name in self.api_presets:
+            preset = self.api_presets[preset_name]
+            if preset["api_key"]:  # 如果预设有API Key
+                self.api_key_var.set(preset["api_key"])
+            if preset["base_url"]:  # 如果预设有Base URL
+                self.base_url_var.set(preset["base_url"])
 
     def test_api_connection(self):
         """测试API连接 - 使用UniversalAPIClient（兼容Gemini和GPT）"""

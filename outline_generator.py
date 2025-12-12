@@ -146,15 +146,29 @@ class OutlineGeneratorWithQueue:
         api_frame = tk.LabelFrame(top_container, text="API 配置", padx=15, pady=10)
         api_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # 第一行：API Key
-        tk.Label(api_frame, text="API Key:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
-        tk.Entry(
-            api_frame,
-            textvariable=self.api_key_var,
-            show="*",
-            width=50
-        ).grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
+        # 预设API配置列表
+        self.api_presets = {
+            "云雾API (yunwuapi.com)": {
+                "api_key": "sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln",
+                "base_url": "https://yunwuapi.com"
+            },
+            "BLTCY API (api.bltcy.ai)": {
+                "api_key": "sk-z4a6qvhXCbfboOyBwL33BR66mJdHTKj5NO4pfIUSkLBm2jGF",
+                "base_url": "https://api.bltcy.ai"
+            },
+            "自定义配置": {
+                "api_key": "",
+                "base_url": ""
+            }
+        }
+
+        # 第一行：API配置选择
+        tk.Label(api_frame, text="API配置:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.api_preset_var = tk.StringVar(value="云雾API (yunwuapi.com)")
+        api_preset_combo = ttk.Combobox(api_frame, textvariable=self.api_preset_var, width=30)
+        api_preset_combo['values'] = list(self.api_presets.keys())
+        api_preset_combo.grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
+        api_preset_combo.bind('<<ComboboxSelected>>', self.on_api_preset_change)
 
         tk.Button(
             api_frame,
@@ -175,8 +189,26 @@ class OutlineGeneratorWithQueue:
         self.api_status_label = tk.Label(api_frame, text="", fg="gray")
         self.api_status_label.grid(row=0, column=4, pady=5, padx=5)
 
-        # 第二行：模型和Prompt管理
-        tk.Label(api_frame, text="模型:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        # 第二行：API Key
+        tk.Label(api_frame, text="API Key:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
+        tk.Entry(
+            api_frame,
+            textvariable=self.api_key_var,
+            show="*",
+            width=50
+        ).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
+
+        # 第三行：Base URL选择框
+        tk.Label(api_frame, text="Base URL:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.base_url_var = tk.StringVar(value="https://yunwuapi.com")
+        base_url_combo = ttk.Combobox(api_frame, textvariable=self.base_url_var, width=47)
+        base_url_combo['values'] = ["https://yunwuapi.com", "https://api.bltcy.ai"]
+        base_url_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
+        base_url_combo['state'] = 'normal'  # 允许手动输入
+
+        # 第四行：模型和Prompt管理
+        tk.Label(api_frame, text="模型:").grid(row=3, column=0, sticky=tk.W, pady=5)
         self.model_var = tk.StringVar(value="gpt-5-mini")
         models = ["gpt-5.1", "gpt-5-mini", "gemini-2.5-pro", "gemini-3-pro-preview"]
         model_combo = ttk.Combobox(
@@ -185,14 +217,14 @@ class OutlineGeneratorWithQueue:
             values=models,
             width=20
         )
-        model_combo.grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
+        model_combo.grid(row=3, column=1, sticky=tk.W, pady=5, padx=5)
 
         tk.Button(
             api_frame,
             text="📝 Prompt管理",
             command=self.manage_prompts,
             width=12
-        ).grid(row=1, column=2, pady=5, padx=5)
+        ).grid(row=3, column=2, pady=5, padx=5)
 
         # 任务配置区域
         task_frame = tk.LabelFrame(top_container, text="新建任务", padx=15, pady=10)
@@ -714,7 +746,7 @@ class OutlineGeneratorWithQueue:
                 task_id = str(uuid.uuid4())
                 config_params = {
                     'api_key': self.api_key_var.get(),
-                    'base_url': 'https://yunwuapi.com',
+                    'base_url': self.base_url_var.get(),
                     'model': self.model_var.get(),
                     'male_count': self.male_count_var.get(),
                     'female_count': self.female_count_var.get(),
@@ -783,7 +815,7 @@ class OutlineGeneratorWithQueue:
 
         config_params = {
             'api_key': self.api_key_var.get(),
-            'base_url': 'https://yunwuapi.com',
+            'base_url': self.base_url_var.get(),
             'model': self.model_var.get(),
             'male_count': self.male_count_var.get(),
             'female_count': self.female_count_var.get(),
@@ -2029,9 +2061,20 @@ Max Tokens: {task.config['max_tokens']}
         self.update_cover_progress()
         print("✅ 封面任务已清空")
 
+    def on_api_preset_change(self, event=None):
+        """当选择预设API配置时，自动填充API Key和Base URL"""
+        preset_name = self.api_preset_var.get()
+        if preset_name in self.api_presets:
+            preset = self.api_presets[preset_name]
+            if preset["api_key"]:  # 如果预设有API Key
+                self.api_key_var.set(preset["api_key"])
+            if preset["base_url"]:  # 如果预设有Base URL
+                self.base_url_var.set(preset["base_url"])
+
     def test_api_connection(self):
         """测试API连接 - 使用UniversalAPIClient（兼容Gemini和GPT）"""
         api_key = self.api_key_var.get()
+        base_url = self.base_url_var.get()
         model = self.model_var.get()
 
         if not api_key:
@@ -2046,7 +2089,7 @@ Max Tokens: {task.config['max_tokens']}
         def _test():
             try:
                 # 使用UniversalAPIClient（兼容Gemini和GPT）
-                client = UniversalAPIClient(api_key=api_key, base_url="https://yunwuapi.com")
+                client = UniversalAPIClient(api_key=api_key, base_url=base_url)
 
                 # 测试调用
                 response = client.chat_completion(
@@ -2082,6 +2125,7 @@ Max Tokens: {task.config['max_tokens']}
     def test_gemini_simple(self):
         """测试Gemini连接 - 使用UniversalAPIClient（兼容Gemini和GPT）"""
         api_key = self.api_key_var.get()
+        base_url = self.base_url_var.get()
 
         if not api_key:
             messagebox.showerror("错误", "请输入API Key")
@@ -2095,7 +2139,7 @@ Max Tokens: {task.config['max_tokens']}
         def _test():
             try:
                 # 使用UniversalAPIClient（兼容Gemini和GPT）
-                client = UniversalAPIClient(api_key=api_key, base_url="https://yunwuapi.com")
+                client = UniversalAPIClient(api_key=api_key, base_url=base_url)
 
                 # 测试调用
                 response = client.chat_completion(
@@ -2829,6 +2873,8 @@ Max Tokens: {task.config['max_tokens']}
 
                 # 创建任务
                 task_id = str(uuid.uuid4())
+                # 封面任务需要在 base_url 后添加 /v1/
+                cover_base_url = self.base_url_var.get().rstrip('/') + '/v1/'
                 task = CoverTask(
                     task_id=task_id,
                     outline_folder=folder,
@@ -2838,7 +2884,7 @@ Max Tokens: {task.config['max_tokens']}
                     config_params={
                         'model': 'gpt-4o-image-vip',
                         'api_key': self.api_key_var.get(),
-                        'base_url': 'https://yunwuapi.com/v1/'
+                        'base_url': cover_base_url
                     }
                 )
 
