@@ -3013,23 +3013,78 @@ Max Tokens: {task.config['max_tokens']}
             print(f"\n🎨 为 {outline_info['title']} 生成封面...")
             print(f"📝 Prompt前100字符: {prompt[:100]}...")
 
-            # 调用API生成图片
-            from openai import OpenAI
-            client = OpenAI(
-                api_key=self.api_key_var.get(),
-                base_url="https://yunwuapi.com/v1/"
-            )
+            # 获取用户选择的配置
+            api_key = self.api_key_var.get()
+            base_url = self.base_url_var.get().rstrip('/') + '/v1/'
+            cover_model = self.cover_model_var.get()
 
-            print(f"🌐 调用API生成图片...")
-            response = client.images.generate(
-                model="gpt-4o-image-vip",
-                prompt=prompt,
-                size="1024x1792",
-                quality="hd",
-                n=1
-            )
+            print(f"🔑 API配置: {self.api_preset_var.get()}")
+            print(f"🌐 Base URL: {base_url}")
+            print(f"🎨 画图模型: {cover_model}")
 
-            image_url = response.data[0].url
+            # 根据模型类型选择不同的API调用方式
+            if cover_model.startswith('nano-banana'):
+                # nano-banana 系列使用特殊的参数格式
+                import http.client
+                import json
+                import ssl
+                from urllib.parse import urlparse
+
+                parsed_url = urlparse(base_url)
+                host = parsed_url.netloc
+
+                # 创建SSL上下文（忽略证书验证）
+                ssl_context = ssl._create_unverified_context()
+                conn = http.client.HTTPSConnection(host, context=ssl_context)
+
+                payload = json.dumps({
+                    "prompt": prompt,
+                    "model": cover_model,
+                    "aspect_ratio": "3:4",  # 封面比例 3:4（类似书籍封面）
+                    "response_format": "url"
+                })
+
+                headers = {
+                    'Authorization': f'Bearer {api_key}',
+                    'Content-Type': 'application/json'
+                }
+
+                print(f"🌐 调用 nano-banana API 生成图片...")
+                conn.request("POST", "/v1/images/generations", payload, headers)
+                res = conn.getresponse()
+                data = res.read()
+
+                response_json = json.loads(data.decode("utf-8"))
+
+                if 'error' in response_json:
+                    raise Exception(f"API错误: {response_json['error']}")
+
+                if 'data' not in response_json or len(response_json['data']) == 0:
+                    raise Exception(f"API返回数据格式错误: {response_json}")
+
+                image_url = response_json['data'][0].get('url')
+                if not image_url:
+                    raise Exception(f"未获取到图片URL: {response_json}")
+
+            else:
+                # 其他模型使用 OpenAI SDK
+                from openai import OpenAI
+                client = OpenAI(
+                    api_key=api_key,
+                    base_url=base_url
+                )
+
+                print(f"🌐 调用 OpenAI API 生成图片...")
+                response = client.images.generate(
+                    model=cover_model,
+                    prompt=prompt,
+                    size="1024x1792",
+                    quality="hd",
+                    n=1
+                )
+
+                image_url = response.data[0].url
+
             print(f"✅ 图片生成成功！URL: {image_url}")
 
             # 下载并保存封面
