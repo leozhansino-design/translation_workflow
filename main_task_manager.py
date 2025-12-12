@@ -128,7 +128,7 @@ class WritingToolWindow:
 
         # API配置选择
         tk.Label(config_frame, text="API配置:", width=12, anchor='w').grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.api_preset_var = tk.StringVar(value="云雾API (yunwuapi.com)")
+        self.api_preset_var = tk.StringVar(value="BLTCY API (api.bltcy.ai)")
         api_preset_combo = ttk.Combobox(config_frame, textvariable=self.api_preset_var, width=30)
         api_preset_combo['values'] = list(self.api_presets.keys())
         api_preset_combo.grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
@@ -136,12 +136,12 @@ class WritingToolWindow:
 
         # API Key
         tk.Label(config_frame, text="API Key:", width=12, anchor='w').grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
+        self.api_key_var = tk.StringVar(value="sk-z4a6qvhXCbfboOyBwL33BR66mJdHTKj5NO4pfIUSkLBm2jGF")
         tk.Entry(config_frame, textvariable=self.api_key_var, show="*", width=50).grid(row=1, column=1, sticky=tk.W, pady=5, padx=5)
 
         # Base URL选择框
         tk.Label(config_frame, text="Base URL:", width=12, anchor='w').grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.base_url_var = tk.StringVar(value="https://yunwuapi.com")
+        self.base_url_var = tk.StringVar(value="https://api.bltcy.ai")
         base_url_combo = ttk.Combobox(config_frame, textvariable=self.base_url_var, width=47)
         base_url_combo['values'] = ["https://yunwuapi.com", "https://api.bltcy.ai"]
         base_url_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)

@@ -164,7 +164,7 @@ class OutlineGeneratorWithQueue:
 
         # 第一行：API配置选择
         tk.Label(api_frame, text="API配置:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.api_preset_var = tk.StringVar(value="云雾API (yunwuapi.com)")
+        self.api_preset_var = tk.StringVar(value="BLTCY API (api.bltcy.ai)")
         api_preset_combo = ttk.Combobox(api_frame, textvariable=self.api_preset_var, width=30)
         api_preset_combo['values'] = list(self.api_presets.keys())
         api_preset_combo.grid(row=0, column=1, sticky=tk.W, pady=5, padx=5)
@@ -191,7 +191,7 @@ class OutlineGeneratorWithQueue:
 
         # 第二行：API Key
         tk.Label(api_frame, text="API Key:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.api_key_var = tk.StringVar(value="sk-4FqZoOFgSYHP6Vfk9HGqhGyrPJjNTVwnaB6zVAbLp8UdlCln")
+        self.api_key_var = tk.StringVar(value="sk-z4a6qvhXCbfboOyBwL33BR66mJdHTKj5NO4pfIUSkLBm2jGF")
         tk.Entry(
             api_frame,
             textvariable=self.api_key_var,
@@ -201,7 +201,7 @@ class OutlineGeneratorWithQueue:
 
         # 第三行：Base URL选择框
         tk.Label(api_frame, text="Base URL:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.base_url_var = tk.StringVar(value="https://yunwuapi.com")
+        self.base_url_var = tk.StringVar(value="https://api.bltcy.ai")
         base_url_combo = ttk.Combobox(api_frame, textvariable=self.base_url_var, width=47)
         base_url_combo['values'] = ["https://yunwuapi.com", "https://api.bltcy.ai"]
         base_url_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=5)
@@ -368,13 +368,33 @@ class OutlineGeneratorWithQueue:
         cover_frame = tk.LabelFrame(top_container, text="🎨 封面生成", padx=15, pady=10)
         cover_frame.pack(fill=tk.X, pady=(10, 0))
 
-        # 文件夹选择
+        # 第一行：封面模型选择和API信息
+        cover_config_frame = tk.Frame(cover_frame)
+        cover_config_frame.grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=5)
+
+        tk.Label(cover_config_frame, text="画图模型:", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+        self.cover_model_var = tk.StringVar(value="nano-banana")
+        cover_model_combo = ttk.Combobox(cover_config_frame, textvariable=self.cover_model_var, width=20)
+        cover_model_combo['values'] = ["nano-banana", "gpt-4o-image-vip", "dall-e-3", "midjourney"]
+        cover_model_combo.pack(side=tk.LEFT, padx=5)
+        cover_model_combo['state'] = 'normal'  # 允许手动输入
+
+        tk.Label(cover_config_frame, text="  |  使用API配置:", fg="#666").pack(side=tk.LEFT, padx=(15, 5))
+        self.cover_api_info_label = tk.Label(
+            cover_config_frame,
+            text=f"🔑 {self.api_preset_var.get()}",
+            fg="blue",
+            font=("Arial", 9)
+        )
+        self.cover_api_info_label.pack(side=tk.LEFT)
+
+        # 第二行：文件夹选择
         tk.Label(cover_frame, text="Outline文件夹:", font=("Arial", 10, "bold")).grid(
-            row=0, column=0, sticky=tk.W, pady=5
+            row=1, column=0, sticky=tk.W, pady=5
         )
 
         folder_select_frame = tk.Frame(cover_frame)
-        folder_select_frame.grid(row=0, column=1, sticky=tk.W, pady=5, padx=5, columnspan=3)
+        folder_select_frame.grid(row=1, column=1, sticky=tk.W, pady=5, padx=5, columnspan=3)
 
         self.cover_folders_label = tk.Label(
             folder_select_frame,
@@ -406,7 +426,7 @@ class OutlineGeneratorWithQueue:
 
         # 生成按钮和状态
         button_status_frame = tk.Frame(cover_frame)
-        button_status_frame.grid(row=1, column=0, columnspan=4, pady=10)
+        button_status_frame.grid(row=2, column=0, columnspan=4, pady=10)
 
         tk.Button(
             button_status_frame,
@@ -2070,6 +2090,9 @@ Max Tokens: {task.config['max_tokens']}
                 self.api_key_var.set(preset["api_key"])
             if preset["base_url"]:  # 如果预设有Base URL
                 self.base_url_var.set(preset["base_url"])
+        # 同步更新封面区域的API信息显示
+        if hasattr(self, 'cover_api_info_label'):
+            self.cover_api_info_label.config(text=f"🔑 {preset_name}")
 
     def test_api_connection(self):
         """测试API连接 - 使用UniversalAPIClient（兼容Gemini和GPT）"""
@@ -2882,7 +2905,7 @@ Max Tokens: {task.config['max_tokens']}
                     genre=outline_info['genre'],
                     blurb='',  # 不再使用blurb
                     config_params={
-                        'model': 'gpt-4o-image-vip',
+                        'model': self.cover_model_var.get(),  # 使用选择的画图模型
                         'api_key': self.api_key_var.get(),
                         'base_url': cover_base_url
                     }
