@@ -2941,6 +2941,8 @@ Max Tokens: {task.config['max_tokens']}
             'title': 'Untitled',
             'genre': 'Unknown',
             'outline': '',
+            'blurb': '',
+            'world_setting': '',
             'tags': []
         }
 
@@ -2958,18 +2960,50 @@ Max Tokens: {task.config['max_tokens']}
                 info['genre'] = f.read().strip()
                 print(f"      Genre: {info['genre']}")
 
-        # 读取完整outline（优先读取_full_outline.txt）
+        # 读取blurb（优先从blurb.txt，否则从_full_outline.txt解析）
+        blurb_file = os.path.join(folder, 'blurb.txt')
+        if os.path.exists(blurb_file):
+            with open(blurb_file, 'r', encoding='utf-8') as f:
+                info['blurb'] = f.read().strip()
+                print(f"      Blurb: {len(info['blurb'])} 字符")
+
+        # 读取完整outline并解析blurb和world_setting
         full_outline_file = os.path.join(folder, '_full_outline.txt')
         writing_prompt_file = os.path.join(folder, '_writing_prompt.txt')
 
+        outline_content = ''
         if os.path.exists(full_outline_file):
             with open(full_outline_file, 'r', encoding='utf-8') as f:
-                info['outline'] = f.read()
-                print(f"      使用 _full_outline.txt ({len(info['outline'])} 字符)")
+                outline_content = f.read()
+                print(f"      使用 _full_outline.txt ({len(outline_content)} 字符)")
         elif os.path.exists(writing_prompt_file):
             with open(writing_prompt_file, 'r', encoding='utf-8') as f:
-                info['outline'] = f.read()
-                print(f"      使用 _writing_prompt.txt ({len(info['outline'])} 字符)")
+                outline_content = f.read()
+                print(f"      使用 _writing_prompt.txt ({len(outline_content)} 字符)")
+
+        # 从outline内容中解析blurb和world_setting
+        if outline_content:
+            # 解析blurb（如果还没有从blurb.txt读取到）
+            if not info['blurb']:
+                blurb_match = re.search(r'={5,}\s*BLURB\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', outline_content, re.DOTALL)
+                if blurb_match:
+                    info['blurb'] = blurb_match.group(1).strip()
+                    print(f"      从outline解析Blurb: {len(info['blurb'])} 字符")
+
+            # 解析world_setting
+            world_match = re.search(r'={5,}\s*WORLD_SETTING\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', outline_content, re.DOTALL)
+            if world_match:
+                info['world_setting'] = world_match.group(1).strip()
+                print(f"      World Setting: {len(info['world_setting'])} 字符")
+
+            # 构建简化的outline（只包含blurb和world_setting）
+            simplified_outline = ""
+            if info['blurb']:
+                simplified_outline += f"Blurb:\n{info['blurb']}\n\n"
+            if info['world_setting']:
+                simplified_outline += f"World Setting:\n{info['world_setting']}"
+
+            info['outline'] = simplified_outline.strip() if simplified_outline else outline_content
         else:
             print(f"      ⚠️ 未找到 outline 文件")
 
