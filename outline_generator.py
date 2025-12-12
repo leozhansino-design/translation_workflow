@@ -2985,16 +2985,21 @@ Max Tokens: {task.config['max_tokens']}
         if outline_content:
             # 解析blurb（如果还没有从blurb.txt读取到）
             if not info['blurb']:
-                blurb_match = re.search(r'={5,}\s*BLURB\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', outline_content, re.DOTALL)
+                # 更宽松的正则：匹配 ===== BLURB ===== 后面的内容直到下一个 ===== 或文件结尾
+                blurb_match = re.search(r'=+\s*BLURB\s*=+\s*\n(.*?)(?=\n=+\s*[A-Z_]+\s*=+|$)', outline_content, re.DOTALL | re.IGNORECASE)
                 if blurb_match:
                     info['blurb'] = blurb_match.group(1).strip()
                     print(f"      从outline解析Blurb: {len(info['blurb'])} 字符")
+                else:
+                    print(f"      ⚠️ 未找到BLURB部分")
 
-            # 解析world_setting
-            world_match = re.search(r'={5,}\s*WORLD_SETTING\s*={5,}\s*\n(.+?)(?=\n={5,}|$)', outline_content, re.DOTALL)
+            # 解析world_setting - 更宽松的正则
+            world_match = re.search(r'=+\s*WORLD_SETTING\s*=+\s*\n(.*?)(?=\n=+\s*[A-Z_]+\s*=+|$)', outline_content, re.DOTALL | re.IGNORECASE)
             if world_match:
                 info['world_setting'] = world_match.group(1).strip()
                 print(f"      World Setting: {len(info['world_setting'])} 字符")
+            else:
+                print(f"      ⚠️ 未找到WORLD_SETTING部分")
 
             # 构建简化的outline（只包含blurb和world_setting）
             simplified_outline = ""
@@ -3003,7 +3008,14 @@ Max Tokens: {task.config['max_tokens']}
             if info['world_setting']:
                 simplified_outline += f"World Setting:\n{info['world_setting']}"
 
-            info['outline'] = simplified_outline.strip() if simplified_outline else outline_content
+            # 只有成功解析到内容才使用简化版本
+            if simplified_outline.strip():
+                info['outline'] = simplified_outline.strip()
+                print(f"      ✅ 使用简化outline ({len(info['outline'])} 字符)")
+            else:
+                # 如果解析失败，使用完整内容但打印警告
+                info['outline'] = outline_content
+                print(f"      ⚠️ 解析失败，使用完整outline ({len(outline_content)} 字符)")
         else:
             print(f"      ⚠️ 未找到 outline 文件")
 
