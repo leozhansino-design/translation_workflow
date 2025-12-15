@@ -108,11 +108,13 @@ class ShortNovelPromptManager:
         return {
             'outline': {
                 'default': DEFAULT_OUTLINE_PROMPT,
-                'versions': {}
+                'versions': {},
+                'active': 'default'  # 活跃版本
             },
             'writing': {
                 'default': DEFAULT_WRITING_PROMPT,
-                'versions': {}
+                'versions': {},
+                'active': 'default'  # 活跃版本
             }
         }
 
@@ -126,16 +128,38 @@ class ShortNovelPromptManager:
             print(f"保存Prompt配置失败: {e}")
 
     def get_outline_prompt(self, version=None):
-        """获取大纲Prompt"""
-        if version and version in self.prompts['outline'].get('versions', {}):
+        """获取大纲Prompt（默认使用活跃版本）"""
+        if version is None:
+            version = self.prompts['outline'].get('active', 'default')
+        if version != 'default' and version in self.prompts['outline'].get('versions', {}):
             return self.prompts['outline']['versions'][version]
         return self.prompts['outline']['default']
 
     def get_writing_prompt(self, version=None):
-        """获取写作Prompt"""
-        if version and version in self.prompts['writing'].get('versions', {}):
+        """获取写作Prompt（默认使用活跃版本）"""
+        if version is None:
+            version = self.prompts['writing'].get('active', 'default')
+        if version != 'default' and version in self.prompts['writing'].get('versions', {}):
             return self.prompts['writing']['versions'][version]
         return self.prompts['writing']['default']
+
+    def get_active_outline_version(self):
+        """获取大纲活跃版本名称"""
+        return self.prompts['outline'].get('active', 'default')
+
+    def get_active_writing_version(self):
+        """获取写作活跃版本名称"""
+        return self.prompts['writing'].get('active', 'default')
+
+    def set_active_outline_version(self, version):
+        """设置大纲活跃版本"""
+        self.prompts['outline']['active'] = version
+        self.save_prompts()
+
+    def set_active_writing_version(self, version):
+        """设置写作活跃版本"""
+        self.prompts['writing']['active'] = version
+        self.save_prompts()
 
     def save_outline_prompt(self, name, content):
         """保存大纲Prompt版本"""
@@ -1246,23 +1270,58 @@ Write the complete story now:"""
         """打开Prompt管理窗口"""
         manager_window = tk.Toplevel(self.window)
         manager_window.title(f"Prompt管理 - {'大纲' if prompt_type == 'outline' else '写作'}")
-        manager_window.geometry("800x600")
+        manager_window.geometry("900x650")
+
+        # 顶部信息栏
+        info_frame = tk.Frame(manager_window, bg="#e3f2fd", height=40)
+        info_frame.pack(fill=tk.X, padx=10, pady=5)
+        info_frame.pack_propagate(False)
+
+        # 获取当前活跃版本
+        if prompt_type == 'outline':
+            active_version = self.prompt_mgr.get_active_outline_version()
+        else:
+            active_version = self.prompt_mgr.get_active_writing_version()
+
+        active_label = tk.Label(
+            info_frame,
+            text=f"🔹 当前活跃版本: {active_version}",
+            font=("Arial", 10, "bold"),
+            bg="#e3f2fd",
+            fg="#1565C0"
+        )
+        active_label.pack(side=tk.LEFT, padx=10, pady=8)
 
         # 版本选择
         version_frame = tk.Frame(manager_window)
         version_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        tk.Label(version_frame, text="版本:").pack(side=tk.LEFT)
-        version_var = tk.StringVar(value='default')
+        tk.Label(version_frame, text="选择版本:").pack(side=tk.LEFT)
 
         if prompt_type == 'outline':
             versions = self.prompt_mgr.get_outline_versions()
         else:
             versions = self.prompt_mgr.get_writing_versions()
 
-        version_combo = ttk.Combobox(version_frame, textvariable=version_var, width=20)
+        version_var = tk.StringVar(value=active_version)
+        version_combo = ttk.Combobox(version_frame, textvariable=version_var, width=25)
         version_combo['values'] = versions
         version_combo.pack(side=tk.LEFT, padx=5)
+
+        # 设为活跃按钮
+        def set_active():
+            version = version_var.get()
+            if prompt_type == 'outline':
+                self.prompt_mgr.set_active_outline_version(version)
+            else:
+                self.prompt_mgr.set_active_writing_version(version)
+            active_label.config(text=f"🔹 当前活跃版本: {version}")
+            messagebox.showinfo("成功", f"已将 '{version}' 设为活跃版本\n下次启动任务将使用此版本")
+
+        tk.Button(
+            version_frame, text="⭐ 设为活跃", command=set_active,
+            bg="#FFC107", fg="black", width=12
+        ).pack(side=tk.LEFT, padx=10)
 
         # 文本编辑区域
         text_widget = scrolledtext.ScrolledText(manager_window, wrap=tk.WORD, font=("Courier", 10))
@@ -1271,11 +1330,11 @@ Write the complete story now:"""
         # 加载当前版本内容
         def load_version(*args):
             version = version_var.get()
-            version = None if version == 'default' else version
+            version_to_load = None if version == 'default' else version
             if prompt_type == 'outline':
-                content = self.prompt_mgr.get_outline_prompt(version)
+                content = self.prompt_mgr.get_outline_prompt(version_to_load)
             else:
-                content = self.prompt_mgr.get_writing_prompt(version)
+                content = self.prompt_mgr.get_writing_prompt(version_to_load)
             text_widget.delete(1.0, tk.END)
             text_widget.insert(1.0, content)
 
@@ -1292,9 +1351,12 @@ Write the complete story now:"""
                 content = text_widget.get(1.0, tk.END).strip()
                 if prompt_type == 'outline':
                     self.prompt_mgr.save_outline_prompt(name, content)
+                    versions = self.prompt_mgr.get_outline_versions()
                 else:
                     self.prompt_mgr.save_writing_prompt(name, content)
-                version_combo['values'] = self.prompt_mgr.get_outline_versions() if prompt_type == 'outline' else self.prompt_mgr.get_writing_versions()
+                    versions = self.prompt_mgr.get_writing_versions()
+                version_combo['values'] = versions
+                version_var.set(name)
                 messagebox.showinfo("成功", f"已保存为 '{name}'")
 
         def save_current():
@@ -1309,8 +1371,35 @@ Write the complete story now:"""
                 self.prompt_mgr.save_writing_prompt(version, content)
             messagebox.showinfo("成功", "已保存")
 
-        tk.Button(btn_frame, text="保存当前版本", command=save_current, width=15).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="另存为新版本", command=save_as_new, width=15).pack(side=tk.LEFT, padx=5)
+        def delete_version():
+            version = version_var.get()
+            if version == 'default':
+                messagebox.showwarning("警告", "无法删除默认版本")
+                return
+            if messagebox.askyesno("确认", f"确定要删除版本 '{version}' 吗？"):
+                if prompt_type == 'outline':
+                    if version in self.prompt_mgr.prompts['outline']['versions']:
+                        del self.prompt_mgr.prompts['outline']['versions'][version]
+                        if self.prompt_mgr.get_active_outline_version() == version:
+                            self.prompt_mgr.set_active_outline_version('default')
+                            active_label.config(text="🔹 当前活跃版本: default")
+                    versions = self.prompt_mgr.get_outline_versions()
+                else:
+                    if version in self.prompt_mgr.prompts['writing']['versions']:
+                        del self.prompt_mgr.prompts['writing']['versions'][version]
+                        if self.prompt_mgr.get_active_writing_version() == version:
+                            self.prompt_mgr.set_active_writing_version('default')
+                            active_label.config(text="🔹 当前活跃版本: default")
+                    versions = self.prompt_mgr.get_writing_versions()
+                self.prompt_mgr.save_prompts()
+                version_combo['values'] = versions
+                version_var.set('default')
+                load_version()
+                messagebox.showinfo("成功", f"已删除版本 '{version}'")
+
+        tk.Button(btn_frame, text="保存当前版本", command=save_current, width=12).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="另存为新版本", command=save_as_new, width=12).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="删除版本", command=delete_version, width=10, bg="#f44336", fg="white").pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="关闭", command=manager_window.destroy, width=10).pack(side=tk.RIGHT, padx=5)
 
     def run(self):
