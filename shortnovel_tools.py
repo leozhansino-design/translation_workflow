@@ -222,15 +222,18 @@ class OutlineTask:
 
 class WritingTask:
     """写作生成任务"""
-    def __init__(self, task_id, source_file, config_params):
+    def __init__(self, task_id, source_file, config_params, title=None, outline_folder=None):
         self.task_id = task_id
-        self.source_file = source_file
+        self.source_file = source_file  # outline.txt 或 full_outline.txt 的路径
         self.config = config_params
+        self.title = title  # 从 title.txt 读取的标题
+        self.outline_folder = outline_folder  # 大纲文件夹路径
         self.status = 'pending'
         self.created_at = datetime.now()
         self.started_at = None
         self.completed_at = None
         self.output_file = None
+        self.output_folder = None
         self.char_count = 0
         self.error_msg = None
 
@@ -520,9 +523,9 @@ class ShortNovelTools:
         file_row = tk.Frame(left_frame)
         file_row.pack(fill=tk.X, pady=2)
 
-        tk.Button(file_row, text="选择大纲文件", command=self.select_writing_file, width=12).pack(side=tk.LEFT)
-        tk.Button(file_row, text="选择大纲文件夹", command=self.select_writing_folder, width=14).pack(side=tk.LEFT, padx=5)
-        self.writing_file_label = tk.Label(file_row, text="未选择文件", fg="gray")
+        tk.Button(file_row, text="选择单个大纲", command=self.select_writing_file, width=12).pack(side=tk.LEFT)
+        tk.Button(file_row, text="批量选择", command=self.select_writing_folder, width=10).pack(side=tk.LEFT, padx=5)
+        self.writing_file_label = tk.Label(file_row, text="未选择文件夹", fg="gray")
         self.writing_file_label.pack(side=tk.LEFT, padx=10)
 
         # 字符数配置
@@ -1117,59 +1120,91 @@ class ShortNovelTools:
     # ===== 写作生成功能 =====
 
     def select_writing_file(self):
-        """选择大纲文件添加写作任务"""
-        files = filedialog.askopenfilenames(
-            title="选择大纲文件",
-            filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
-        )
-        if files:
-            self.writing_selected_files = list(files)
-            self.writing_file_label.config(
-                text=f"已选择 {len(files)} 个文件",
-                fg="black"
-            )
-
-    def select_writing_folder(self):
-        """选择文件夹批量添加写作任务"""
-        folder = filedialog.askdirectory(title="选择包含大纲的文件夹")
+        """选择单个大纲文件夹（包含title.txt, outline.txt等）"""
+        folder = filedialog.askdirectory(title="选择大纲文件夹（包含title.txt和outline.txt）")
         if folder:
-            import glob
-            # 搜索所有大纲文件
-            files = []
-            for pattern in ['**/outline*.txt', '**/*_outline*.txt', '**/full_outline*.txt', '**/_full_outline.txt']:
-                files.extend(glob.glob(os.path.join(folder, pattern), recursive=True))
-
-            # 也直接搜索.txt文件
-            if not files:
-                files = glob.glob(os.path.join(folder, "*.txt"))
-
-            if files:
-                self.writing_selected_files = list(set(files))  # 去重
+            # 检查是否是有效的大纲文件夹
+            outline_info = self._parse_outline_folder(folder)
+            if outline_info:
+                self.writing_selected_folders = [outline_info]
+                title_display = outline_info['title'][:30] + "..." if len(outline_info['title']) > 30 else outline_info['title']
                 self.writing_file_label.config(
-                    text=f"已选择 {len(self.writing_selected_files)} 个文件",
+                    text=f"已选择: {title_display}",
                     fg="black"
                 )
             else:
-                messagebox.showwarning("警告", "文件夹中没有找到大纲文件")
+                messagebox.showwarning("警告", "所选文件夹不是有效的大纲文件夹\n需要包含 outline.txt 或 full_outline.txt")
+
+    def select_writing_folder(self):
+        """选择父文件夹，批量添加所有子文件夹中的大纲"""
+        parent_folder = filedialog.askdirectory(title="选择包含多个大纲文件夹的父目录")
+        if parent_folder:
+            # 扫描所有子文件夹
+            valid_folders = []
+            for item in os.listdir(parent_folder):
+                subfolder = os.path.join(parent_folder, item)
+                if os.path.isdir(subfolder):
+                    outline_info = self._parse_outline_folder(subfolder)
+                    if outline_info:
+                        valid_folders.append(outline_info)
+
+            if valid_folders:
+                self.writing_selected_folders = valid_folders
+                self.writing_file_label.config(
+                    text=f"已找到 {len(valid_folders)} 个大纲文件夹",
+                    fg="black"
+                )
+            else:
+                messagebox.showwarning("警告", "未找到有效的大纲文件夹\n每个子文件夹需要包含 outline.txt 或 full_outline.txt")
+
+    def _parse_outline_folder(self, folder):
+        """解析大纲文件夹，返回信息字典或None"""
+        # 查找大纲文件（优先 outline.txt，其次 full_outline.txt）
+        outline_file = None
+        for filename in ['outline.txt', 'full_outline.txt']:
+            path = os.path.join(folder, filename)
+            if os.path.exists(path):
+                outline_file = path
+                break
+
+        if not outline_file:
+            return None
+
+        # 读取标题（从title.txt，如果没有则用文件夹名）
+        title = os.path.basename(folder)  # 默认用文件夹名
+        title_file = os.path.join(folder, 'title.txt')
+        if os.path.exists(title_file):
+            try:
+                with open(title_file, 'r', encoding='utf-8') as f:
+                    title = f.read().strip()
+            except:
+                pass
+
+        return {
+            'folder': folder,
+            'outline_file': outline_file,
+            'title': title
+        }
 
     def add_writing_tasks(self):
         """添加写作任务到队列"""
-        if not hasattr(self, 'writing_selected_files') or not self.writing_selected_files:
-            messagebox.showwarning("警告", "请先选择文件")
+        if not hasattr(self, 'writing_selected_folders') or not self.writing_selected_folders:
+            messagebox.showwarning("警告", "请先选择大纲文件夹")
             return
 
-        if len(self.writing_tasks) + len(self.writing_selected_files) > self.MAX_TASKS:
+        if len(self.writing_tasks) + len(self.writing_selected_folders) > self.MAX_TASKS:
             messagebox.showwarning("警告", f"任务数量超过上限 {self.MAX_TASKS}")
             return
 
         added = 0
-        for file_path in self.writing_selected_files:
-            if any(t.source_file == file_path for t in self.writing_tasks):
+        for folder_info in self.writing_selected_folders:
+            # 检查是否已存在相同的任务（按文件夹路径判断）
+            if any(t.outline_folder == folder_info['folder'] for t in self.writing_tasks):
                 continue
 
             task = WritingTask(
                 task_id=str(uuid.uuid4()),
-                source_file=file_path,
+                source_file=folder_info['outline_file'],
                 config_params={
                     'model': self.model_var.get(),
                     'api_key': self.api_key_var.get(),
@@ -1178,18 +1213,20 @@ class ShortNovelTools:
                     'max_chars': self.max_chars.get(),
                     'max_tokens': 60000,
                     'output_path': self.writing_output_var.get()
-                }
+                },
+                title=folder_info['title'],
+                outline_folder=folder_info['folder']
             )
             self.writing_tasks.append(task)
             added += 1
 
-        self.writing_selected_files = []
-        self.writing_file_label.config(text="未选择文件", fg="gray")
+        self.writing_selected_folders = []
+        self.writing_file_label.config(text="未选择文件夹", fg="gray")
         self.refresh_writing_display()
         self.update_writing_progress()
 
         if added > 0:
-            messagebox.showinfo("成功", f"已添加 {added} 个任务")
+            messagebox.showinfo("成功", f"已添加 {added} 个写作任务")
 
     def refresh_writing_display(self):
         """刷新写作任务显示 - 网格布局"""
@@ -1248,9 +1285,9 @@ class ShortNovelTools:
         top_bar = tk.Frame(card, bg=status_colors.get(task.status, '#9E9E9E'), height=4)
         top_bar.place(x=0, y=0, width=260)
 
-        # 文件名（截断显示）
-        filename = os.path.basename(task.source_file)
-        display_name = filename[:22] + "..." if len(filename) > 22 else filename
+        # 标题显示（优先用title，否则用文件夹名）
+        display_name = task.title if task.title else os.path.basename(task.outline_folder or task.source_file)
+        display_name = display_name[:25] + "..." if len(display_name) > 25 else display_name
         tk.Label(
             card, text=display_name,
             font=("Arial", 9), bg="#ffffff", anchor="w"
@@ -1403,23 +1440,13 @@ Write the complete story now (remember to end with ===END===):"""
             is_complete = has_end and task.char_count >= min_chars
             task.story_complete = is_complete
 
-            # 获取输入的大纲文件夹路径（source_file的父目录）
-            source_outline_folder = os.path.dirname(task.source_file)
+            # 获取大纲文件夹路径（优先用task.outline_folder，否则用source_file的父目录）
+            source_outline_folder = task.outline_folder or os.path.dirname(task.source_file)
 
-            # 尝试从大纲文件夹读取title.txt获取标题作为文件夹名
-            title_file = os.path.join(source_outline_folder, 'title.txt')
-            folder_name = None
-            if os.path.exists(title_file):
-                try:
-                    with open(title_file, 'r', encoding='utf-8') as f:
-                        title = f.read().strip()
-                        # 清理标题，移除不能用于文件夹名的字符
-                        folder_name = self._sanitize_folder_name(title)
-                except:
-                    pass
-
-            # 如果没有title.txt，使用原文件夹名
-            if not folder_name:
+            # 获取文件夹名（优先用task.title，否则用文件夹名）
+            if task.title:
+                folder_name = self._sanitize_folder_name(task.title)
+            else:
                 folder_name = os.path.basename(source_outline_folder)
 
             # 确定输出路径
