@@ -2,6 +2,10 @@
 短篇小说直接生成工具 - Short Novel Direct Generator
 一次性生成完整故事，包含标题、类型、年龄分级和正文
 """
+print("="*60)
+print("[启动] shortnovel_direct.py v2.0 - 带调试版本")
+print("="*60)
+
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
@@ -11,8 +15,17 @@ import sys
 import uuid
 import shutil
 import re
+import traceback
 from datetime import datetime
-from openai import OpenAI
+
+print("[DEBUG] 基础模块导入成功")
+
+try:
+    from openai import OpenAI
+    print("[DEBUG] OpenAI模块导入成功")
+except Exception as e:
+    print(f"[ERROR] OpenAI导入失败: {e}")
+    traceback.print_exc()
 
 # 修复Mac上的SSL证书验证问题
 import ssl
@@ -21,7 +34,14 @@ try:
 except AttributeError:
     pass
 
-from resource_mgr import ResourceManager
+print("[DEBUG] SSL配置完成")
+
+try:
+    from resource_mgr import ResourceManager
+    print("[DEBUG] ResourceManager导入成功")
+except Exception as e:
+    print(f"[ERROR] ResourceManager导入失败: {e}")
+    traceback.print_exc()
 
 
 def get_resource_path(relative_path):
@@ -961,5 +981,17 @@ class ShortNovelDirect:
 
 
 if __name__ == "__main__":
-    app = ShortNovelDirect()
-    app.run()
+    print("[DEBUG] 开始创建应用...")
+    try:
+        app = ShortNovelDirect()
+        print("[DEBUG] 应用创建成功，启动主循环...")
+        app.run()
+    except Exception as e:
+        print(f"="*50)
+        print(f"[FATAL ERROR] 应用启动失败!")
+        print(f"[FATAL ERROR] 错误类型: {type(e).__name__}")
+        print(f"[FATAL ERROR] 错误信息: {e}")
+        print(f"[FATAL ERROR] 完整堆栈:")
+        traceback.print_exc()
+        print(f"="*50)
+        input("按回车键退出...")
