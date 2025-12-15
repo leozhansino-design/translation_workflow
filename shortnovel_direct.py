@@ -865,7 +865,7 @@ Since each API call is independent, AI cannot know previously generated titles. 
 
 ```python
 def check_title_uniqueness(new_title, existing_titles):
-    """Check if title is duplicate or too similar"""
+    # Check if title is duplicate or too similar
     # Complete duplicate
     if new_title in existing_titles:
         return False, "Complete duplicate"
@@ -901,7 +901,7 @@ Recommend automated quality checking:
 
 ```python
 def check_story_quality(story_text):
-    """Check story quality"""
+    # Check story quality
     issues = []
 
     # Check length
