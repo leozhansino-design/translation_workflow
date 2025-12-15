@@ -367,6 +367,15 @@ class ShortNovelTools:
         self.outline_female_count = tk.IntVar(value=10)
         tk.Spinbox(names_row, from_=1, to=20, textvariable=self.outline_female_count, width=5).pack(side=tk.LEFT, padx=2)
 
+        # 输出路径配置
+        output_row = tk.Frame(left_frame)
+        output_row.pack(fill=tk.X, pady=2)
+
+        tk.Label(output_row, text="输出路径:").pack(side=tk.LEFT)
+        self.outline_output_var = tk.StringVar(value="D:\\shortnovels_outline")
+        tk.Entry(output_row, textvariable=self.outline_output_var, width=40).pack(side=tk.LEFT, padx=5)
+        tk.Button(output_row, text="浏览", command=self.select_outline_output_folder, width=6).pack(side=tk.LEFT)
+
         # 右侧：操作按钮
         right_frame = tk.Frame(control_frame)
         right_frame.pack(side=tk.RIGHT)
@@ -469,6 +478,15 @@ class ShortNovelTools:
         self.max_chars = tk.IntVar(value=50000)
         tk.Entry(char_row, textvariable=self.max_chars, width=8).pack(side=tk.LEFT, padx=2)
         tk.Label(char_row, text="字符").pack(side=tk.LEFT)
+
+        # 输出路径配置
+        output_row = tk.Frame(left_frame)
+        output_row.pack(fill=tk.X, pady=2)
+
+        tk.Label(output_row, text="输出路径:").pack(side=tk.LEFT)
+        self.writing_output_var = tk.StringVar(value="D:\\shortnovels_translation_readytoupload")
+        tk.Entry(output_row, textvariable=self.writing_output_var, width=40).pack(side=tk.LEFT, padx=5)
+        tk.Button(output_row, text="浏览", command=self.select_writing_output_folder, width=6).pack(side=tk.LEFT)
 
         # 右侧：操作按钮
         right_frame = tk.Frame(control_frame)
@@ -573,6 +591,18 @@ class ShortNovelTools:
             else:
                 messagebox.showwarning("警告", "文件夹中没有找到.txt文件")
 
+    def select_outline_output_folder(self):
+        """选择大纲输出文件夹"""
+        folder = filedialog.askdirectory(title="选择大纲输出文件夹")
+        if folder:
+            self.outline_output_var.set(folder)
+
+    def select_writing_output_folder(self):
+        """选择写作输出文件夹"""
+        folder = filedialog.askdirectory(title="选择写作输出文件夹")
+        if folder:
+            self.writing_output_var.set(folder)
+
     def add_outline_tasks(self):
         """添加大纲任务到队列"""
         if not hasattr(self, 'outline_selected_files') or not self.outline_selected_files:
@@ -599,7 +629,8 @@ class ShortNovelTools:
                     'base_url': self.base_url_var.get(),
                     'male_count': self.outline_male_count.get(),
                     'female_count': self.outline_female_count.get(),
-                    'max_tokens': 16000
+                    'max_tokens': 16000,
+                    'output_path': self.outline_output_var.get()
                 }
             )
             self.outline_tasks.append(task)
@@ -779,12 +810,21 @@ class ShortNovelTools:
             result = response.choices[0].message.content
             task.char_count = len(result)
 
-            # 保存结果
-            output_folder = os.path.join(
-                os.path.dirname(task.source_file),
-                'outlines',
-                os.path.splitext(os.path.basename(task.source_file))[0]
-            )
+            # 保存结果到配置的输出路径
+            output_base = task.config.get('output_path', '')
+            if output_base and os.path.isdir(output_base):
+                # 使用配置的输出路径
+                output_folder = os.path.join(
+                    output_base,
+                    os.path.splitext(os.path.basename(task.source_file))[0]
+                )
+            else:
+                # 默认输出到源文件同目录
+                output_folder = os.path.join(
+                    os.path.dirname(task.source_file),
+                    'outlines',
+                    os.path.splitext(os.path.basename(task.source_file))[0]
+                )
             os.makedirs(output_folder, exist_ok=True)
 
             output_file = os.path.join(output_folder, '_full_outline.txt')
@@ -932,7 +972,8 @@ class ShortNovelTools:
                     'base_url': self.base_url_var.get(),
                     'min_chars': self.min_chars.get(),
                     'max_chars': self.max_chars.get(),
-                    'max_tokens': 60000
+                    'max_tokens': 60000,
+                    'output_path': self.writing_output_var.get()
                 }
             )
             self.writing_tasks.append(task)
@@ -1106,10 +1147,17 @@ Write the complete story now:"""
             result = response.choices[0].message.content
             task.char_count = len(result)
 
-            # 保存结果
-            output_dir = os.path.dirname(task.source_file)
+            # 保存结果到配置的输出路径
+            output_base = task.config.get('output_path', '')
             base_name = os.path.splitext(os.path.basename(task.source_file))[0]
-            output_file = os.path.join(output_dir, f"{base_name}_story.txt")
+
+            if output_base and os.path.isdir(output_base):
+                # 使用配置的输出路径
+                output_file = os.path.join(output_base, f"{base_name}_story.txt")
+            else:
+                # 默认输出到源文件同目录
+                output_dir = os.path.dirname(task.source_file)
+                output_file = os.path.join(output_dir, f"{base_name}_story.txt")
 
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(result)
