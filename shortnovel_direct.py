@@ -71,48 +71,440 @@ def get_resource_path(relative_path):
 
 
 # 默认Prompt模板 - 直接生成完整故事
-DEFAULT_DIRECT_PROMPT = """# ADDICTIVE SHORT STORY DIRECT GENERATOR
+DEFAULT_DIRECT_PROMPT = """# ADDICTIVE SHORT STORY GENERATOR
 
 ## 【⚠️ 语言要求 - 最高优先级】
 
-**输出必须100%英文。** 即使输入是中文，输出必须全部英文。
+**输出必须100%英文。**
+
+即使输入的txt文件是中文的，你的输出必须全部是英文。不允许出现任何中文字符。
 
 ---
 
-## 【任务】
+## 【核心任务】
 
-根据输入的故事idea，直接创作一个**完整的英文短篇爽文**。
+你会收到一个包含故事idea的txt文件。直接创作一个**完整的英文短篇爽文**。
 
 **目标**：
-- 一气呵成的完整故事
-- 不分章节，连续叙事
-- **25000-50000字符**
-- 爽点密集，节奏紧凑
+- **快节奏、高密度爽点**（这是最重要的！）
+- 完整story arc
+- 不分章节
+- 一气呵成
+- 一次性输出完整故事+metadata
+
+**核心原则：爽 > 长。快 > 慢。简洁 > 复杂。**
 
 ---
 
 ## 【参数】
 - 建议男性名：{male_names}
 - 建议女性名：{female_names}
+- **长度：灵活，以爽为准**（通常20000-40000字符，但质量>字数）
 
-**⚠️ 重要：使用提供的英文名字，严禁拼音名字！**
-
----
-
-## 【GENRE分类】
-
-从以下选1个：
-Age Gap | Billionaire Romance | Entertainment Circle | Face-Slapping | Group Pet | Healing/Redemption | Quick Transmigration | Rebirth | Regret | Revenge | Substitute | Survival/Apocalypse | Sweet Romance | System | True/Fake Identity
+**⚠️ 重要：必须使用英文名字，严禁拼音！**
 
 ---
 
-## 【写作要求】
+## 【输入】
 
-1. **爽点密度**：每5000字符至少1个爽点（打脸/复仇/身份揭露/甜蜜时刻等）
-2. **角色命名**：全部英文名，如 Ethan Parker, Sophia Williams
-3. **对话比例**：40%以上是对话
-4. **节奏**：前3000字符必须有第一个爽点
-5. **结局**：必须完整结局，不能开放式
+你会收到一个txt文件，内容可能是：
+- 中文故事大纲
+- 中文小说片段
+- 故事idea描述
+- 人物设定
+
+你的任务是：
+1. 理解核心故事和主要爽点
+2. **提取所有可能的爽点**
+3. **删除所有拖沓的部分**
+4. 直接写出**完整故事**
+5. **所有人名必须改成英文名**
+
+---
+
+## 【⚠️ 爽文的特点】
+
+### 必须有
+
+```
+1. ⭐⭐⭐⭐⭐ 密集爽点
+   - 每3000-5000字符至少1个爽点
+   - 爽点要"够爽"
+
+2. ⭐⭐⭐⭐⭐ 快节奏
+   - 前3000字符进入核心冲突
+   - 没有长铺垫
+   - 直接开打
+
+3. ⭐⭐⭐⭐ 完整结局
+   - 所有冲突解决
+   - 坏人得到惩罚
+   - 主角得到满足
+
+4. ⭐⭐⭐ 简单设定
+   - 3-5个主要人物
+   - 单线剧情
+   - 设定一句话能说清
+```
+
+### 绝对不能有
+
+```
+❌ 长铺垫（超过3000字符才进入冲突）
+❌ 复杂世界观
+❌ 太多支线人物
+❌ 拖沓的日常场景
+❌ 未解决的悬念
+❌ 慢热
+```
+
+---
+
+## 【⚠️ 硬性规则】
+
+### 规则1：对话密度
+**40%以上必须是对话。**
+
+连续超过300字符没有对话？立刻加对话。
+
+### 规则2：段落长度
+**禁止超过5句的段落。**
+
+重要时刻单句成段。
+
+### 规则3：爽点密度（最重要！）
+**每3000-5000字符至少1个明确爽点**
+
+爽点类型（按爽度排序）：
+1. **Public face-slapping**（当众打脸）
+2. **Revenge payoff**（复仇成功）
+3. **Identity reveal + shock**（身份揭露）
+4. **Villain public humiliation**（反派当众丢脸）
+5. **Power display**（实力展示让人闭嘴）
+6. **Recognition from doubters**（被质疑者认可）
+7. **Regret from wrongdoers**（伤害主角的人后悔）
+
+**不算爽点的：**
+- 主角受虐但没反击
+- 坏人"表情微变"
+- 内心爽但外部没展示
+
+### 规则4：快节奏
+
+**前3000字符内必须：**
+- 主角遇到核心冲突
+- 第一个爽点出现
+- 读者清楚知道故事要讲什么
+
+**禁止：**
+- 长背景介绍
+- 慢慢建立世界观
+- 花2000字介绍日常生活
+
+### 规则5：角色命名
+
+**必须英文名，严禁拼音**
+
+❌ 错误示例（拼音）：
+- Li Wei → 这是拼音，禁止使用
+- Zhang Yue → 这是拼音，禁止使用
+- Wang Chen → 这是拼音，禁止使用
+- Sophia Chen → Chen是拼音姓氏，禁止使用
+- Alexander Liu → Liu是拼音姓氏，禁止使用
+
+❌ 常见拼音姓氏（禁止使用）：
+Chen, Wang, Liu, Zhang, Li, Zhao, Zhou, Wu, Huang, Yang, Xu, Sun, Ma, Zhu, Hu, Guo, Lin, He, Gao, Liang, Zheng, Luo, Song, Xie, Tang, Han, Cao, Feng, Deng, Peng, Zeng, Xiao, Tian, Pan, Yuan, Dong, Yu, Jiang, Cai, Yu, Du, Ye, Cheng, Wei, Su, Lu, Ding, Ren, Shen, Yao, Lu, Jiang, Cui, Zhong, Tan, Lu, Wang, Fan, Liao, Shi, Jin, Wei, Jia, Xia, Fu, Fang, Bai, Zou, Meng, Xiong, Qin, Qiu, Jiang, Yin, Xue, Yan, Duan, Lei, Long, Li, Tao, He
+
+**使用提供的英文名字列表，或常见英文名。**
+
+常见英文姓氏参考：Smith, Johnson, Williams, Brown, Davis, Miller, Wilson, Moore, Taylor, Anderson, Thomas, Jackson, White, Harris, Martin, Thompson, Garcia, Martinez, Robinson, Clark, Rodriguez, Lewis, Lee, Walker, Hall, Allen, Young, King, Wright, Lopez, Hill, Scott, Green, Adams, Baker, Nelson, Carter, Mitchell, Roberts, Turner, Phillips, Campbell, Parker, Evans, Edwards, Collins, Stewart, Morris, Rogers, Reed, Cook, Morgan, Bell, Murphy, Bailey, Rivera, Cooper, Richardson, Cox, Howard, Ward, Torres, Peterson, Gray, Ramirez, James, Watson, Brooks, Kelly, Sanders, Price, Bennett, Wood, Barnes, Ross, Henderson, Coleman, Jenkins, Perry, Powell, Hughes, Flores, Washington, Butler, Foster, Bryant, Alexander, Russell, Griffin, Hayes
+
+### 规则6：设定清晰简单
+
+选择一个清晰的背景：
+- **现代都市**：Harbor City, CEO, billionaire, Instagram
+- **古代架空**：用英文名 + Emperor/Prince/Duke
+- **现代+超自然**：现代城市 + 简单能力
+
+**地点命名：**
+- ✅ Harbor City, Riverside, Summit District, Lakeside, New York, Los Angeles
+- ❌ Beijing, Shanghai, Guangzhou（不要直接用中国城市）
+
+**机构命名：**
+- ✅ StreamWave Entertainment, TechCore Industries, Summit Hospital
+- ❌ Tencent, Alibaba, Baidu（不要用中国公司）
+
+**不要中西混搭，不要复杂设定**
+
+### 规则7：设定/背景解释
+**最多3句话**，然后回到动作。
+
+不要解释世界观、系统原理、能力来源。**直接展示效果。**
+
+### 规则8：内心独白
+**最多连续3句**，然后回到外部动作。
+
+禁止大段内心活动。
+
+### 规则9：禁止文学腔
+
+**禁止比喻句：**
+❌ "她的声音像X"
+❌ "沉默像Y一样落下"
+❌ "His words hung in the air like a blade"
+
+**禁止诗意表达：**
+❌ "patience wrapped in glass"
+❌ "silence lands like a lid"
+❌ "like a storm retreating"
+
+**禁止哲理句：**
+❌ 段落结尾加人生感悟
+❌ "X is not Y, it is Z"式感悟
+❌ "for a moment, he understood..."
+
+**可以保留口语化比喻：**
+✅ "He looked at me like I was trash"
+✅ "That hit me like a truck"
+
+### 规则10：开头直入
+**第一句必须是动作或对话。**
+
+禁止：
+- 环境描写开头
+- 背景介绍开头
+- 内心独白开头
+
+### 规则11：结尾完整且干脆
+
+**必须完整：**
+- 所有冲突解决
+- 坏人得到惩罚
+- 主角得到满足
+
+**必须干脆：**
+- 不拖沓
+- 不反复强调
+- 说完就停
+
+---
+
+## 【⚠️ GENRE分类 - 15个短篇专属】
+
+**必须从以下15个中选1个：**
+
+```
+Age Gap
+Billionaire Romance
+Entertainment Circle
+Face-Slapping
+Group Pet
+Healing/Redemption
+Quick Transmigration
+Rebirth
+Regret
+Revenge
+Substitute
+Survival/Apocalypse
+Sweet Romance
+System
+True/Fake Identity
+```
+
+**判断方法：**
+1. 主要爽点是什么？→ Face-Slapping / Revenge / Sweet Romance
+2. 有特殊设定吗？→ Rebirth / System / True/Fake Identity
+3. 主角/背景特点？→ Billionaire Romance / Entertainment Circle
+
+---
+
+## 【⚠️ TITLE创作规则】
+
+### 硬性要求
+
+**少于80字符**
+
+### 创作原则
+
+1. **口语化**，像聊天不像书名
+2. **有对比/反转/冲突**
+3. **制造好奇**
+4. **一眼就懂核心冲突**
+5. **独特**（不要和其他标题重复）
+
+### ❌ 禁止的标题模式
+
+**避免使用这些常见的开头词：**
+
+```
+❌ "I Died..." / "I Woke..." / "I [Verb]..."
+❌ "Back to..." / "Back at..."
+❌ "They Called..." / "They Said..." / "They [Verb]..."
+❌ "Rejected..." / "Rejected by..."
+❌ "He..." / "She..." (人称代词开头)
+❌ "After..." / "After I..."
+❌ "Married..." / "Divorced..." (单个动词开头)
+❌ "When..." (时间状语开头)
+❌ "The..." (冠词开头，除非非常特殊)
+```
+
+**尽量创造不同的标题结构，不要总用相同的模式。**
+
+**不要使用以下模式：**
+
+```
+❌ "The [Someone]'s [Something]"
+   例如："The CEO's Secret Wife"
+
+❌ "When [Something Happened]"
+   例如："When Love Returns"
+
+❌ "A [Noun] of [Noun]"
+   例如："A Tale of Two Hearts"
+
+❌ "[Genre]: [Statement]"
+   例如："Romance: She Found Love"
+
+❌ 没有emotion或surprise的标题
+   例如："The Story of My Life"
+
+❌ 像书名不像话
+   例如："Chronicles of a Forgotten Soul"
+
+❌ 需要"品味"才能理解
+   例如："Echoes in the Silence of Dawn"
+```
+
+### ❌ 禁止的标题特征
+
+```
+❌ 太长（超过80字符）
+❌ 复杂从句
+❌ 过于文学化
+❌ 没有冲突感
+❌ 太抽象
+❌ 陈词滥调
+❌ 重复的结构（和前面生成的标题一样的格式）
+```
+
+### 创作提醒
+
+- 标题要独特且吸引人
+- 尝试不同的标题结构（不要总用同一种模式）
+- 专注核心冲突和反转
+- 保持口语化
+- 让人一眼就想点进来
+- 避免使用上面列出的禁止模式
+
+---
+
+## 【⚠️ AI常见错误 - 必须删除】
+
+写完后搜索以下内容，找到就改或删：
+
+### 连接词
+删除：However, Moreover, Furthermore, Nevertheless, Additionally, Subsequently, Consequently
+
+### 陈词滥调
+删除：
+- let out a breath she didn't know she was holding
+- heart raced in his/her chest
+- blood ran cold
+- shiver down spine
+- time seemed to slow
+- the air grew thick
+
+### 万能形容词
+删除：piercing eyes, chiseled jaw, dazzling smile, raven hair
+
+### 情感分析句式
+删除：
+- couldn't help but feel
+- part of him wanted to... while another part
+- a complex mixture of emotions
+- a wave of [emotion] washed over
+- something in him shifted
+
+### 比喻句式（禁止文艺比喻）
+删除：
+- ❌ "Silence fell like a lid"
+- ❌ "His words hung in the air like a blade"
+- ❌ "She folded it as one folds a map to a destination"
+- ❌ "His steps were an argument for a life"
+
+### 哲理/文艺句式
+删除：
+- "X and Y at once"（如"simpler and harder at once"）
+- "felt like a [抽象名词]"（如"felt like a choice"）
+- "as if [抽象概念]"
+- "the sound/weight/taste of [抽象名词]"
+- "in a way that [哲理解释]"
+- "[动作] as one [哲理比喻]"
+- "X is not Y, it is Z"式的人生感悟
+- "for a moment/for a second [哲理感悟]"
+
+### 长段落
+- 超过3句的设定解释 → 砍到3句
+- 超过3句的内心独白 → 砍到3句
+- 超过5句的段落 → 拆开
+
+### 重复
+- 同一个意思说两遍 → 只保留一次
+- 结尾反复强调同一件事 → 只说一次
+
+---
+
+## 【写作流程】
+
+### 第1步：理解输入
+- 读txt文件
+- 找出核心冲突
+- 识别主要爽点
+- 确定genre
+
+### 第2步：规划故事
+**在心里（不输出）快速规划：**
+- 开场冲突是什么？
+- 6-10个主要爽点是什么？
+- 高潮是什么？
+- 结局怎么收？
+
+### 第3步：创作metadata
+- Title（少于80字符，独特，不重复）
+- Genre（15个中选1）
+- Age（4个等级选1）
+
+### 第4步：写故事
+- 从动作或对话开始
+- 对话优先（40%+）
+- **每3000字符检查：有爽点了吗？**
+- 边写边控制：
+  - 段落不超过5句
+  - 没有文学腔
+  - 设定解释不超过3句
+- 一口气写完
+
+### 第5步：检查并修复
+
+**□ 爽点检查**（最重要）
+- 至少6-10个爽点？
+- 每个都够爽？
+- 每3000-5000字符有一个？
+
+**□ 对话密度**
+- 40%以上？
+
+**□ 文学腔检查**
+搜索：However, Moreover, "couldn't help but", "a wave of", "at once"
+找到就删
+
+**□ 开头**
+- 第一句是动作或对话？
+
+**□ 结尾**
+- 完整？
+- 干脆？
+- 有 `---END---`？
 
 ---
 
@@ -120,25 +512,42 @@ Age Gap | Billionaire Romance | Entertainment Circle | Face-Slapping | Group Pet
 
 ```
 ===TITLE===
-[英文标题，少于80字符，口语化，有反转感]
+[英文标题，少于80字符，独特]
 
 ===GENRE===
-[从上面15个中选1个]
+[从15个Genre中选1个]
 
 ===AGE===
-[All Ages / Teen 13+ / Mature 16+ / Explicit 18+]
+[All Ages 或 Teen 13+ 或 Mature 16+ 或 Explicit 18+]
 
 ===STORY===
-[完整故事正文，25000-50000字符，连续叙事，不分章节]
+[完整故事正文，纯英文，不要任何标题或章节号]
 
 ---END---
 ```
 
-**重要**：必须包含所有标记（===TITLE===, ===GENRE===, ===AGE===, ===STORY===, ---END---）
+**禁止输出：**
+- ❌ Outline
+- ❌ Character list
+- ❌ World setting
+- ❌ "Chapter X"
+- ❌ 作者注释
+- ❌ 字数统计
+- ❌ 任何说明文字
+- ❌ 任何中文
+
+**只要：**
+- ✅ TITLE
+- ✅ GENRE
+- ✅ AGE
+- ✅ 故事正文
+- ✅ ---END---
 
 ---
 
-现在，根据输入创作完整故事："""
+**现在，开始创作。读取输入的txt文件，直接写出完整故事。**
+
+**START WRITING.**"""
 
 
 class DirectPromptManager:
