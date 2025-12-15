@@ -631,10 +631,21 @@ class ShortNovelDirect:
             # 构建Prompt
             print(f"[DEBUG] 步骤4: 构建Prompt")
             prompt_template = self.prompt_mgr.get_prompt()
-            system_prompt = prompt_template.format(
-                male_names=names_formatted['male_names'],
-                female_names=names_formatted['female_names']
-            )
+
+            # 使用安全的格式化方法，处理未知占位符
+            try:
+                system_prompt = prompt_template.format(
+                    male_names=names_formatted['male_names'],
+                    female_names=names_formatted['female_names']
+                )
+            except KeyError as ke:
+                print(f"[WARNING] Prompt模板包含未知占位符: {ke}")
+                print(f"[WARNING] 使用默认Prompt模板...")
+                # 回退到默认模板
+                system_prompt = DEFAULT_DIRECT_PROMPT.format(
+                    male_names=names_formatted['male_names'],
+                    female_names=names_formatted['female_names']
+                )
             print(f"[DEBUG] 步骤4完成: Prompt长度 {len(system_prompt)}")
 
             # 添加字符数要求
