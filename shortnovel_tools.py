@@ -844,15 +844,26 @@ class ShortNovelTools:
             male_count = task.config.get('male_count', 10)
             female_count = task.config.get('female_count', 10)
 
-            # 模拟获取人名（不实际消耗）
-            male_names = ", ".join([f"Name{i}" for i in range(1, male_count + 1)])
-            female_names = ", ".join([f"Name{i}" for i in range(1, female_count + 1)])
+            # 预览人名（不实际消耗，只是查看将要使用的名字）
+            try:
+                # 按使用次数排序，获取将要被选中的名字
+                male_sorted = sorted(self.resource_mgr.names.get('male', []), key=lambda x: x.get('used', 0))
+                female_sorted = sorted(self.resource_mgr.names.get('female', []), key=lambda x: x.get('used', 0))
+
+                preview_male = [n['name'] for n in male_sorted[:male_count]]
+                preview_female = [n['name'] for n in female_sorted[:female_count]]
+
+                male_names_str = ", ".join(preview_male) if preview_male else "(无可用男名)"
+                female_names_str = ", ".join(preview_female) if preview_female else "(无可用女名)"
+            except Exception:
+                male_names_str = f"(将随机选择{male_count}个男名)"
+                female_names_str = f"(将随机选择{female_count}个女名)"
 
             # 构建Prompt
             prompt_template = self.prompt_mgr.get_outline_prompt()
             system_prompt = prompt_template.format(
-                male_names=f"({male_count}个随机男名)",
-                female_names=f"({female_count}个随机女名)"
+                male_names=male_names_str,
+                female_names=female_names_str
             )
 
             # 显示预览窗口
@@ -862,7 +873,8 @@ class ShortNovelTools:
                 user_content=content,
                 config_info=f"模型: {task.config.get('model', 'N/A')}\n"
                            f"API: {task.config.get('base_url', 'N/A')}\n"
-                           f"人名: 男{male_count}个, 女{female_count}个"
+                           f"人名: 男{male_count}个, 女{female_count}个\n"
+                           f"⚠️ 预览的人名为当前将被选中的名字（实际执行时会标记为已使用）"
             )
         except Exception as e:
             messagebox.showerror("错误", f"预览失败: {e}")
