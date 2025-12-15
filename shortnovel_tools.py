@@ -62,13 +62,27 @@ Female names: {female_names}
 - The story should be engaging and have a satisfying arc
 - Use Western names and settings
 
-## Output Format
-Please provide:
-1. Title
-2. Genre
-3. Main Characters (2-4 characters)
-4. Plot Summary (500-1000 words)
-5. Key Scenes (5-8 scenes with brief descriptions)
+## CRITICAL: Output Format (MUST follow exactly)
+You MUST output in this EXACT format with these markers:
+
+===TITLE===
+[Your story title here]
+
+===GENRE===
+[Genre like: Romance, Fantasy, Urban, Thriller, etc.]
+
+===AGE===
+[Target audience: 18-25, 25-35, 35-45, etc.]
+
+===OUTLINE===
+[Complete detailed outline including:
+- Main Characters (2-4 characters with descriptions)
+- Plot Summary (500-1000 words)
+- Key Scenes (5-8 scenes with brief descriptions)]
+
+===END===
+
+IMPORTANT: You MUST include all markers (===TITLE===, ===GENRE===, ===AGE===, ===OUTLINE===, ===END===) in your response.
 
 Now create the outline based on the input story concept:"""
 
@@ -82,10 +96,16 @@ DEFAULT_WRITING_PROMPT = """You are a professional web novel writer. Write a com
 - Use Western names and settings
 - Output ONLY the story content, no explanations or meta-commentary
 
+## CRITICAL: Completion Marker
+When you finish the story, you MUST end with this exact marker on its own line:
+===END===
+
+This marker indicates the story is complete. DO NOT forget this marker!
+
 ## Outline
 {outline}
 
-Now write the complete story:"""
+Now write the complete story (remember to end with ===END===):"""
 
 
 class ShortNovelPromptManager:
@@ -851,9 +871,13 @@ class ShortNovelTools:
                 )
             os.makedirs(output_folder, exist_ok=True)
 
-            output_file = os.path.join(output_folder, '_full_outline.txt')
+            # 保存完整结果
+            output_file = os.path.join(output_folder, 'full_outline.txt')
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(result)
+
+            # 解析并保存各部分到单独文件
+            self._parse_and_save_outline(result, output_folder, task)
 
             task.output_folder = output_folder
             task.status = 'completed'
@@ -867,6 +891,52 @@ class ShortNovelTools:
         # 更新UI
         self.window.after(0, self.refresh_outline_display)
         self.window.after(0, self.update_outline_progress)
+
+    def _parse_and_save_outline(self, result, output_folder, task):
+        """解析大纲内容并保存为单独文件"""
+        import re
+
+        # 解析各部分
+        sections = {
+            'title': '',
+            'genre': '',
+            'age': '',
+            'outline': ''
+        }
+
+        # 使用正则表达式提取各部分
+        title_match = re.search(r'===TITLE===\s*(.*?)\s*(?====|$)', result, re.DOTALL)
+        if title_match:
+            sections['title'] = title_match.group(1).strip()
+
+        genre_match = re.search(r'===GENRE===\s*(.*?)\s*(?====|$)', result, re.DOTALL)
+        if genre_match:
+            sections['genre'] = genre_match.group(1).strip()
+
+        age_match = re.search(r'===AGE===\s*(.*?)\s*(?====|$)', result, re.DOTALL)
+        if age_match:
+            sections['age'] = age_match.group(1).strip()
+
+        outline_match = re.search(r'===OUTLINE===\s*(.*?)\s*(?====END===|$)', result, re.DOTALL)
+        if outline_match:
+            sections['outline'] = outline_match.group(1).strip()
+
+        # 检查是否有END标记（用于判断是否完整）
+        has_end = '===END===' in result
+        task.outline_complete = has_end
+
+        # 保存各部分到单独文件
+        for key, content in sections.items():
+            if content:
+                file_path = os.path.join(output_folder, f'{key}.txt')
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+
+        # 如果缺少关键部分，记录警告
+        missing_parts = [k for k, v in sections.items() if not v]
+        if missing_parts:
+            task.warning_msg = f"缺少部分: {', '.join(missing_parts)}"
+            print(f"警告: 大纲缺少部分 - {missing_parts}")
 
     def start_all_outline_tasks(self):
         """开始所有等待中的大纲任务"""
@@ -1062,6 +1132,7 @@ class ShortNovelTools:
             'pending': '#9E9E9E',
             'running': '#673AB7',
             'completed': '#4CAF50',
+            'incomplete': '#FF9800',  # 橙色表示未完成
             'failed': '#f44336'
         }
         top_bar = tk.Frame(card, bg=status_colors.get(task.status, '#9E9E9E'), height=4)
@@ -1080,6 +1151,7 @@ class ShortNovelTools:
             'pending': ('⏳', '#9E9E9E'),
             'running': ('🔄', '#673AB7'),
             'completed': ('✅', '#4CAF50'),
+            'incomplete': ('⚠️', '#FF9800'),  # 橙色警告表示未完成
             'failed': ('❌', '#f44336')
         }
         icon, color = status_info.get(task.status, ('?', 'black'))
@@ -1094,10 +1166,15 @@ class ShortNovelTools:
             info_text = f"⏱ 开始于 {task.started_at.strftime('%H:%M:%S')}"
             info_color = "#673AB7"
         elif task.status == 'completed':
-            info_text = f"📊 {task.char_count:,} 字符"
-            info_color = "#7B1FA2"
+            info_text = f"✓ {task.char_count:,} 字符"
+            info_color = "#4CAF50"
+        elif task.status == 'incomplete':
+            # 显示未完成原因
+            warning = getattr(task, 'warning_msg', '未完成')
+            info_text = f"⚠️ {task.char_count:,}字符 - {warning}"
+            info_color = "#FF9800"
         elif task.status == 'failed':
-            info_text = f"⚠️ 生成失败"
+            info_text = f"❌ 生成失败"
             info_color = "#f44336"
 
         info_label = tk.Label(card, text=info_text, fg=info_color, bg="#ffffff", font=("Arial", 9))
@@ -1153,7 +1230,7 @@ class ShortNovelTools:
             full_prompt = f"""{prompt}
 
 IMPORTANT: The story must be between {min_chars} and {max_chars} characters. This is MANDATORY.
-Write the complete story now:"""
+Write the complete story now (remember to end with ===END===):"""
 
             # 调用API
             client = OpenAI(
@@ -1171,6 +1248,14 @@ Write the complete story now:"""
             result = response.choices[0].message.content
             task.char_count = len(result)
 
+            # 检测是否有END标记（判断是否完整）
+            has_end = '===END===' in result
+            task.has_end_marker = has_end
+
+            # 判断是否完成：需要有END标记且字符数达到最小要求
+            is_complete = has_end and task.char_count >= min_chars
+            task.story_complete = is_complete
+
             # 保存结果到配置的输出路径
             output_base = task.config.get('output_path', '')
             base_name = os.path.splitext(os.path.basename(task.source_file))[0]
@@ -1187,7 +1272,17 @@ Write the complete story now:"""
                 f.write(result)
 
             task.output_file = output_file
-            task.status = 'completed'
+
+            # 根据完成状态设置不同状态
+            if is_complete:
+                task.status = 'completed'
+            else:
+                task.status = 'incomplete'  # 新增状态：未完成
+                if not has_end:
+                    task.warning_msg = "缺少END标记"
+                elif task.char_count < min_chars:
+                    task.warning_msg = f"字符数不足({task.char_count}<{min_chars})"
+
             task.completed_at = datetime.now()
 
         except Exception as e:
@@ -1238,11 +1333,20 @@ Write the complete story now:"""
         """更新写作进度条"""
         total = len(self.writing_tasks)
         completed = len([t for t in self.writing_tasks if t.status == 'completed'])
+        incomplete = len([t for t in self.writing_tasks if t.status == 'incomplete'])
+        failed = len([t for t in self.writing_tasks if t.status == 'failed'])
+        done = completed + incomplete + failed  # 所有已处理的任务
 
         if total > 0:
-            percent = int(completed / total * 100)
+            percent = int(done / total * 100)
             self.writing_progress_bar['value'] = percent
-            self.writing_progress_label.config(text=f"进度: {completed}/{total} ({percent}%)")
+            # 显示详细统计：完成/未完成/失败
+            status_text = f"进度: {done}/{total} ({percent}%) - ✓{completed}"
+            if incomplete > 0:
+                status_text += f" ⚠{incomplete}"
+            if failed > 0:
+                status_text += f" ✗{failed}"
+            self.writing_progress_label.config(text=status_text)
         else:
             self.writing_progress_bar['value'] = 0
             self.writing_progress_label.config(text="进度: 0/0 (0%)")
