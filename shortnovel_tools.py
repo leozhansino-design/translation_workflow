@@ -848,19 +848,26 @@ class ShortNovelTools:
             try:
                 # 先加载最新的名字数据
                 names_data = self.resource_mgr.load_names()
+                print(f"[DEBUG] names_data loaded, male count: {len(names_data.get('male', []))}, female count: {len(names_data.get('female', []))}")
 
                 # 按使用次数排序，获取将要被选中的名字
                 male_sorted = sorted(names_data.get('male', []), key=lambda x: x.get('used', 0))
                 female_sorted = sorted(names_data.get('female', []), key=lambda x: x.get('used', 0))
 
+                print(f"[DEBUG] First male entry: {male_sorted[0] if male_sorted else 'EMPTY'}")
+
                 # 使用 fullname 字段（和 format_names_for_prompt 一致）
                 preview_male = [n['fullname'] for n in male_sorted[:male_count]]
                 preview_female = [n['fullname'] for n in female_sorted[:female_count]]
 
+                print(f"[DEBUG] preview_male: {preview_male}")
+
                 male_names_str = ", ".join(preview_male) if preview_male else "(无可用男名)"
                 female_names_str = ", ".join(preview_female) if preview_female else "(无可用女名)"
             except Exception as e:
-                print(f"预览人名失败: {e}")  # 调试信息
+                import traceback
+                print(f"预览人名失败: {e}")
+                traceback.print_exc()  # 打印完整错误堆栈
                 male_names_str = f"(将随机选择{male_count}个男名)"
                 female_names_str = f"(将随机选择{female_count}个女名)"
 
