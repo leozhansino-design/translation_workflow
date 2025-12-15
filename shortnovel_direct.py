@@ -1,0 +1,932 @@
+"""
+短篇小说直接生成工具 - Short Novel Direct Generator
+一次性生成完整故事，包含标题、类型、年龄分级和正文
+"""
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox, scrolledtext
+import threading
+import json
+import os
+import sys
+import uuid
+import shutil
+import re
+from datetime import datetime
+from openai import OpenAI
+
+# 修复Mac上的SSL证书验证问题
+import ssl
+try:
+    ssl._create_default_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+
+from resource_mgr import ResourceManager
+
+
+def get_resource_path(relative_path):
+    """获取资源文件的绝对路径（支持PyInstaller打包）"""
+    if getattr(sys, 'frozen', False):
+        app_name = "ShortNovelDirect"
+        if sys.platform == 'darwin':
+            support_dir = os.path.expanduser(f'~/Library/Application Support/{app_name}')
+        elif sys.platform == 'win32':
+            support_dir = os.path.join(os.getenv('APPDATA'), app_name)
+        else:
+            support_dir = os.path.expanduser(f'~/.{app_name}')
+        user_path = os.path.join(support_dir, relative_path)
+        if os.path.exists(user_path):
+            return user_path
+        try:
+            bundled_path = os.path.join(sys._MEIPASS, relative_path)
+            if os.path.exists(bundled_path):
+                os.makedirs(os.path.dirname(user_path), exist_ok=True)
+                shutil.copy2(bundled_path, user_path)
+                return user_path
+        except Exception:
+            pass
+        return os.path.join(sys._MEIPASS, relative_path)
+    else:
+        return os.path.join(os.getcwd(), relative_path)
+
+
+# 默认Prompt模板 - 直接生成完整故事
+DEFAULT_DIRECT_PROMPT = """# ADDICTIVE SHORT STORY DIRECT GENERATOR
+
+## 【⚠️ 语言要求 - 最高优先级】
+
+**输出必须100%英文。** 即使输入是中文，输出必须全部英文。
+
+---
+
+## 【任务】
+
+根据输入的故事idea，直接创作一个**完整的英文短篇爽文**。
+
+**目标**：
+- 一气呵成的完整故事
+- 不分章节，连续叙事
+- **25000-50000字符**
+- 爽点密集，节奏紧凑
+
+---
+
+## 【参数】
+- 建议男性名：{male_names}
+- 建议女性名：{female_names}
+
+**⚠️ 重要：使用提供的英文名字，严禁拼音名字！**
+
+---
+
+## 【GENRE分类】
+
+从以下选1个：
+Age Gap | Billionaire Romance | Entertainment Circle | Face-Slapping | Group Pet | Healing/Redemption | Quick Transmigration | Rebirth | Regret | Revenge | Substitute | Survival/Apocalypse | Sweet Romance | System | True/Fake Identity
+
+---
+
+## 【写作要求】
+
+1. **爽点密度**：每5000字符至少1个爽点（打脸/复仇/身份揭露/甜蜜时刻等）
+2. **角色命名**：全部英文名，如 Ethan Parker, Sophia Williams
+3. **对话比例**：40%以上是对话
+4. **节奏**：前3000字符必须有第一个爽点
+5. **结局**：必须完整结局，不能开放式
+
+---
+
+## 【⚠️ 输出格式 - 严格遵守】
+
+```
+===TITLE===
+[英文标题，少于80字符，口语化，有反转感]
+
+===GENRE===
+[从上面15个中选1个]
+
+===AGE===
+[All Ages / Teen 13+ / Mature 16+ / Explicit 18+]
+
+===STORY===
+[完整故事正文，25000-50000字符，连续叙事，不分章节]
+
+---END---
+```
+
+**重要**：必须包含所有标记（===TITLE===, ===GENRE===, ===AGE===, ===STORY===, ---END---）
+
+---
+
+现在，根据输入创作完整故事："""
+
+
+class DirectPromptManager:
+    """直接生成Prompt管理器"""
+
+    def __init__(self):
+        self.prompts_file = get_resource_path('data/shortnovel_direct_prompts.json')
+        self.prompts = self.load_prompts()
+
+    def load_prompts(self):
+        """加载Prompt配置"""
+        try:
+            if os.path.exists(self.prompts_file):
+                with open(self.prompts_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"加载Prompt配置失败: {e}")
+
+        return {
+            'direct': {
+                'default': DEFAULT_DIRECT_PROMPT,
+                'versions': {},
+                'active': 'default'
+            }
+        }
+
+    def save_prompts(self):
+        """保存Prompt配置"""
+        try:
+            os.makedirs(os.path.dirname(self.prompts_file), exist_ok=True)
+            with open(self.prompts_file, 'w', encoding='utf-8') as f:
+                json.dump(self.prompts, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"保存Prompt配置失败: {e}")
+
+    def get_prompt(self, version=None):
+        """获取Prompt（默认使用活跃版本）"""
+        if version is None:
+            version = self.prompts['direct'].get('active', 'default')
+        if version != 'default' and version in self.prompts['direct'].get('versions', {}):
+            return self.prompts['direct']['versions'][version]
+        return self.prompts['direct']['default']
+
+    def get_active_version(self):
+        """获取活跃版本名称"""
+        return self.prompts['direct'].get('active', 'default')
+
+    def set_active_version(self, version):
+        """设置活跃版本"""
+        self.prompts['direct']['active'] = version
+        self.save_prompts()
+
+    def save_prompt_version(self, name, content):
+        """保存Prompt版本"""
+        if 'versions' not in self.prompts['direct']:
+            self.prompts['direct']['versions'] = {}
+        self.prompts['direct']['versions'][name] = content
+        self.save_prompts()
+
+    def delete_prompt_version(self, name):
+        """删除Prompt版本"""
+        if name in self.prompts['direct'].get('versions', {}):
+            del self.prompts['direct']['versions'][name]
+            if self.prompts['direct'].get('active') == name:
+                self.prompts['direct']['active'] = 'default'
+            self.save_prompts()
+
+
+class GenerationTask:
+    """生成任务"""
+    def __init__(self, task_id, source_file, config_params):
+        self.task_id = task_id
+        self.source_file = source_file
+        self.config = config_params
+        self.status = 'pending'
+        self.created_at = datetime.now()
+        self.started_at = None
+        self.completed_at = None
+        self.output_folder = None
+        self.char_count = 0
+        self.title = None
+        self.genre = None
+        self.age = None
+        self.has_end_marker = False
+        self.error_msg = None
+        self.warning_msg = None
+
+
+class ShortNovelDirect:
+    """短篇小说直接生成工具"""
+
+    MAX_TASKS = 1000
+
+    def __init__(self):
+        self.window = tk.Tk()
+        self.window.title("📚 短篇小说直接生成 - Direct Generator")
+        self.window.geometry("1400x900")
+
+        # 初始化资源
+        self.resource_mgr = ResourceManager()
+        self.prompt_mgr = DirectPromptManager()
+
+        # 任务列表
+        self.tasks = []
+        self.task_frames = {}
+        self.current_page = 0
+        self.tasks_per_page = 50
+        self.cards_per_row = 5
+
+        # API预设
+        self.api_presets = {
+            "BLTCY API (api.bltcy.ai)": {
+                "api_key": "sk-z4a6qvhXCbfboOyBwL33BR66mJdHTKj5NO4pfIUSkLBm2jGF",
+                "base_url": "https://api.bltcy.ai"
+            },
+            "自定义配置": {
+                "api_key": "",
+                "base_url": ""
+            }
+        }
+
+        self.setup_ui()
+
+    def setup_ui(self):
+        """设置UI"""
+        # 顶部：API配置
+        self.setup_api_config()
+
+        # 中间：控制面板
+        self.setup_control_panel()
+
+        # 下方：任务队列
+        self.setup_task_queue()
+
+    def setup_api_config(self):
+        """设置API配置区域"""
+        api_frame = tk.LabelFrame(self.window, text="🔧 API 配置", font=("Arial", 11, "bold"), padx=10, pady=5)
+        api_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        # 第一行
+        row1 = tk.Frame(api_frame)
+        row1.pack(fill=tk.X, pady=2)
+
+        tk.Label(row1, text="API预设:").pack(side=tk.LEFT)
+        self.api_preset_var = tk.StringVar(value="BLTCY API (api.bltcy.ai)")
+        api_combo = ttk.Combobox(row1, textvariable=self.api_preset_var, width=25)
+        api_combo['values'] = list(self.api_presets.keys())
+        api_combo.pack(side=tk.LEFT, padx=5)
+        api_combo.bind('<<ComboboxSelected>>', self.on_api_preset_change)
+
+        tk.Label(row1, text="模型:").pack(side=tk.LEFT, padx=(20, 0))
+        self.model_var = tk.StringVar(value="gpt-5-mini")
+        model_combo = ttk.Combobox(row1, textvariable=self.model_var, width=20)
+        model_combo['values'] = ["gpt-5-mini"]
+        model_combo.pack(side=tk.LEFT, padx=5)
+
+        tk.Button(row1, text="测试连接", command=self.test_api, width=10).pack(side=tk.LEFT, padx=10)
+        self.api_status = tk.Label(row1, text="", fg="gray")
+        self.api_status.pack(side=tk.LEFT)
+
+        # 第二行
+        row2 = tk.Frame(api_frame)
+        row2.pack(fill=tk.X, pady=2)
+
+        tk.Label(row2, text="API Key:").pack(side=tk.LEFT)
+        self.api_key_var = tk.StringVar(value="sk-z4a6qvhXCbfboOyBwL33BR66mJdHTKj5NO4pfIUSkLBm2jGF")
+        tk.Entry(row2, textvariable=self.api_key_var, show="*", width=50).pack(side=tk.LEFT, padx=5)
+
+        tk.Label(row2, text="Base URL:").pack(side=tk.LEFT, padx=(20, 0))
+        self.base_url_var = tk.StringVar(value="https://api.bltcy.ai")
+        tk.Entry(row2, textvariable=self.base_url_var, width=30).pack(side=tk.LEFT, padx=5)
+
+    def on_api_preset_change(self, event=None):
+        """API预设改变"""
+        preset = self.api_preset_var.get()
+        if preset in self.api_presets:
+            self.api_key_var.set(self.api_presets[preset]['api_key'])
+            self.base_url_var.set(self.api_presets[preset]['base_url'])
+
+    def _normalize_base_url(self, url):
+        """规范化Base URL"""
+        url = url.strip().rstrip('/')
+        if url.endswith('/v1'):
+            return url
+        return url + '/v1'
+
+    def test_api(self):
+        """测试API连接"""
+        self.api_status.config(text="测试中...", fg="blue")
+        self.window.update()
+
+        try:
+            base_url = self._normalize_base_url(self.base_url_var.get())
+            client = OpenAI(api_key=self.api_key_var.get(), base_url=base_url)
+            response = client.chat.completions.create(
+                model=self.model_var.get(),
+                messages=[{"role": "user", "content": "Hi"}],
+                max_tokens=100,
+                temperature=0.85
+            )
+            self.api_status.config(text="✅ 连接成功", fg="green")
+        except Exception as e:
+            print(f"API测试失败: {e}")
+            self.api_status.config(text=f"❌ 失败: {str(e)[:50]}", fg="red")
+
+    def setup_control_panel(self):
+        """设置控制面板"""
+        control_frame = tk.LabelFrame(self.window, text="📝 生成配置", font=("Arial", 11, "bold"), padx=10, pady=5)
+        control_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        # 第一行：文件选择
+        row1 = tk.Frame(control_frame)
+        row1.pack(fill=tk.X, pady=2)
+
+        tk.Button(row1, text="选择文件", command=self.select_files, width=10).pack(side=tk.LEFT)
+        tk.Button(row1, text="选择文件夹", command=self.select_folder, width=10).pack(side=tk.LEFT, padx=5)
+        self.file_label = tk.Label(row1, text="未选择文件", fg="gray")
+        self.file_label.pack(side=tk.LEFT, padx=10)
+
+        tk.Button(row1, text="添加任务", command=self.add_tasks, width=10, bg="#4CAF50", fg="white").pack(side=tk.LEFT, padx=20)
+
+        # 第二行：人名配置
+        row2 = tk.Frame(control_frame)
+        row2.pack(fill=tk.X, pady=2)
+
+        tk.Label(row2, text="人名数量 - 男:").pack(side=tk.LEFT)
+        self.male_count = tk.IntVar(value=10)
+        tk.Spinbox(row2, from_=1, to=50, textvariable=self.male_count, width=5).pack(side=tk.LEFT, padx=2)
+
+        tk.Label(row2, text="女:").pack(side=tk.LEFT, padx=(10, 0))
+        self.female_count = tk.IntVar(value=10)
+        tk.Spinbox(row2, from_=1, to=50, textvariable=self.female_count, width=5).pack(side=tk.LEFT, padx=2)
+
+        tk.Label(row2, text="目标字符数:").pack(side=tk.LEFT, padx=(20, 0))
+        self.min_chars = tk.IntVar(value=25000)
+        tk.Entry(row2, textvariable=self.min_chars, width=8).pack(side=tk.LEFT, padx=2)
+        tk.Label(row2, text="-").pack(side=tk.LEFT)
+        self.max_chars = tk.IntVar(value=50000)
+        tk.Entry(row2, textvariable=self.max_chars, width=8).pack(side=tk.LEFT, padx=2)
+
+        # 第三行：输出路径
+        row3 = tk.Frame(control_frame)
+        row3.pack(fill=tk.X, pady=2)
+
+        tk.Label(row3, text="输出路径:").pack(side=tk.LEFT)
+        self.output_var = tk.StringVar(value="D:\\shortnovels_output")
+        tk.Entry(row3, textvariable=self.output_var, width=50).pack(side=tk.LEFT, padx=5)
+        tk.Button(row3, text="浏览", command=self.select_output_folder, width=6).pack(side=tk.LEFT)
+
+        tk.Button(row3, text="管理Prompt", command=self.open_prompt_manager, width=12).pack(side=tk.LEFT, padx=20)
+
+        # 第四行：批量操作
+        row4 = tk.Frame(control_frame)
+        row4.pack(fill=tk.X, pady=5)
+
+        tk.Button(row4, text="▶ 全部开始", command=self.start_all_tasks, width=12, bg="#2196F3", fg="white").pack(side=tk.LEFT)
+        tk.Button(row4, text="⏹ 清空任务", command=self.clear_all_tasks, width=12).pack(side=tk.LEFT, padx=10)
+
+        # 进度条
+        self.progress_bar = ttk.Progressbar(row4, length=300, mode='determinate')
+        self.progress_bar.pack(side=tk.LEFT, padx=20)
+        self.progress_label = tk.Label(row4, text="进度: 0/0 (0%)")
+        self.progress_label.pack(side=tk.LEFT)
+
+    def setup_task_queue(self):
+        """设置任务队列"""
+        queue_frame = tk.LabelFrame(self.window, text="📋 任务队列", font=("Arial", 11, "bold"), padx=10, pady=5)
+        queue_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        # 分页控制
+        page_frame = tk.Frame(queue_frame)
+        page_frame.pack(fill=tk.X)
+
+        tk.Button(page_frame, text="◀ 上一页", command=self.prev_page).pack(side=tk.LEFT)
+        self.page_label = tk.Label(page_frame, text="0/0 页")
+        self.page_label.pack(side=tk.LEFT, padx=10)
+        tk.Button(page_frame, text="下一页 ▶", command=self.next_page).pack(side=tk.LEFT)
+
+        # 任务卡片容器
+        canvas = tk.Canvas(queue_frame, bg="#f0f0f0")
+        scrollbar = ttk.Scrollbar(queue_frame, orient="vertical", command=canvas.yview)
+        self.queue_frame = tk.Frame(canvas, bg="#f0f0f0")
+
+        self.queue_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=self.queue_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    def select_files(self):
+        """选择文件"""
+        files = filedialog.askopenfilenames(
+            title="选择故事idea文件",
+            filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
+        )
+        if files:
+            self.selected_files = list(files)
+            self.file_label.config(text=f"已选择 {len(files)} 个文件", fg="black")
+
+    def select_folder(self):
+        """选择文件夹"""
+        folder = filedialog.askdirectory(title="选择包含故事idea的文件夹")
+        if folder:
+            import glob
+            files = glob.glob(os.path.join(folder, "*.txt"))
+            if files:
+                self.selected_files = files
+                self.file_label.config(text=f"已选择 {len(files)} 个文件", fg="black")
+            else:
+                messagebox.showwarning("警告", "文件夹中没有txt文件")
+
+    def select_output_folder(self):
+        """选择输出文件夹"""
+        folder = filedialog.askdirectory(title="选择输出文件夹")
+        if folder:
+            self.output_var.set(folder)
+
+    def add_tasks(self):
+        """添加任务"""
+        if not hasattr(self, 'selected_files') or not self.selected_files:
+            messagebox.showwarning("警告", "请先选择文件")
+            return
+
+        if len(self.tasks) + len(self.selected_files) > self.MAX_TASKS:
+            messagebox.showwarning("警告", f"任务数量超过上限 {self.MAX_TASKS}")
+            return
+
+        added = 0
+        for file_path in self.selected_files:
+            if any(t.source_file == file_path for t in self.tasks):
+                continue
+
+            task = GenerationTask(
+                task_id=str(uuid.uuid4()),
+                source_file=file_path,
+                config_params={
+                    'model': self.model_var.get(),
+                    'api_key': self.api_key_var.get(),
+                    'base_url': self.base_url_var.get(),
+                    'male_count': self.male_count.get(),
+                    'female_count': self.female_count.get(),
+                    'min_chars': self.min_chars.get(),
+                    'max_chars': self.max_chars.get(),
+                    'max_tokens': 65000,
+                    'output_path': self.output_var.get()
+                }
+            )
+            self.tasks.append(task)
+            added += 1
+
+        self.selected_files = []
+        self.file_label.config(text="未选择文件", fg="gray")
+        self.refresh_display()
+        self.update_progress()
+
+        if added > 0:
+            messagebox.showinfo("成功", f"已添加 {added} 个任务")
+
+    def refresh_display(self):
+        """刷新任务显示"""
+        for widget in self.queue_frame.winfo_children():
+            widget.destroy()
+        self.task_frames.clear()
+
+        if not self.tasks:
+            tk.Label(self.queue_frame, text="暂无任务", font=("Arial", 10), bg="#f0f0f0").pack(pady=20)
+            self.page_label.config(text="0/0 页")
+            return
+
+        total_pages = max(1, (len(self.tasks) - 1) // self.tasks_per_page + 1)
+        self.current_page = min(self.current_page, total_pages - 1)
+
+        start_idx = self.current_page * self.tasks_per_page
+        end_idx = min(start_idx + self.tasks_per_page, len(self.tasks))
+
+        self.page_label.config(text=f"{self.current_page + 1}/{total_pages} 页 (共{len(self.tasks)}个)")
+
+        current_tasks = self.tasks[start_idx:end_idx]
+        for idx, task in enumerate(current_tasks):
+            row = idx // self.cards_per_row
+            col = idx % self.cards_per_row
+            self.create_task_card(task, row, col)
+
+    def create_task_card(self, task, row, col):
+        """创建任务卡片"""
+        card = tk.Frame(self.queue_frame, bg="#ffffff", relief=tk.RAISED, borderwidth=2, width=260, height=90)
+        card.grid(row=row, column=col, padx=4, pady=4, sticky="nsew")
+        card.grid_propagate(False)
+
+        # 顶部色条
+        status_colors = {
+            'pending': '#9E9E9E',
+            'running': '#2196F3',
+            'completed': '#4CAF50',
+            'incomplete': '#FF9800',
+            'failed': '#f44336'
+        }
+        top_bar = tk.Frame(card, bg=status_colors.get(task.status, '#9E9E9E'), height=4)
+        top_bar.place(x=0, y=0, width=260)
+
+        # 文件名
+        filename = os.path.basename(task.source_file)
+        display_name = filename[:25] + "..." if len(filename) > 25 else filename
+        tk.Label(card, text=display_name, font=("Arial", 9), bg="#ffffff", anchor="w").place(x=8, y=8, width=200)
+
+        # 状态图标
+        status_info = {
+            'pending': ('⏳', '#9E9E9E'),
+            'running': ('🔄', '#2196F3'),
+            'completed': ('✅', '#4CAF50'),
+            'incomplete': ('⚠️', '#FF9800'),
+            'failed': ('❌', '#f44336')
+        }
+        icon, color = status_info.get(task.status, ('?', 'black'))
+        tk.Label(card, text=icon, fg=color, bg="#ffffff", font=("Arial", 12)).place(x=220, y=6)
+
+        # 信息行
+        info_text = "等待开始"
+        info_color = "#757575"
+        if task.status == 'running' and task.started_at:
+            info_text = f"⏱ 开始于 {task.started_at.strftime('%H:%M:%S')}"
+            info_color = "#2196F3"
+        elif task.status == 'completed':
+            info_text = f"✓ {task.char_count:,} 字符"
+            info_color = "#4CAF50"
+        elif task.status == 'incomplete':
+            warning = getattr(task, 'warning_msg', '未完成')
+            info_text = f"⚠️ {task.char_count:,}字符 - {warning}"
+            info_color = "#FF9800"
+        elif task.status == 'failed':
+            info_text = f"❌ 失败"
+            info_color = "#f44336"
+
+        tk.Label(card, text=info_text, fg=info_color, bg="#ffffff", font=("Arial", 9)).place(x=8, y=32)
+
+        # 底部按钮
+        btn_frame = tk.Frame(card, bg="#f5f5f5", height=30)
+        btn_frame.place(x=0, y=60, width=260, height=30)
+
+        tk.Button(btn_frame, text="▶ 开始", command=lambda t=task: self.start_task(t),
+                 width=6, font=("Arial", 8), bg="#4CAF50", fg="white",
+                 state=tk.NORMAL if task.status != 'running' else tk.DISABLED).place(x=8, y=3)
+
+        tk.Button(btn_frame, text="🗑 删除", command=lambda t=task: self.remove_task(t),
+                 width=6, font=("Arial", 8), bg="#f44336", fg="white").place(x=80, y=3)
+
+        tk.Button(btn_frame, text="📋 预览", command=lambda t=task: self.preview_prompt(t),
+                 width=6, font=("Arial", 8), bg="#2196F3", fg="white").place(x=152, y=3)
+
+        self.task_frames[task.task_id] = card
+
+    def start_task(self, task):
+        """开始任务"""
+        if task.status == 'running':
+            return
+
+        task.status = 'running'
+        task.started_at = datetime.now()
+        self.refresh_display()
+
+        thread = threading.Thread(target=self._execute_task, args=(task,), daemon=True)
+        thread.start()
+
+    def _execute_task(self, task):
+        """执行生成任务"""
+        try:
+            # 读取输入文件
+            with open(task.source_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # 获取人名
+            selected_names = self.resource_mgr.select_names(
+                task.config['male_count'],
+                task.config['female_count']
+            )
+            names_formatted = self.resource_mgr.format_names_for_prompt(selected_names)
+
+            # 构建Prompt
+            prompt_template = self.prompt_mgr.get_prompt()
+            system_prompt = prompt_template.format(
+                male_names=names_formatted['male_names'],
+                female_names=names_formatted['female_names']
+            )
+
+            # 添加字符数要求
+            min_chars = task.config['min_chars']
+            max_chars = task.config['max_chars']
+
+            full_prompt = f"""{system_prompt}
+
+【字符数要求】：{min_chars} - {max_chars} 字符
+
+【输入内容】：
+{content}"""
+
+            # 调用API
+            client = OpenAI(
+                api_key=task.config['api_key'],
+                base_url=self._normalize_base_url(task.config['base_url'])
+            )
+
+            response = client.chat.completions.create(
+                model=task.config['model'],
+                messages=[{"role": "user", "content": full_prompt}],
+                max_tokens=task.config['max_tokens'],
+                temperature=0.85
+            )
+
+            result = response.choices[0].message.content
+            task.char_count = len(result)
+
+            # 检测END标记
+            has_end = '---END---' in result
+            task.has_end_marker = has_end
+
+            # 解析结果
+            parsed = self._parse_result(result)
+            task.title = parsed.get('title', '')
+            task.genre = parsed.get('genre', '')
+            task.age = parsed.get('age', '')
+            story = parsed.get('story', '')
+
+            # 判断是否完成
+            is_complete = has_end and len(story) >= min_chars
+            task.story_complete = is_complete
+
+            # 确定输出文件夹名
+            if task.title:
+                folder_name = self._sanitize_folder_name(task.title)
+            else:
+                folder_name = os.path.splitext(os.path.basename(task.source_file))[0]
+
+            # 创建输出文件夹
+            output_base = task.config.get('output_path', '')
+            if output_base and os.path.isdir(output_base):
+                output_folder = os.path.join(output_base, folder_name)
+            else:
+                output_folder = os.path.join(os.path.dirname(task.source_file), folder_name + '_output')
+
+            os.makedirs(output_folder, exist_ok=True)
+
+            # 保存文件
+            with open(os.path.join(output_folder, 'title.txt'), 'w', encoding='utf-8') as f:
+                f.write(task.title)
+            with open(os.path.join(output_folder, 'genre.txt'), 'w', encoding='utf-8') as f:
+                f.write(task.genre)
+            with open(os.path.join(output_folder, 'age.txt'), 'w', encoding='utf-8') as f:
+                f.write(task.age)
+            with open(os.path.join(output_folder, 'story.txt'), 'w', encoding='utf-8') as f:
+                f.write(story)
+            with open(os.path.join(output_folder, 'full_response.txt'), 'w', encoding='utf-8') as f:
+                f.write(result)
+
+            task.output_folder = output_folder
+
+            # 设置状态
+            if is_complete:
+                task.status = 'completed'
+            else:
+                task.status = 'incomplete'
+                if not has_end:
+                    task.warning_msg = "缺少END标记"
+                elif len(story) < min_chars:
+                    task.warning_msg = f"字符数不足({len(story)}<{min_chars})"
+
+            task.completed_at = datetime.now()
+
+        except Exception as e:
+            task.status = 'failed'
+            task.error_msg = str(e)
+            print(f"任务失败: {e}")
+
+        self.window.after(0, self.refresh_display)
+        self.window.after(0, self.update_progress)
+
+    def _parse_result(self, result):
+        """解析API返回结果"""
+        parsed = {'title': '', 'genre': '', 'age': '', 'story': ''}
+
+        # 提取TITLE
+        title_match = re.search(r'===TITLE===\s*(.*?)\s*(?====|$)', result, re.DOTALL)
+        if title_match:
+            parsed['title'] = title_match.group(1).strip()
+
+        # 提取GENRE
+        genre_match = re.search(r'===GENRE===\s*(.*?)\s*(?====|$)', result, re.DOTALL)
+        if genre_match:
+            parsed['genre'] = genre_match.group(1).strip()
+
+        # 提取AGE
+        age_match = re.search(r'===AGE===\s*(.*?)\s*(?====|$)', result, re.DOTALL)
+        if age_match:
+            parsed['age'] = age_match.group(1).strip()
+
+        # 提取STORY
+        story_match = re.search(r'===STORY===\s*(.*?)\s*(?=---END---|$)', result, re.DOTALL)
+        if story_match:
+            parsed['story'] = story_match.group(1).strip()
+
+        return parsed
+
+    def _sanitize_folder_name(self, name):
+        """清理文件夹名称"""
+        sanitized = re.sub(r'[\\/:*?"<>|]', '', name)
+        sanitized = sanitized.strip().strip('.')
+        if len(sanitized) > 100:
+            sanitized = sanitized[:100]
+        return sanitized if sanitized else 'untitled'
+
+    def preview_prompt(self, task):
+        """预览Prompt"""
+        try:
+            with open(task.source_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # 预览人名
+            names_data = self.resource_mgr.load_names()
+            male_sorted = sorted(names_data.get('male', []), key=lambda x: x.get('used', 0))
+            female_sorted = sorted(names_data.get('female', []), key=lambda x: x.get('used', 0))
+
+            male_count = task.config.get('male_count', 10)
+            female_count = task.config.get('female_count', 10)
+
+            preview_male = [n['fullname'] for n in male_sorted[:male_count]]
+            preview_female = [n['fullname'] for n in female_sorted[:female_count]]
+
+            male_names_str = ", ".join(preview_male)
+            female_names_str = ", ".join(preview_female)
+
+            # 构建Prompt
+            prompt_template = self.prompt_mgr.get_prompt()
+            full_prompt = prompt_template.format(
+                male_names=male_names_str,
+                female_names=female_names_str
+            )
+
+            # 显示预览
+            preview_win = tk.Toplevel(self.window)
+            preview_win.title(f"Prompt预览 - {os.path.basename(task.source_file)}")
+            preview_win.geometry("900x700")
+
+            # 配置信息
+            info_frame = tk.Frame(preview_win, bg="#e3f2fd")
+            info_frame.pack(fill=tk.X, padx=10, pady=5)
+            tk.Label(info_frame, text=f"模型: {task.config.get('model')}\n字符要求: {task.config.get('min_chars'):,} - {task.config.get('max_chars'):,}",
+                    bg="#e3f2fd", justify=tk.LEFT).pack(padx=10, pady=5, anchor="w")
+
+            # Prompt
+            tk.Label(preview_win, text="📋 Prompt:", font=("Arial", 10, "bold")).pack(anchor="w", padx=10)
+            prompt_text = scrolledtext.ScrolledText(preview_win, height=15, wrap=tk.WORD)
+            prompt_text.pack(fill=tk.X, padx=10, pady=5)
+            prompt_text.insert(tk.END, full_prompt)
+            prompt_text.config(state=tk.DISABLED)
+
+            # 输入内容
+            tk.Label(preview_win, text="📄 输入内容:", font=("Arial", 10, "bold")).pack(anchor="w", padx=10)
+            content_text = scrolledtext.ScrolledText(preview_win, height=15, wrap=tk.WORD)
+            content_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+            content_text.insert(tk.END, content)
+            content_text.config(state=tk.DISABLED)
+
+            tk.Button(preview_win, text="关闭", command=preview_win.destroy, width=10).pack(pady=10)
+
+        except Exception as e:
+            messagebox.showerror("错误", f"预览失败: {e}")
+
+    def start_all_tasks(self):
+        """开始所有任务"""
+        pending_tasks = [t for t in self.tasks if t.status == 'pending']
+        if not pending_tasks:
+            messagebox.showinfo("提示", "没有等待中的任务")
+            return
+
+        for task in pending_tasks:
+            task.status = 'running'
+            task.started_at = datetime.now()
+            thread = threading.Thread(target=self._execute_task, args=(task,), daemon=True)
+            thread.start()
+
+        self.refresh_display()
+
+    def remove_task(self, task):
+        """移除任务"""
+        if task.status == 'running':
+            messagebox.showwarning("警告", "无法移除运行中的任务")
+            return
+        self.tasks.remove(task)
+        self.refresh_display()
+        self.update_progress()
+
+    def clear_all_tasks(self):
+        """清空所有任务"""
+        running = [t for t in self.tasks if t.status == 'running']
+        if running:
+            messagebox.showwarning("警告", f"有 {len(running)} 个任务正在运行，无法清空")
+            return
+
+        if messagebox.askyesno("确认", "确定要清空所有任务吗？"):
+            self.tasks.clear()
+            self.refresh_display()
+            self.update_progress()
+
+    def update_progress(self):
+        """更新进度"""
+        total = len(self.tasks)
+        completed = len([t for t in self.tasks if t.status == 'completed'])
+        incomplete = len([t for t in self.tasks if t.status == 'incomplete'])
+        failed = len([t for t in self.tasks if t.status == 'failed'])
+        done = completed + incomplete + failed
+
+        if total > 0:
+            percent = int(done / total * 100)
+            self.progress_bar['value'] = percent
+            status_text = f"进度: {done}/{total} ({percent}%) - ✓{completed}"
+            if incomplete > 0:
+                status_text += f" ⚠{incomplete}"
+            if failed > 0:
+                status_text += f" ✗{failed}"
+            self.progress_label.config(text=status_text)
+        else:
+            self.progress_bar['value'] = 0
+            self.progress_label.config(text="进度: 0/0 (0%)")
+
+    def prev_page(self):
+        """上一页"""
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.refresh_display()
+
+    def next_page(self):
+        """下一页"""
+        total_pages = max(1, (len(self.tasks) - 1) // self.tasks_per_page + 1)
+        if self.current_page < total_pages - 1:
+            self.current_page += 1
+            self.refresh_display()
+
+    def open_prompt_manager(self):
+        """打开Prompt管理器"""
+        manager_win = tk.Toplevel(self.window)
+        manager_win.title("Prompt管理")
+        manager_win.geometry("900x650")
+
+        # 活跃版本信息
+        info_frame = tk.Frame(manager_win, bg="#e3f2fd", height=40)
+        info_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        active_version = self.prompt_mgr.get_active_version()
+        active_label = tk.Label(info_frame, text=f"🔹 当前活跃版本: {active_version}",
+                               font=("Arial", 10, "bold"), bg="#e3f2fd", fg="#1565C0")
+        active_label.pack(side=tk.LEFT, padx=10, pady=8)
+
+        # 版本选择
+        version_frame = tk.Frame(manager_win)
+        version_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        tk.Label(version_frame, text="选择版本:").pack(side=tk.LEFT)
+
+        versions = ['default'] + list(self.prompt_mgr.prompts['direct'].get('versions', {}).keys())
+        version_var = tk.StringVar(value=active_version)
+        version_combo = ttk.Combobox(version_frame, textvariable=version_var, values=versions, width=20)
+        version_combo.pack(side=tk.LEFT, padx=5)
+
+        def set_active():
+            version = version_var.get()
+            self.prompt_mgr.set_active_version(version)
+            active_label.config(text=f"🔹 当前活跃版本: {version}")
+            messagebox.showinfo("成功", f"已将 '{version}' 设为活跃版本")
+
+        tk.Button(version_frame, text="⭐ 设为活跃", command=set_active, bg="#FFC107").pack(side=tk.LEFT, padx=5)
+
+        # Prompt编辑
+        tk.Label(manager_win, text="Prompt内容:", font=("Arial", 10, "bold")).pack(anchor="w", padx=10)
+        prompt_text = scrolledtext.ScrolledText(manager_win, wrap=tk.WORD, height=25)
+        prompt_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        def load_prompt(*args):
+            version = version_var.get()
+            content = self.prompt_mgr.get_prompt(version)
+            prompt_text.delete('1.0', tk.END)
+            prompt_text.insert(tk.END, content)
+
+        version_combo.bind('<<ComboboxSelected>>', load_prompt)
+        load_prompt()
+
+        # 保存按钮
+        btn_frame = tk.Frame(manager_win)
+        btn_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        def save_as_new():
+            name = tk.simpledialog.askstring("保存", "输入新版本名称:")
+            if name:
+                self.prompt_mgr.save_prompt_version(name, prompt_text.get('1.0', tk.END).strip())
+                version_combo['values'] = ['default'] + list(self.prompt_mgr.prompts['direct'].get('versions', {}).keys())
+                version_var.set(name)
+                messagebox.showinfo("成功", f"已保存为 '{name}'")
+
+        import tkinter.simpledialog as simpledialog
+        tk.simpledialog = simpledialog
+
+        tk.Button(btn_frame, text="💾 保存为新版本", command=save_as_new, bg="#4CAF50", fg="white").pack(side=tk.LEFT)
+        tk.Button(btn_frame, text="关闭", command=manager_win.destroy).pack(side=tk.RIGHT)
+
+    def run(self):
+        """运行程序"""
+        self.window.mainloop()
+
+
+if __name__ == "__main__":
+    app = ShortNovelDirect()
+    app.run()
