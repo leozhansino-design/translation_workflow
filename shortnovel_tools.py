@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import uuid
+import shutil
 from datetime import datetime
 from openai import OpenAI
 
@@ -1256,22 +1257,46 @@ Write the complete story now (remember to end with ===END===):"""
             is_complete = has_end and task.char_count >= min_chars
             task.story_complete = is_complete
 
-            # 保存结果到配置的输出路径
-            output_base = task.config.get('output_path', '')
-            base_name = os.path.splitext(os.path.basename(task.source_file))[0]
+            # 获取输入的大纲文件夹路径（source_file的父目录）
+            source_outline_folder = os.path.dirname(task.source_file)
 
+            # 尝试从大纲文件夹读取title.txt获取标题作为文件夹名
+            title_file = os.path.join(source_outline_folder, 'title.txt')
+            folder_name = None
+            if os.path.exists(title_file):
+                try:
+                    with open(title_file, 'r', encoding='utf-8') as f:
+                        title = f.read().strip()
+                        # 清理标题，移除不能用于文件夹名的字符
+                        folder_name = self._sanitize_folder_name(title)
+                except:
+                    pass
+
+            # 如果没有title.txt，使用原文件夹名
+            if not folder_name:
+                folder_name = os.path.basename(source_outline_folder)
+
+            # 确定输出路径
+            output_base = task.config.get('output_path', '')
             if output_base and os.path.isdir(output_base):
-                # 使用配置的输出路径
-                output_file = os.path.join(output_base, f"{base_name}_story.txt")
+                # 使用配置的输出路径，以title为文件夹名
+                output_folder = os.path.join(output_base, folder_name)
             else:
                 # 默认输出到源文件同目录
-                output_dir = os.path.dirname(task.source_file)
-                output_file = os.path.join(output_dir, f"{base_name}_story.txt")
+                output_folder = os.path.join(os.path.dirname(source_outline_folder), folder_name + '_ready')
 
-            with open(output_file, 'w', encoding='utf-8') as f:
+            os.makedirs(output_folder, exist_ok=True)
+
+            # 复制大纲文件夹中的所有文件到输出文件夹
+            self._copy_outline_files(source_outline_folder, output_folder)
+
+            # 保存生成的正文到输出文件夹
+            story_file = os.path.join(output_folder, 'story.txt')
+            with open(story_file, 'w', encoding='utf-8') as f:
                 f.write(result)
 
-            task.output_file = output_file
+            task.output_file = story_file
+            task.output_folder = output_folder
 
             # 根据完成状态设置不同状态
             if is_complete:
@@ -1292,6 +1317,48 @@ Write the complete story now (remember to end with ===END===):"""
 
         self.window.after(0, self.refresh_writing_display)
         self.window.after(0, self.update_writing_progress)
+
+    def _sanitize_folder_name(self, name):
+        """清理文件夹名称，移除不能用于文件夹名的字符"""
+        import re
+        # 移除Windows不允许的字符: \ / : * ? " < > |
+        sanitized = re.sub(r'[\\/:*?"<>|]', '', name)
+        # 移除前后空白
+        sanitized = sanitized.strip()
+        # 移除前后的点（Windows不允许）
+        sanitized = sanitized.strip('.')
+        # 限制长度（Windows最大255字符）
+        if len(sanitized) > 100:
+            sanitized = sanitized[:100]
+        # 如果为空，返回默认名
+        if not sanitized:
+            sanitized = 'untitled'
+        return sanitized
+
+    def _copy_outline_files(self, source_folder, dest_folder):
+        """复制大纲文件夹中的所有文件到目标文件夹"""
+        # 需要复制的文件列表
+        files_to_copy = ['title.txt', 'genre.txt', 'age.txt', 'outline.txt', 'full_outline.txt']
+
+        for filename in files_to_copy:
+            source_path = os.path.join(source_folder, filename)
+            if os.path.exists(source_path):
+                dest_path = os.path.join(dest_folder, filename)
+                try:
+                    shutil.copy2(source_path, dest_path)
+                except Exception as e:
+                    print(f"复制文件失败 {filename}: {e}")
+
+        # 同时复制其他可能存在的文件（如原始输入文件等）
+        for item in os.listdir(source_folder):
+            if item not in files_to_copy:
+                source_path = os.path.join(source_folder, item)
+                dest_path = os.path.join(dest_folder, item)
+                if os.path.isfile(source_path) and not os.path.exists(dest_path):
+                    try:
+                        shutil.copy2(source_path, dest_path)
+                    except Exception as e:
+                        print(f"复制文件失败 {item}: {e}")
 
     def start_all_writing_tasks(self):
         """开始所有等待中的写作任务"""
