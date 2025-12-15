@@ -73,225 +73,354 @@ def get_resource_path(relative_path):
 # 默认Prompt模板 - 直接生成完整故事
 DEFAULT_DIRECT_PROMPT = """# ADDICTIVE SHORT STORY GENERATOR
 
-## 【⚠️ 语言要求 - 最高优先级】
+## ⚠️ CRITICAL: LANGUAGE REQUIREMENT
 
-**输出必须100%英文。**
+**Output must be 100% English.**
 
-即使输入的txt文件是中文的，你的输出必须全部是英文。不允许出现任何中文字符。
-
----
-
-## 【核心任务】
-
-你会收到一个包含故事idea的txt文件。直接创作一个**完整的英文短篇爽文**。
-
-**目标**：
-- **快节奏、高密度爽点**（这是最重要的！）
-- 完整story arc
-- 不分章节
-- 一气呵成
-- 一次性输出完整故事+metadata
-
-**核心原则：爽 > 长。快 > 慢。简洁 > 复杂。**
+Even if the input file contains Chinese text, your output must be entirely in English. No Chinese characters allowed in the story.
 
 ---
 
-## 【参数】
-- 建议男性名：{male_names}
-- 建议女性名：{female_names}
-- **长度：灵活，以爽为准**（通常20000-40000字符，但质量>字数）
+## CORE TASK
 
-**⚠️ 重要：必须使用英文名字，严禁拼音！**
+You will receive a text file containing a story idea. **Use it as inspiration** to create a complete English short story.
 
----
+**IMPORTANT: The input text is often incomplete/truncated Chinese web novel content. DO NOT translate it directly. Instead:**
+- Extract the core concept
+- Identify the main conflict and satisfaction points
+- Create a NEW, localized English story inspired by these elements
+- Use English names, settings, and cultural context
 
-## 【输入】
+**Goals:**
+- **Fast-paced with dense satisfaction moments** (most important!)
+- Complete story arc
+- No chapters
+- One continuous read
+- Direct output: story + metadata
 
-你会收到一个txt文件，内容可能是：
-- 中文故事大纲
-- 中文小说片段
-- 故事idea描述
-- 人物设定
-
-你的任务是：
-1. 理解核心故事和主要爽点
-2. **提取所有可能的爽点**
-3. **删除所有拖沓的部分**
-4. 直接写出**完整故事**
-5. **所有人名必须改成英文名**
+**Core Principle: Satisfaction > Length. Fast > Slow. Simple > Complex.**
 
 ---
 
-## 【⚠️ 爽文的特点】
+## PARAMETERS
+- Suggested male names: {male_names}
+- Suggested female names: {female_names}
+- **Length: Flexible, quality over quantity** (typically 20,000-40,000 characters)
 
-### 必须有
+**⚠️ CRITICAL: Use English names only. No pinyin!**
+
+---
+
+## INPUT HANDLING
+
+The input file may contain:
+- Incomplete Chinese web novel excerpts
+- Story outlines in Chinese
+- Character descriptions
+- Plot fragments
+
+**Your approach:**
+1. **Read for inspiration, not translation**
+   - Don't try to translate character by character
+   - Don't preserve all original details
+
+2. **Extract core elements:**
+   - What's the main conflict?
+   - What makes readers satisfied?
+   - What's the protagonist's goal?
+   - Who is the antagonist?
+   - What are the key turning points?
+
+3. **Identify genre and satisfaction type:**
+   - Is this face-slapping, revenge, romance?
+   - What kind of satisfaction does it deliver?
+
+4. **Create NEW story with:**
+   - English names (no pinyin translations)
+   - Western/neutral settings (Harbor City, not Beijing)
+   - English cultural context
+   - Localized details and references
+
+5. **Transform, don't translate:**
+   - Chinese family drama → Western family dynamics
+   - Face/reputation concerns → Modern social dynamics
+   - Specific Chinese cultural elements → Universal themes
+
+**Key principle: Use the input as a springboard for inspiration, then create an original English story that captures the same satisfaction type and conflict structure.**
+
+---
+
+## SATISFACTION-DRIVEN FICTION REQUIREMENTS
+
+### Must Have
 
 ```
-1. ⭐⭐⭐⭐⭐ 密集爽点
-   - 每3000-5000字符至少1个爽点
-   - 爽点要"够爽"
+1. ⭐⭐⭐⭐⭐ Dense Satisfaction Moments
+   - At least 1 major satisfaction every 3,000-5,000 characters
+   - "Satisfying enough" = readers want to cheer
 
-2. ⭐⭐⭐⭐⭐ 快节奏
-   - 前3000字符进入核心冲突
-   - 没有长铺垫
-   - 直接开打
+2. ⭐⭐⭐⭐⭐ Fast Pace
+   - Enter core conflict within first 3,000 characters
+   - No long setup
+   - Jump straight into action
 
-3. ⭐⭐⭐⭐ 完整结局
-   - 所有冲突解决
-   - 坏人得到惩罚
-   - 主角得到满足
+3. ⭐⭐⭐⭐ Complete Resolution
+   - All conflicts resolved
+   - Villains punished
+   - Protagonist gets what they deserve
 
-4. ⭐⭐⭐ 简单设定
-   - 3-5个主要人物
-   - 单线剧情
-   - 设定一句话能说清
+4. ⭐⭐⭐ Simple Setup
+   - 3-5 main characters
+   - Single plotline
+   - Setting explained in one sentence
 ```
 
-### 绝对不能有
+### Must NOT Have
 
 ```
-❌ 长铺垫（超过3000字符才进入冲突）
-❌ 复杂世界观
-❌ 太多支线人物
-❌ 拖沓的日常场景
-❌ 未解决的悬念
-❌ 慢热
+❌ Long setup (taking 3,000+ characters to start conflict)
+❌ Complex worldbuilding
+❌ Too many side characters
+❌ Dragging daily life scenes
+❌ Unresolved cliffhangers
+❌ Slow burn
 ```
 
 ---
 
-## 【⚠️ 硬性规则】
+## HARD RULES
 
-### 规则1：对话密度
-**40%以上必须是对话。**
+### Rule 1: Dialogue Density
+**Minimum 40% dialogue.**
 
-连续超过300字符没有对话？立刻加对话。
+If you write 300 characters of narration without dialogue, STOP. Add dialogue immediately.
 
-### 规则2：段落长度
-**禁止超过5句的段落。**
+### Rule 2: Paragraph Length
+**Maximum 5 sentences per paragraph.**
 
-重要时刻单句成段。
+Important moments: single sentence paragraphs.
 
-### 规则3：爽点密度（最重要！）
-**每3000-5000字符至少1个明确爽点**
+### Rule 3: Satisfaction Density (MOST IMPORTANT!)
 
-爽点类型（按爽度排序）：
-1. **Public face-slapping**（当众打脸）
-2. **Revenge payoff**（复仇成功）
-3. **Identity reveal + shock**（身份揭露）
-4. **Villain public humiliation**（反派当众丢脸）
-5. **Power display**（实力展示让人闭嘴）
-6. **Recognition from doubters**（被质疑者认可）
-7. **Regret from wrongdoers**（伤害主角的人后悔）
+**At least 1 clear satisfaction moment every 3,000-5,000 characters**
 
-**不算爽点的：**
-- 主角受虐但没反击
-- 坏人"表情微变"
-- 内心爽但外部没展示
+Satisfaction types (by intensity):
+1. **Public face-slapping** - antagonist humiliated in public
+2. **Revenge payoff** - protagonist succeeds in payback
+3. **Identity reveal + shock** - hidden identity exposed, everyone stunned
+4. **Villain public humiliation** - antagonist's reputation destroyed publicly
+5. **Power display** - protagonist's abilities shut down doubters
+6. **Recognition from doubters** - people who mocked now acknowledge
+7. **Regret from wrongdoers** - those who hurt protagonist now regret
 
-### 规则4：快节奏
+**NOT satisfaction moments:**
+- Protagonist suffers without fighting back
+- Antagonist's "expression changes slightly" (must actually suffer!)
+- Internal satisfaction without external display
+- Summary of satisfaction ("it was satisfying")
+- Vague descriptions ("everyone was shocked")
 
-**前3000字符内必须：**
-- 主角遇到核心冲突
-- 第一个爽点出现
-- 读者清楚知道故事要讲什么
+---
 
-**禁止：**
-- 长背景介绍
-- 慢慢建立世界观
-- 花2000字介绍日常生活
+**CRITICAL: HOW TO WRITE SATISFACTION MOMENTS**
 
-### 规则5：角色命名
+Every satisfaction moment MUST be written as a **specific scene** with:
 
-**必须英文名，严禁拼音**
+**1. DIALOGUE-DRIVEN**
+- The satisfaction must happen through spoken words
+- Protagonist speaks/acts, antagonist reacts
+- Bystanders comment or gasp
+- Minimum 60% dialogue in satisfaction scenes
 
-❌ 错误示例（拼音）：
-- Li Wei → 这是拼音，禁止使用
-- Zhang Yue → 这是拼音，禁止使用
-- Wang Chen → 这是拼音，禁止使用
-- Sophia Chen → Chen是拼音姓氏，禁止使用
-- Alexander Liu → Liu是拼音姓氏，禁止使用
+**2. SPECIFIC REACTIONS**
+- Don't write: "He was shocked"
+- Write: His specific physical reaction (face went white, stumbled, voice cracked)
+- Write: What he says when shocked
+- Write: What others around him say/do
 
-❌ 常见拼音姓氏（禁止使用）：
-Chen, Wang, Liu, Zhang, Li, Zhao, Zhou, Wu, Huang, Yang, Xu, Sun, Ma, Zhu, Hu, Guo, Lin, He, Gao, Liang, Zheng, Luo, Song, Xie, Tang, Han, Cao, Feng, Deng, Peng, Zeng, Xiao, Tian, Pan, Yuan, Dong, Yu, Jiang, Cai, Yu, Du, Ye, Cheng, Wei, Su, Lu, Ding, Ren, Shen, Yao, Lu, Jiang, Cui, Zhong, Tan, Lu, Wang, Fan, Liao, Shi, Jin, Wei, Jia, Xia, Fu, Fang, Bai, Zou, Meng, Xiong, Qin, Qiu, Jiang, Yin, Xue, Yan, Duan, Lei, Long, Li, Tao, He
+**3. PUBLIC WITNESSES**
+- Most satisfying moments need an audience
+- Write their reactions: gasps, whispers, camera flashes
+- Write what they say to each other
+- Show the antagonist's public humiliation
 
-**使用提供的英文名字列表，或常见英文名。**
+**4. IMMEDIATE CONSEQUENCES**
+- Show what happens right after
+- Antagonist tries to defend, fails
+- Someone in authority reacts (judge, boss, crowd)
+- Protagonist gets immediate validation
 
-常见英文姓氏参考：Smith, Johnson, Williams, Brown, Davis, Miller, Wilson, Moore, Taylor, Anderson, Thomas, Jackson, White, Harris, Martin, Thompson, Garcia, Martinez, Robinson, Clark, Rodriguez, Lewis, Lee, Walker, Hall, Allen, Young, King, Wright, Lopez, Hill, Scott, Green, Adams, Baker, Nelson, Carter, Mitchell, Roberts, Turner, Phillips, Campbell, Parker, Evans, Edwards, Collins, Stewart, Morris, Rogers, Reed, Cook, Morgan, Bell, Murphy, Bailey, Rivera, Cooper, Richardson, Cox, Howard, Ward, Torres, Peterson, Gray, Ramirez, James, Watson, Brooks, Kelly, Sanders, Price, Bennett, Wood, Barnes, Ross, Henderson, Coleman, Jenkins, Perry, Powell, Hughes, Flores, Washington, Butler, Foster, Bryant, Alexander, Russell, Griffin, Hayes
+**5. LENGTH**
+- Each major satisfaction scene: 300-500 characters minimum
+- Don't rush through it
+- Let readers savor the moment
+- Use multiple short paragraphs with dialogue
 
-### 规则6：设定清晰简单
+**6. AVOID SUMMARIZING**
+- Don't tell readers "it was satisfying"
+- Don't write "public face-slapping occurred"
+- Don't skip the actual scene
+- Show the entire interaction
 
-选择一个清晰的背景：
-- **现代都市**：Harbor City, CEO, billionaire, Instagram
-- **古代架空**：用英文名 + Emperor/Prince/Duke
-- **现代+超自然**：现代城市 + 简单能力
+---
 
-**地点命名：**
+**SATISFACTION SCENE STRUCTURE:**
+
+Every satisfaction scene should follow this pattern:
+
+```
+Setup (1-2 sentences):
+[Situation that leads to satisfaction]
+
+Confrontation (dialogue-heavy, 200-300 chars):
+[Protagonist acts/speaks]
+[Antagonist's initial reaction]
+[Protagonist delivers the blow]
+[Antagonist's shocked response]
+
+Public Reaction (100-150 chars):
+[Witnesses respond]
+[Authority figure reacts]
+[Antagonist realizes they're exposed]
+
+Immediate Aftermath (50-100 chars):
+[Quick consequence]
+[Protagonist's position secured]
+```
+
+---
+
+**QUALITY CHECK FOR EACH SATISFACTION MOMENT:**
+
+Before moving on, ask:
+- [ ] Is this written as a full scene with dialogue?
+- [ ] Can readers clearly see what happened?
+- [ ] Did I show the antagonist's specific reaction?
+- [ ] Are there witnesses and their reactions?
+- [ ] Is this at least 300 characters long?
+- [ ] Would readers feel satisfied reading this?
+
+If any answer is NO, expand and rewrite the scene.
+
+### Rule 4: Fast Pace
+
+**Within first 3,000 characters:**
+- Protagonist faces core conflict
+- First satisfaction moment happens
+- Readers know what the story is about
+
+**Forbidden:**
+- Long background exposition
+- Slow worldbuilding
+- 2,000 characters of daily life intro
+
+### Rule 5: Character Naming
+
+**English names ONLY. Pinyin FORBIDDEN.**
+
+❌ WRONG Examples (pinyin):
+- Li Wei → This is pinyin, forbidden
+- Zhang Yue → This is pinyin, forbidden
+- Wang Chen → This is pinyin, forbidden
+- Sophia Chen → Chen is pinyin surname, forbidden
+- Alexander Liu → Liu is pinyin surname, forbidden
+
+❌ Common Pinyin Surnames (DO NOT USE):
+Chen, Wang, Liu, Zhang, Li, Zhao, Zhou, Wu, Huang, Yang, Xu, Sun, Ma, Zhu, Hu, Guo, Lin, He, Gao, Liang, Zheng, Luo, Song, Xie, Tang, Han, Cao, Feng, Deng, Peng, Zeng, Xiao, Tian, Pan, Yuan, Dong, Yu, Jiang, Cai, Du, Ye, Cheng, Wei, Su, Lu, Ding, Ren, Shen, Yao, Cui, Zhong, Tan, Fan, Liao, Shi, Jin, Jia, Xia, Fu, Fang, Bai, Zou, Meng, Xiong, Qin, Qiu, Yin, Xue, Yan, Duan, Lei, Long, Tao
+
+**Use provided English name lists or common English names.**
+
+Common English surnames: Smith, Johnson, Williams, Brown, Davis, Miller, Wilson, Moore, Taylor, Anderson, Thomas, Jackson, White, Harris, Martin, Thompson, Garcia, Martinez, Robinson, Clark, Rodriguez, Lewis, Lee, Walker, Hall, Allen, Young, King, Wright, Lopez, Hill, Scott, Green, Adams, Baker, Nelson, Carter, Mitchell, Roberts, Turner, Phillips, Campbell, Parker, Evans, Edwards, Collins, Stewart, Morris, Rogers, Reed, Cook, Morgan, Bell, Murphy, Bailey, Rivera, Cooper, Richardson, Cox, Howard, Ward, Torres, Peterson, Gray, Ramirez, James, Watson, Brooks, Kelly, Sanders, Price, Bennett, Wood, Barnes, Ross, Henderson, Coleman, Jenkins, Perry, Powell, Hughes, Flores, Washington, Butler, Foster, Bryant, Alexander, Russell, Griffin, Hayes
+
+### Rule 6: Clear Simple Setting
+
+Choose ONE clear background:
+- **Modern Urban**: Harbor City, CEO, billionaire, Instagram, New York
+- **Historical Fantasy**: Use English names + Emperor/Prince/Duke
+- **Modern + Supernatural**: Modern city + simple abilities
+
+**Location naming:**
 - ✅ Harbor City, Riverside, Summit District, Lakeside, New York, Los Angeles
-- ❌ Beijing, Shanghai, Guangzhou（不要直接用中国城市）
+- ❌ Beijing, Shanghai, Guangzhou (don't use Chinese cities directly)
 
-**机构命名：**
+**Organization naming:**
 - ✅ StreamWave Entertainment, TechCore Industries, Summit Hospital
-- ❌ Tencent, Alibaba, Baidu（不要用中国公司）
+- ❌ Tencent, Alibaba, WeChat, Baidu (don't use Chinese companies)
 
-**不要中西混搭，不要复杂设定**
+**Social media references:**
+- ✅ Instagram, Twitter, Facebook, TikTok
+- ❌ Weibo, WeChat
 
-### 规则7：设定/背景解释
-**最多3句话**，然后回到动作。
+**No mixing Chinese and Western elements.**
 
-不要解释世界观、系统原理、能力来源。**直接展示效果。**
+### Rule 7: Setting/Background Explanation
+**Maximum 3 sentences**, then return to action.
 
-### 规则8：内心独白
-**最多连续3句**，然后回到外部动作。
+Don't explain worldview, system mechanics, power origins. **Show effects directly.**
 
-禁止大段内心活动。
+### Rule 8: Internal Monologue
+**Maximum 3 consecutive sentences**, then return to external action.
 
-### 规则9：禁止文学腔
+No long internal thought paragraphs.
 
-**禁止比喻句：**
-❌ "她的声音像X"
-❌ "沉默像Y一样落下"
+### Rule 9: Forbidden Literary Language
+
+**Forbidden metaphors:**
+❌ "Her voice was like X"
+❌ "Silence fell like a lid"
 ❌ "His words hung in the air like a blade"
+❌ Any comparison using "like" or "as" that sounds poetic
 
-**禁止诗意表达：**
+**Forbidden poetic expressions:**
 ❌ "patience wrapped in glass"
 ❌ "silence lands like a lid"
 ❌ "like a storm retreating"
+❌ Any abstract metaphorical descriptions
 
-**禁止哲理句：**
-❌ 段落结尾加人生感悟
-❌ "X is not Y, it is Z"式感悟
-❌ "for a moment, he understood..."
+**Forbidden philosophical statements:**
+❌ Paragraph-ending life reflections
+❌ "X is not Y, it is Z" style wisdom
+❌ "for a moment, he understood the meaning of..."
+❌ Any contemplative insights about life/humanity
 
-**可以保留口语化比喻：**
-✅ "He looked at me like I was trash"
-✅ "That hit me like a truck"
+**Allowed comparisons:**
+✓ Only use comparisons if they are:
+  - Extremely colloquial (how people actually talk)
+  - Immediately clear without interpretation
+  - Used for emphasis, not beauty
+  - Short and punchy
 
-### 规则10：开头直入
-**第一句必须是动作或对话。**
+**General principle:**
+- Write like you're telling a story to a friend, not writing literature
+- Use concrete actions and reactions, not abstract descriptions
+- If a sentence sounds "poetic" or "deep," delete it
+- Default to simple, direct language
 
-禁止：
-- 环境描写开头
-- 背景介绍开头
-- 内心独白开头
+### Rule 10: Opening Scene
+**First sentence must be action or dialogue.**
 
-### 规则11：结尾完整且干脆
+Forbidden:
+- Environmental description opening
+- Background introduction opening
+- Internal monologue opening
 
-**必须完整：**
-- 所有冲突解决
-- 坏人得到惩罚
-- 主角得到满足
+### Rule 11: Complete Crisp Ending
 
-**必须干脆：**
-- 不拖沓
-- 不反复强调
-- 说完就停
+**Must be complete:**
+- All conflicts resolved
+- Villains punished
+- Protagonist satisfied
+
+**Must be crisp:**
+- No dragging
+- No repetition
+- Say it once and stop
 
 ---
 
-## 【⚠️ GENRE分类 - 15个短篇专属】
+## GENRE CLASSIFICATION - 15 Short Fiction Categories
 
-**必须从以下15个中选1个：**
+**Choose ONE from these 15:**
 
 ```
 Age Gap
@@ -311,102 +440,102 @@ System
 True/Fake Identity
 ```
 
-**判断方法：**
-1. 主要爽点是什么？→ Face-Slapping / Revenge / Sweet Romance
-2. 有特殊设定吗？→ Rebirth / System / True/Fake Identity
-3. 主角/背景特点？→ Billionaire Romance / Entertainment Circle
+**Decision method:**
+1. Main satisfaction type? → Face-Slapping / Revenge / Sweet Romance
+2. Special setting? → Rebirth / System / True/Fake Identity
+3. Protagonist type/background? → Billionaire Romance / Entertainment Circle
 
 ---
 
-## 【⚠️ TITLE创作规则】
+## TITLE CREATION RULES
 
-### 硬性要求
+### Hard Requirement
 
-**少于80字符**
+**Under 80 characters**
 
-### 创作原则
+### Creation Principles
 
-1. **口语化**，像聊天不像书名
-2. **有对比/反转/冲突**
-3. **制造好奇**
-4. **一眼就懂核心冲突**
-5. **独特**（不要和其他标题重复）
+1. **Colloquial** - sounds like talking, not book titles
+2. **Has contrast/reversal/conflict**
+3. **Creates curiosity**
+4. **Core conflict immediately clear**
+5. **Unique** (don't repeat patterns)
 
-### ❌ 禁止的标题模式
+### ❌ Forbidden Title Patterns
 
-**避免使用这些常见的开头词：**
+**Avoid these common opening words:**
 
 ```
 ❌ "I Died..." / "I Woke..." / "I [Verb]..."
 ❌ "Back to..." / "Back at..."
 ❌ "They Called..." / "They Said..." / "They [Verb]..."
 ❌ "Rejected..." / "Rejected by..."
-❌ "He..." / "She..." (人称代词开头)
+❌ "He..." / "She..." (pronoun openings)
 ❌ "After..." / "After I..."
-❌ "Married..." / "Divorced..." (单个动词开头)
-❌ "When..." (时间状语开头)
-❌ "The..." (冠词开头，除非非常特殊)
+❌ "Married..." / "Divorced..." (single verb openings)
+❌ "When..." (temporal clause openings)
+❌ "The..." (article openings, unless very special)
 ```
 
-**尽量创造不同的标题结构，不要总用相同的模式。**
+**Try different title structures, don't always use the same pattern.**
 
-**不要使用以下模式：**
+**Don't use these patterns:**
 
 ```
 ❌ "The [Someone]'s [Something]"
-   例如："The CEO's Secret Wife"
+   Example: "The CEO's Secret Wife"
 
 ❌ "When [Something Happened]"
-   例如："When Love Returns"
+   Example: "When Love Returns"
 
 ❌ "A [Noun] of [Noun]"
-   例如："A Tale of Two Hearts"
+   Example: "A Tale of Two Hearts"
 
 ❌ "[Genre]: [Statement]"
-   例如："Romance: She Found Love"
+   Example: "Romance: She Found Love"
 
-❌ 没有emotion或surprise的标题
-   例如："The Story of My Life"
+❌ No emotion or surprise
+   Example: "The Story of My Life"
 
-❌ 像书名不像话
-   例如："Chronicles of a Forgotten Soul"
+❌ Sounds like book title not speech
+   Example: "Chronicles of a Forgotten Soul"
 
-❌ 需要"品味"才能理解
-   例如："Echoes in the Silence of Dawn"
+❌ Requires "appreciation" to understand
+   Example: "Echoes in the Silence of Dawn"
 ```
 
-### ❌ 禁止的标题特征
+### ❌ Forbidden Title Characteristics
 
 ```
-❌ 太长（超过80字符）
-❌ 复杂从句
-❌ 过于文学化
-❌ 没有冲突感
-❌ 太抽象
-❌ 陈词滥调
-❌ 重复的结构（和前面生成的标题一样的格式）
+❌ Too long (over 80 characters)
+❌ Complex clauses
+❌ Overly literary
+❌ No sense of conflict
+❌ Too abstract
+❌ Clichéd
+❌ Repetitive structures
 ```
 
-### 创作提醒
+### Creation Reminders
 
-- 标题要独特且吸引人
-- 尝试不同的标题结构（不要总用同一种模式）
-- 专注核心冲突和反转
-- 保持口语化
-- 让人一眼就想点进来
-- 避免使用上面列出的禁止模式
+- Title must be unique and attractive
+- Try different structures (don't always use same pattern)
+- Focus on core conflict and reversal
+- Keep colloquial
+- Make people want to click
+- Avoid listed forbidden patterns
 
 ---
 
-## 【⚠️ AI常见错误 - 必须删除】
+## AI COMMON ERRORS - MUST DELETE
 
-写完后搜索以下内容，找到就改或删：
+After writing, search for these and fix/delete:
 
-### 连接词
-删除：However, Moreover, Furthermore, Nevertheless, Additionally, Subsequently, Consequently
+### Transition Words
+Delete: However, Moreover, Furthermore, Nevertheless, Additionally, Subsequently, Consequently
 
-### 陈词滥调
-删除：
+### Clichés
+Delete:
 - let out a breath she didn't know she was holding
 - heart raced in his/her chest
 - blood ran cold
@@ -414,138 +543,270 @@ True/Fake Identity
 - time seemed to slow
 - the air grew thick
 
-### 万能形容词
-删除：piercing eyes, chiseled jaw, dazzling smile, raven hair
+### Generic Adjectives
+Delete: piercing eyes, chiseled jaw, dazzling smile, raven hair
 
-### 情感分析句式
-删除：
+### Emotion Analysis Phrases
+Delete:
 - couldn't help but feel
 - part of him wanted to... while another part
 - a complex mixture of emotions
 - a wave of [emotion] washed over
 - something in him shifted
 
-### 比喻句式（禁止文艺比喻）
-删除：
+### Metaphor Phrases (forbidden literary metaphors)
+Delete:
 - ❌ "Silence fell like a lid"
 - ❌ "His words hung in the air like a blade"
 - ❌ "She folded it as one folds a map to a destination"
 - ❌ "His steps were an argument for a life"
 
-### 哲理/文艺句式
-删除：
-- "X and Y at once"（如"simpler and harder at once"）
-- "felt like a [抽象名词]"（如"felt like a choice"）
-- "as if [抽象概念]"
-- "the sound/weight/taste of [抽象名词]"
-- "in a way that [哲理解释]"
-- "[动作] as one [哲理比喻]"
-- "X is not Y, it is Z"式的人生感悟
-- "for a moment/for a second [哲理感悟]"
+### Philosophical/Literary Phrases
+Delete:
+- "X and Y at once" (like "simpler and harder at once")
+- "felt like a [abstract noun]" (like "felt like a choice")
+- "as if [abstract concept]"
+- "the sound/weight/taste of [abstract noun]"
+- "in a way that [philosophical explanation]"
+- "[action] as one [philosophical metaphor]"
+- "X is not Y, it is Z" style life wisdom
+- "for a moment/for a second [philosophical insight]"
 
-### 长段落
-- 超过3句的设定解释 → 砍到3句
-- 超过3句的内心独白 → 砍到3句
-- 超过5句的段落 → 拆开
+### Long Paragraphs
+- Setting explanation over 3 sentences → cut to 3 sentences
+- Internal monologue over 3 sentences → cut to 3 sentences
+- Paragraph over 5 sentences → split
 
-### 重复
-- 同一个意思说两遍 → 只保留一次
-- 结尾反复强调同一件事 → 只说一次
-
----
-
-## 【写作流程】
-
-### 第1步：理解输入
-- 读txt文件
-- 找出核心冲突
-- 识别主要爽点
-- 确定genre
-
-### 第2步：规划故事
-**在心里（不输出）快速规划：**
-- 开场冲突是什么？
-- 6-10个主要爽点是什么？
-- 高潮是什么？
-- 结局怎么收？
-
-### 第3步：创作metadata
-- Title（少于80字符，独特，不重复）
-- Genre（15个中选1）
-- Age（4个等级选1）
-
-### 第4步：写故事
-- 从动作或对话开始
-- 对话优先（40%+）
-- **每3000字符检查：有爽点了吗？**
-- 边写边控制：
-  - 段落不超过5句
-  - 没有文学腔
-  - 设定解释不超过3句
-- 一口气写完
-
-### 第5步：检查并修复
-
-**□ 爽点检查**（最重要）
-- 至少6-10个爽点？
-- 每个都够爽？
-- 每3000-5000字符有一个？
-
-**□ 对话密度**
-- 40%以上？
-
-**□ 文学腔检查**
-搜索：However, Moreover, "couldn't help but", "a wave of", "at once"
-找到就删
-
-**□ 开头**
-- 第一句是动作或对话？
-
-**□ 结尾**
-- 完整？
-- 干脆？
-- 有 `---END---`？
+### Repetition
+- Same meaning said twice → keep only once
+- Ending repeatedly emphasizing same thing → say once only
 
 ---
 
-## 【⚠️ 输出格式 - 严格遵守】
+## WRITING PROCESS
+
+### Step 1: Understand Input
+- Read txt file
+- Identify core conflict
+- Spot main satisfaction moments
+- Determine genre
+
+### Step 2: Plan Story (Critical - Don't Skip!)
+
+**Mentally (don't output) plan these BEFORE writing:**
+
+**A. Core Structure:**
+- Opening conflict (what happens in first 3,000 characters)
+- Main escalation (middle progression)
+- Climax confrontation (biggest satisfaction)
+- Resolution (how it ends)
+
+**B. Satisfaction Moments (MOST IMPORTANT):**
+Plan 6-10 specific satisfaction moments:
+- Character placement: 1 every 3,000-5,000 characters
+- Type variety: mix face-slapping, revenge, recognition, regret
+- Scene structure: each must be a full scene with dialogue
+- Public/private: most should be public with witnesses
+
+For each satisfaction moment, know:
+- Who confronts whom
+- What is revealed or proven
+- What the antagonist says/does when exposed
+- Who witnesses it
+- What the immediate consequence is
+
+**C. Character Arcs:**
+- Protagonist: starts vulnerable → gains power through evidence/ability
+- Main antagonist: starts confident → publicly humbled
+- Supporting antagonist: optional but adds satisfaction
+- Ally: helps protagonist, gets recognition
+- Love interest (if any): must contribute to satisfaction, not distract
+
+**D. Pacing Checkpoints:**
+Mark where these happen in your mental outline:
+- 3,000 chars: First satisfaction
+- 8,000 chars: Second satisfaction
+- 15,000 chars: Major satisfaction + escalation
+- 25,000 chars: Climax (biggest satisfaction)
+- 35,000 chars: Resolution + final satisfactions
+
+**Don't start writing until you can clearly visualize at least 6 satisfaction scenes.**
+
+### Step 3: Create Metadata
+- Title (under 80 chars, unique)
+- Genre (choose 1 from 15)
+- Age (choose 1 from 4 levels)
+
+### Step 4: Write Story
+
+**Start:**
+- First sentence: action or dialogue
+- No setup, jump straight into conflict
+
+**While writing:**
+
+**Every 3,000 characters, STOP and check:**
+- [ ] Did I just write a satisfaction scene?
+- [ ] Was it a full scene with dialogue (300+ chars)?
+- [ ] Did I show antagonist's reaction?
+- [ ] Were there witnesses?
+- [ ] If NO to any: Write the satisfaction scene NOW
+
+**Dialogue priority (40%+ minimum):**
+- Count dialogue lines every 1,000 characters
+- If below 40%, stop and add dialogue
+- Turn narration into dialogue exchanges
+- Use dialogue to reveal information, not description
+
+**Paragraph control:**
+- After every paragraph, count sentences
+- If over 5 sentences: split immediately
+- Important moments: single sentence paragraphs
+
+**Setting/background:**
+- Maximum 3 sentences per explanation
+- Immediately return to action/dialogue after
+
+**Internal monologue:**
+- Maximum 3 consecutive sentences
+- Then cut to external action/dialogue
+
+**Write continuously:**
+- Don't stop to edit yet
+- Focus on hitting satisfaction moments at planned intervals
+- Maintain fast pace
+- Keep dialogue flowing
+
+**Length guidance:**
+- Don't artificially extend to hit character count
+- Don't cut short if story needs more space
+- Quality of satisfaction > total length
+- Typical range: 25,000-40,000 characters
+
+### Step 5: Check and Fix
+
+**□ Satisfaction Check** (MOST IMPORTANT - Check First)
+
+**Count all satisfaction moments:**
+- List each one by character position
+- Verify distribution: one every 3,000-5,000 chars?
+- Total count: at least 6-10?
+
+**For EACH satisfaction moment, verify:**
+- [ ] Written as full scene (not summary)?
+- [ ] Has dialogue (60%+ in that scene)?
+- [ ] Shows antagonist's specific reaction?
+- [ ] Has witnesses/public element?
+- [ ] At least 300 characters long?
+- [ ] Would readers feel "YES!" reading it?
+
+**If any satisfaction moment fails these checks:**
+- Locate it in the text
+- Expand it with dialogue
+- Add specific reactions
+- Add witness responses
+- Make it at least 300 characters
+
+**Common satisfaction problems to fix:**
+- "He was shocked" → Write what he said, how he looked, what he did
+- "Everyone was surprised" → Write specific gasps, whispers, comments
+- "It was satisfying" → Delete this, show the scene instead
+- Scene under 200 chars → Expand with dialogue and reactions
+
+---
+
+**□ Dialogue Density**
+- Rough count: dialogue lines vs total lines
+- Should be 40%+ of the story
+- If under 40%: convert narration to dialogue
+
+---
+
+**□ Paragraph Length**
+- Scan for paragraphs over 5 sentences
+- Split them immediately
+- No exceptions
+
+---
+
+**□ Literary Language Check**
+Search and delete/fix:
+- "However," / "Moreover," / "Furthermore,"
+- "couldn't help but"
+- "a wave of [emotion]"
+- "at once"
+- "felt like a [abstract noun]"
+- "as if [abstract concept]"
+- Any sentence that sounds poetic
+
+---
+
+**□ Opening**
+- First sentence is action or dialogue?
+- No environment description?
+- No background explanation?
+
+---
+
+**□ Ending**
+- All conflicts resolved?
+- Antagonists punished/humbled?
+- Protagonist gets satisfaction?
+- Crisp ending (not dragging)?
+- Has `---END---` marker?
+
+---
+
+**□ Character Names**
+- Search for: Chen, Wang, Liu, Zhang, Li, Zhao, Zhou
+- If found: change to English surnames immediately
+
+---
+
+**□ Localization**
+- Search for: WeChat, Weibo, Beijing, Shanghai
+- If found: change to Instagram/Twitter or Harbor City/New York
+
+---
+
+## OUTPUT FORMAT - STRICT COMPLIANCE
 
 ```
 ===TITLE===
-[英文标题，少于80字符，独特]
+[English title, under 80 characters, unique]
 
 ===GENRE===
-[从15个Genre中选1个]
+[Choose 1 from 15 genres]
 
 ===AGE===
-[All Ages 或 Teen 13+ 或 Mature 16+ 或 Explicit 18+]
+[All Ages OR Teen 13+ OR Mature 16+ OR Explicit 18+]
 
 ===STORY===
-[完整故事正文，纯英文，不要任何标题或章节号]
+[Complete story text, pure English, no titles or chapter numbers]
 
 ---END---
 ```
 
-**禁止输出：**
+**Forbidden to output:**
 - ❌ Outline
 - ❌ Character list
 - ❌ World setting
 - ❌ "Chapter X"
-- ❌ 作者注释
-- ❌ 字数统计
-- ❌ 任何说明文字
-- ❌ 任何中文
+- ❌ Author notes
+- ❌ Word count statistics
+- ❌ Any explanatory text
+- ❌ Any Chinese characters
 
-**只要：**
+**Only output:**
 - ✅ TITLE
 - ✅ GENRE
 - ✅ AGE
-- ✅ 故事正文
+- ✅ Story text
 - ✅ ---END---
 
 ---
 
-**现在，开始创作。读取输入的txt文件，直接写出完整故事。**
+**Now, start creating. Read the input txt file and write a complete story.**
 
 **START WRITING.**"""
 
@@ -793,7 +1054,7 @@ class ShortNovelDirect:
         row3.pack(fill=tk.X, pady=2)
 
         tk.Label(row3, text="输出路径:").pack(side=tk.LEFT)
-        self.output_var = tk.StringVar(value="D:\\shortnovels_output")
+        self.output_var = tk.StringVar(value="D:/shortnovels_translation_readytoupload")
         tk.Entry(row3, textvariable=self.output_var, width=50).pack(side=tk.LEFT, padx=5)
         tk.Button(row3, text="浏览", command=self.select_output_folder, width=6).pack(side=tk.LEFT)
 
@@ -1224,10 +1485,20 @@ class ShortNovelDirect:
 
             # 构建Prompt
             prompt_template = self.prompt_mgr.get_prompt()
-            full_prompt = prompt_template.format(
-                male_names=male_names_str,
-                female_names=female_names_str
-            )
+
+            # 使用安全的格式化方法，处理未知占位符
+            try:
+                full_prompt = prompt_template.format(
+                    male_names=male_names_str,
+                    female_names=female_names_str
+                )
+            except KeyError as ke:
+                print(f"[WARNING] 预览: Prompt模板包含未知占位符: {ke}")
+                # 回退到默认模板
+                full_prompt = DEFAULT_DIRECT_PROMPT.format(
+                    male_names=male_names_str,
+                    female_names=female_names_str
+                )
 
             # 显示预览
             preview_win = tk.Toplevel(self.window)
