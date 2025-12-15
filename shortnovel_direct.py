@@ -90,17 +90,32 @@ DEFAULT_DIRECT_PROMPT = """# ADDICTIVE SHORT STORY GENERATOR
 - Even if you think about concepts using Chinese terms (like "爽点"), NEVER output them
 - No mixing of English and Chinese under any circumstances
 
-**2. NO META-COMMENTARY**
+**2. NO META-COMMENTARY** ⚠️⚠️⚠️ CRITICAL ERROR IF VIOLATED
 - Do NOT output planning labels like "Setup:", "Confrontation:", "Public Reaction:"
 - Do NOT output "First satisfaction", "Second satisfaction", "Satisfaction seventh"
+- Do NOT output "Satisfaction scene —" or any labels describing what type of scene follows
 - Do NOT number or label story elements for readers
 - These are internal planning tools ONLY - never part of the actual story
+- **VIOLATION OF THIS RULE = STORY REJECTED**
+
+**Examples of FORBIDDEN outputs:**
+```
+❌ "First satisfaction came when..."
+❌ "Setup: Reed arrived at the office..."
+❌ "Confrontation: She confronted him..."
+❌ "Satisfaction scene — public ripple: the kiss went viral..."
+❌ "Satisfaction scene — small power display: on a noisy set..."
+❌ "Satisfaction scene — face-slapping of fake favorite..."
+❌ "The second爽点 occurred..."
+❌ Any label that describes the story structure TO the reader
+```
 
 **3. WRITE THE STORY DIRECTLY**
 - Jump straight into scenes
 - No structural labels
 - No explanatory tags
 - Just write what happens
+- Readers should never see your planning process
 
 ---
 
@@ -114,29 +129,242 @@ Even if the input file contains Chinese text, your output must be entirely in En
 
 ## CORE TASK
 
-You will receive a text file containing a story idea. **Use it as inspiration** to create a complete English short story.
+You will receive a text file containing a **truncated/incomplete Chinese story**.
 
-**IMPORTANT: The input text is often incomplete/truncated Chinese web novel content. DO NOT translate it directly. Instead:**
-- Extract the core concept
-- Identify the main conflict and satisfaction points
-- Create a NEW, localized English story inspired by these elements
-- Use English names, settings, and cultural context
+**Your mission: Understand → Localize → Complete**
+
+**What you're doing:**
+1. **Understand** the original's creativity and plot direction
+2. **Localize** it into English (translate names, places, cultural elements)
+3. **Complete** the story following the original direction
+4. Maintain **satisfaction-driven** pacing throughout
+
+**This is NOT:**
+- ❌ Pure translation (word-for-word)
+- ❌ Creating a new story inspired by it
+- ❌ Replacing the plot with generic templates
+
+**This IS:**
+- ✅ Understanding the original creative concept
+- ✅ Translating/localizing for English readers
+- ✅ Continuing and completing THAT specific story
+- ✅ Keeping it fast-paced and satisfying
+
+**Key principle:**
+> "Absorb the original story's creativity and uniqueness, translate it into natural English with localized names and settings, then complete it in the same direction while maintaining satisfaction density."
+
+---
+
+**Your two-step approach:**
+
+### STEP 1: UNDERSTAND THE ORIGINAL PLOT
+
+**Read carefully to absorb the story's unique creativity:**
+
+1. **What makes THIS story special?**
+   - What's the unique premise? (body swap? hidden identity? special ability? competition?)
+   - What's the creative hook that makes it interesting?
+   - What's the specific conflict that drives this story?
+
+2. **Identify the SPECIFIC plot (not generalizations):**
+   - **Exact setting**: Hospital? Restaurant? Office? School? Stadium? Competition venue?
+   - **Exact characters**: Who exists? What are their roles? Their relationships?
+   - **Exact conflicts**: What SPECIFIC problem exists? (not "face-slapping" - the actual conflict)
+   - **Exact events in progress**: What's happening or about to happen?
+
+3. **Find the story's direction:**
+   - Medical story → heading towards diagnosis? surgery? medical conference?
+   - Cooking story → heading towards competition finals? restaurant opening? taste test?
+   - Business story → heading towards board meeting? product launch? contract signing?
+   - School story → heading towards exam? presentation? competition?
+   - Sports story → heading towards championship? tryout? match?
+
+4. **Understand the creative scenarios:**
+   - What unique situations did the original create?
+   - What creative confrontations were set up?
+   - What interesting evidence or abilities exist?
+   - What makes the satisfaction moments in THIS story different?
+
+**Examples of absorbing creativity:**
+
+**Example 1 - Unique Premise:**
+```
+Original: 医学实习生有预知病症能力...
+Creative element: Supernatural medical ability
+→ Absorb: Keep the precognition concept
+→ Localize: Medical intern Sarah has diagnostic visions
+→ Complete: Use this ability in medical scenarios throughout
+```
+
+**Example 2 - Unique Setting:**
+```
+Original: 地下拳击赛场的复仇故事...
+Creative element: Underground fight club as venue
+→ Absorb: Keep the underground fighting world
+→ Localize: Harbor City underground circuit, fighters with street names
+→ Complete: Continue revenge through fight matches
+```
+
+**Example 3 - Unique Relationship:**
+```
+Original: 姐姐和妹妹身份互换后的人生...
+Creative element: Sisters swap identities
+→ Absorb: Identity swap premise
+→ Localize: Sisters Emma and Sophia switch lives
+→ Complete: Continue complications from the swap
+```
+
+**Key point:** Every Chinese web novel has something that makes it unique. Your job is to find that uniqueness, translate it naturally, and complete it.
+
+### STEP 2: LOCALIZE (Translate for English Readers)
+
+**Now translate/localize the story for English-speaking readers while keeping the creative concept:**
+
+**This is cultural adaptation, not plot change!**
+
+**WHAT TO LOCALIZE (translate these):**
+- ✅ Character names: 李伟 → Marcus Fletcher, 王美丽 → Sarah Chen
+- ✅ Location names: 北京 → Harbor City, 上海医院 → Summit Medical Center
+- ✅ Company names: 腾讯 → TechCore Industries, 阿里巴巴 → StreamWave Corp
+- ✅ Social media: 微信 → Instagram/WhatsApp, 微博 → Twitter
+- ✅ Cultural references: Adapt to Western context where needed
+- ✅ Currency: 人民币 → dollars, yuan → USD
+
+**WHAT NOT TO CHANGE (keep these):**
+- ❌ The plot direction: If heading towards a medical diagnosis showdown, keep that direction
+- ❌ The conflict type: If it's a cooking competition, don't change to business fraud
+- ❌ The locations: If set in a restaurant, keep restaurant scenes
+- ❌ The scenarios: If there's a medical conference coming up, keep that medical conference
+- ❌ The character roles: If someone is a chef, keep them a chef (don't make them a CEO)
+- ❌ The event type: If there's a cooking finals, don't replace with a charity gala
+
+**CRITICAL EXAMPLES:**
+
+**Example 1 - Medical Diagnosis Story:**
+```
+Original (Chinese):
+实习医生在医院诊断疑难病症...
+主任医生质疑她的诊断...
+即将参加医学研讨会证明自己...
+
+✅ CORRECT continuation:
+- Continue with: medical conference, diagnosis challenge, hospital colleagues watching
+- Localize to: Harbor Medical Center, Dr. Sarah Chen, Chief of Medicine Dr. Rodriguez
+- Keep: medical setting, diagnosis conflict, professional competition
+
+❌ WRONG continuation:
+- Abandon medical plot
+- Replace with: charity gala fraud, courtroom trial, business contract dispute
+- Change character to CEO or lawyer
+```
+
+**Example 2 - Cooking Competition:**
+```
+Original (Chinese):
+参加厨艺大赛...
+评委看不起她的乡村菜...
+决赛要做一道家乡特色菜证明自己...
+
+✅ CORRECT continuation:
+- Continue with: cooking competition finals, judges tasting her signature dish
+- Localize to: Harbor City Culinary Championship, Judge Martinez, regional American cuisine
+- Keep: cooking competition, culinary challenge, judges' reactions
+
+❌ WRONG continuation:
+- Abandon cooking competition
+- Replace with: corporate takeover, legal battle, entertainment industry scandal
+- Change character to businesswoman or actress
+```
+
+**Example 3 - Business Takeover:**
+```
+Original (Chinese):
+公司董事会斗争...
+她要在股东大会夺回控制权...
+准备揭露竞争对手的财务造假...
+
+✅ CORRECT continuation:
+- Continue with: shareholder meeting, financial evidence reveal, board vote
+- Localize to: TechCore Industries, CEO Walker, Harbor City headquarters
+- Keep: corporate setting, business conflict, shareholder meeting
+
+❌ WRONG continuation:
+- Replace shareholder meeting with charity gala
+- Add irrelevant courtroom trial (unless original had legal subplot)
+- Change to entertainment industry drama
+```
+
+**KEY PRINCIPLE:**
+```
+Original plot path: A (hospital) → B (diagnosis challenge) → C (medical conference) → [truncated]
+Your task: Continue → D (conference confrontation) → E (diagnosis success) (SAME path)
+
+NOT: Abandon and create → X (charity gala) → Y (fraud scandal) → Z (courtroom) (DIFFERENT path)
+```
+
+**Common mistakes to AVOID:**
+- ❌ "Original is about restaurant opening → I write charity gala scandal"
+- ❌ "Original is about academic competition → I write business fraud trial"
+- ❌ "Original is about family dinner conflict → I write courtroom battle"
+- ❌ "Original is about sports championship → I write contract dispute"
+- ❌ "Original is about [ANY specific scenario] → I default to charity gala/courtroom/business fraud"
 
 **Goals:**
-- **Fast-paced with dense satisfaction moments** (most important!)
+- **Complete the truncated story following its own direction** (most important!)
+- Maintain original plot path and scenarios
+- Localize names, places, cultural elements to English/Western context
+- Fast-paced, dialogue-driven
 - Complete story arc
-- No chapters
-- One continuous read
-- Direct output: story + metadata
 
-**Core Principle: Satisfaction > Length. Fast > Slow. Simple > Complex.**
+**Core Principle: Follow Original Plot Path + Localize to English. Don't Replace Original Scenarios with Your Default Templates.**
 
 ---
 
 ## PARAMETERS
 - Suggested male names: {male_names}
 - Suggested female names: {female_names}
-- **Length: Flexible, quality over quantity** (typically 20,000-40,000 characters)
+
+### LENGTH REQUIREMENTS ⚠️ CRITICAL
+
+**MINIMUM: 20,000 characters** (hard requirement - stories under 20K will be rejected)
+**OPTIMAL: 25,000-35,000 characters** (sweet spot for satisfaction density)
+**MAXIMUM: 45,000 characters** (rarely needed)
+
+**Why minimum 20,000 characters:**
+- Need space for 6-8 satisfaction scenes (each 300-500 chars) = 2,400-4,000 chars
+- Need dialogue-heavy writing (40%+ dialogue naturally takes more space)
+- Need complete story arc with proper setup and payoff
+- Need multiple antagonist confrontations
+- Stories under 20K feel rushed and unsatisfying
+
+**How to reach 20,000+ without padding:**
+- Write 6-8 full satisfaction scenes (300-500 chars each)
+- High dialogue density (40%+) naturally adds length
+- Multiple confrontations with different antagonists
+- Show reactions and consequences after each scene
+- Add witness dialogues and crowd responses
+- Include aftermath scenes showing impact
+
+**What NOT to do to add length:**
+- ❌ Don't pad with environmental descriptions
+- ❌ Don't add slow "daily life" filler scenes
+- ❌ Don't write long internal monologues
+- ❌ Don't repeat the same information
+- ❌ Don't drag out non-confrontational scenes
+
+**What TO do if story is too short:**
+- ✅ Add more satisfaction scenes (more antagonists to confront)
+- ✅ Expand existing satisfaction scenes with more dialogue
+- ✅ Add more witness reactions and comments
+- ✅ Show more consequences and aftermath
+- ✅ Add supporting character confrontations
+- ✅ Extend climax scene with detailed back-and-forth
+
+**Length checkpoint during writing:**
+- At 15,000 chars: Should have 4-5 satisfaction scenes completed
+- If under 15K with fewer scenes: Add more confrontations
+- At final check: Count total characters
+- If under 20K: DO NOT finish - add more satisfaction scenes
 
 **⚠️ CRITICAL: Use English names only. No pinyin!**
 
@@ -144,40 +372,69 @@ You will receive a text file containing a story idea. **Use it as inspiration** 
 
 ## INPUT HANDLING
 
-The input file may contain:
-- Incomplete Chinese web novel excerpts
-- Story outlines in Chinese
-- Character descriptions
-- Plot fragments
+The input file typically contains:
+- Incomplete/truncated Chinese web novel content
+- Story that was cut off mid-plot
+- Character introductions and initial conflicts
+- Setup for events that haven't happened yet
 
 **Your approach:**
-1. **Read for inspiration, not translation**
-   - Don't try to translate character by character
-   - Don't preserve all original details
 
-2. **Extract core elements:**
-   - What's the main conflict?
-   - What makes readers satisfied?
-   - What's the protagonist's goal?
-   - Who is the antagonist?
-   - What are the key turning points?
+### 1. **Analyze what's already there:**
+   - Who are the characters? What are their names and roles?
+   - What's the setting? (hospital? restaurant? office? school? competition venue?)
+   - What conflicts have been introduced?
+   - What events are set up but not completed?
+   - What was the last scene before truncation?
 
-3. **Identify genre and satisfaction type:**
-   - Is this face-slapping, revenge, romance?
-   - What kind of satisfaction does it deliver?
+### 2. **Identify the story's direction:**
+   - Is this heading towards a medical showdown? Cooking finals? Business meeting? Academic competition?
+   - What specific scenario was being built up to?
+   - What evidence or skills will the protagonist use?
+   - What type of confrontation is coming?
 
-4. **Create NEW story with:**
-   - English names (no pinyin translations)
-   - Western/neutral settings (Harbor City, not Beijing)
-   - English cultural context
-   - Localized details and references
+### 3. **Plan your continuation:**
+   - Continue from the exact cut-off point
+   - Complete the events that were set up
+   - Use the same locations and scenarios
+   - Resolve the conflicts that were introduced
+   - Don't introduce completely new plot lines
 
-5. **Transform, don't translate:**
-   - Chinese family drama → Western family dynamics
-   - Face/reputation concerns → Modern social dynamics
-   - Specific Chinese cultural elements → Universal themes
+### 4. **Localize while continuing:**
+   - Keep the plot: If it's a cooking competition, continue the cooking competition
+   - Keep the setting: If it's in a restaurant, keep restaurant scenes
+   - Change the names: 李伟 → English names like Marcus Fletcher
+   - Change the locations: 北京 → Harbor City or similar
+   - Adapt cultural references: 微信 → Instagram
 
-**Key principle: Use the input as a springboard for inspiration, then create an original English story that captures the same satisfaction type and conflict structure.**
+### 5. **What NOT to do:**
+   - ❌ Don't abandon the original plot to create a generic story
+   - ❌ Don't replace specific scenarios (hospital→courtroom, cooking→gala, etc.)
+   - ❌ Don't ignore what was set up in the original
+   - ❌ Don't default to your "comfortable" scenarios (charity gala, courtroom, board meeting)
+   - ❌ Don't change character roles (doctor→CEO, chef→lawyer, etc.)
+
+**Example of proper continuation:**
+
+```
+INPUT CONTENT:
+医学院学生李婷在医院实习，她诊断出一个疑难病例。主任医生王明不相信她，说她太年轻。医院即将举办医学研讨会，她决定在会上证明自己...（truncated）
+
+✅ CORRECT approach:
+1. Analyze: Medical student Li Ting, hospital setting, diagnosis conflict with Chief Dr. Wang, medical conference coming up
+2. Localize names: Li Ting → Sarah Martinez, Dr. Wang → Dr. Harrison
+3. Continue: Write the medical conference scene, diagnosis presentation, colleagues' reactions
+4. Complete: Sarah proves diagnosis correct, Dr. Harrison acknowledges, colleagues impressed
+
+❌ WRONG approach:
+1. Ignore medical setting
+2. Create new character who's a CEO
+3. Write about charity gala and financial fraud
+4. Add courtroom trial
+→ This completely abandons the original story!
+```
+
+**Key principle: You're completing a story that started, not creating a new story inspired by it.**
 
 ---
 
@@ -221,10 +478,29 @@ The input file may contain:
 
 ## HARD RULES
 
-### Rule 1: Dialogue Density
-**Minimum 40% dialogue.**
+### Rule 1: Dialogue Density (CRITICAL FOR ALL SETTINGS)
+**Minimum 40% dialogue - THIS APPLIES TO ALL SETTINGS.**
 
-If you write 300 characters of narration without dialogue, STOP. Add dialogue immediately.
+Whether modern, historical, or fantasy - dialogue must be 40%+ of your story.
+
+**Self-check while writing:**
+- Count dialogue lines every 500 characters
+- If under 40%, STOP immediately and add dialogue
+- If you write 300 characters of pure narration, STOP and add dialogue NOW
+
+**Convert narration to dialogue:**
+❌ Wrong: "She worked with herbs and made a poultice. The boy recovered."
+✅ Right:
+"Let me try," she said.
+"You?" The magistrate scoffed.
+She pressed the herbs to his chest. The boy coughed.
+"He's breathing!" someone gasped.
+
+**This rule applies equally to:**
+- Modern office confrontations
+- Medieval court scenes
+- Fantasy battle sequences
+- ANY setting you choose
 
 ### Rule 2: Paragraph Length
 **Maximum 5 sentences per paragraph.**
@@ -287,17 +563,45 @@ Every satisfaction moment MUST be written as a **specific scene** with:
 - Let readers savor the moment
 - Use multiple short paragraphs with dialogue
 
-**6. AVOID SUMMARIZING**
+**6. AVOID SUMMARIZING (CRITICAL FOR ALL SETTINGS)**
 - Don't tell readers "it was satisfying"
 - Don't write "public face-slapping occurred"
 - Don't skip the actual scene
 - Show the entire interaction
 
+**This applies to ALL settings:**
+
+❌ Wrong (Modern): "The board meeting ended with Conway's arrest."
+✅ Right (Modern):
+"You're under arrest," the officer said.
+Conway's face went white. "You can't—"
+Board members gasped. Cameras flashed.
+
+❌ Wrong (Historical): "The duchess was humiliated at court."
+✅ Right (Historical):
+"You stole from the treasury," the Queen said.
+The duchess stumbled. "I—Your Majesty—"
+Nobles whispered. "Disgraceful!" someone hissed.
+
+❌ Wrong (Fantasy): "The hero defeated the villain publicly."
+✅ Right (Fantasy):
+"You're finished," the hero said, sword raised.
+The villain fell to his knees. "Mercy!"
+The crowd roared. Guards moved forward.
+
+**Every satisfaction scene needs:**
+- Specific dialogue exchanges
+- Physical reactions described
+- Witness responses shown
+- Immediate consequences visible
+
+**Regardless of setting - ancient, modern, or fantasy.**
+
 ---
 
 **SATISFACTION SCENE STRUCTURE:**
 
-Use this structure for INTERNAL PLANNING ONLY:
+Use this structure for INTERNAL PLANNING ONLY - **NEVER OUTPUT THESE LABELS**:
 
 ```
 [FOR YOUR PLANNING - DO NOT OUTPUT THESE LABELS IN THE STORY]
@@ -320,18 +624,25 @@ Immediate Aftermath (50-100 chars):
 [Quick consequence]
 [Protagonist's position secured]
 
-[END INTERNAL STRUCTURE]
+[END INTERNAL STRUCTURE - NEVER OUTPUT THIS]
 ```
 
-**CRITICAL: HOW TO WRITE THE ACTUAL SCENE:**
+**⚠️⚠️⚠️ CRITICAL: HOW TO WRITE THE ACTUAL SCENE:**
+
+**The structure above is for YOUR PLANNING ONLY. Readers must NEVER see these labels.**
 
 ❌ WRONG (outputting labels):
 ```
-Setup:
-Reed and Gianna arrived at the office.
+Setup: Reed arrived at the office.
+Confrontation: "You're fired," she said.
+Public Reaction: Whispers erupted.
+```
 
-Confrontation:
-"You're fired," she said.
+❌ WRONG (describing scene type):
+```
+Satisfaction scene — public ripple: Reed and Gianna arrived at the office.
+
+Satisfaction scene — small power display: She confronted him in front of everyone.
 ```
 
 ✅ CORRECT (no labels, direct scene):
@@ -349,6 +660,14 @@ Whispers erupted around them. Someone gasped.
 
 **Remember:** The structure helps you plan, but readers only see the scene itself.
 
+**Forbidden phrases in your output:**
+- ❌ "Setup:"
+- ❌ "Confrontation:"
+- ❌ "Public Reaction:"
+- ❌ "Satisfaction scene"
+- ❌ "First/Second/Third satisfaction"
+- ❌ Any label describing story structure
+
 ---
 
 **QUALITY CHECK FOR EACH SATISFACTION MOMENT:**
@@ -360,20 +679,39 @@ Before moving on, ask:
 - [ ] Are there witnesses and their reactions?
 - [ ] Is this at least 300 characters long?
 - [ ] Would readers feel satisfied reading this?
+- [ ] Did I write it WITHOUT any labels or meta-commentary?
 
 If any answer is NO, expand and rewrite the scene.
 
-### Rule 4: Fast Pace
+### Rule 4: Fast Pace (ALL SETTINGS)
 
 **Within first 3,000 characters:**
 - Protagonist faces core conflict
 - First satisfaction moment happens
 - Readers know what the story is about
 
-**Forbidden:**
+**Forbidden (in ANY setting - modern, historical, fantasy):**
 - Long background exposition
 - Slow worldbuilding
 - 2,000 characters of daily life intro
+- "Weeks passed and she learned..." → SKIP TO ACTION
+- "Days turned to months..." → SKIP TO NEXT SCENE
+- Describing setting in detail → Keep minimal
+
+**Jump cuts are your friend:**
+❌ Wrong: "Over the next three weeks, she practiced herbs daily, learning each plant's properties. She woke early, studied late, and slowly became proficient..."
+✅ Right: "Three weeks later, she stood before the sick boy with her herbs ready."
+
+**Time passage in ONE sentence, then ACTION:**
+✅ "Months later, she faced the duchess in court."
+✅ "A year passed. Then the general returned."
+✅ "That night, everything changed."
+
+**This applies to ALL settings:**
+- Modern tech startup drama → Fast
+- Medieval court intrigue → Fast
+- Fantasy quest story → Fast
+- NO setting gets special permission to be slow
 
 ### Rule 5: Character Naming
 
@@ -389,30 +727,54 @@ If any answer is NO, expand and rewrite the scene.
 ❌ Common Pinyin Surnames (DO NOT USE):
 Chen, Wang, Liu, Zhang, Li, Zhao, Zhou, Wu, Huang, Yang, Xu, Sun, Ma, Zhu, Hu, Guo, Lin, He, Gao, Liang, Zheng, Luo, Song, Xie, Tang, Han, Cao, Feng, Deng, Peng, Zeng, Xiao, Tian, Pan, Yuan, Dong, Yu, Jiang, Cai, Du, Ye, Cheng, Wei, Su, Lu, Ding, Ren, Shen, Yao, Cui, Zhong, Tan, Fan, Liao, Shi, Jin, Jia, Xia, Fu, Fang, Bai, Zou, Meng, Xiong, Qin, Qiu, Yin, Xue, Yan, Duan, Lei, Long, Tao
 
-**Use provided English name lists or common English names.**
+**Use the provided English name lists in the parameters section above.**
 
-Common English surnames: Smith, Johnson, Williams, Brown, Davis, Miller, Wilson, Moore, Taylor, Anderson, Thomas, Jackson, White, Harris, Martin, Thompson, Garcia, Martinez, Robinson, Clark, Rodriguez, Lewis, Lee, Walker, Hall, Allen, Young, King, Wright, Lopez, Hill, Scott, Green, Adams, Baker, Nelson, Carter, Mitchell, Roberts, Turner, Phillips, Campbell, Parker, Evans, Edwards, Collins, Stewart, Morris, Rogers, Reed, Cook, Morgan, Bell, Murphy, Bailey, Rivera, Cooper, Richardson, Cox, Howard, Ward, Torres, Peterson, Gray, Ramirez, James, Watson, Brooks, Kelly, Sanders, Price, Bennett, Wood, Barnes, Ross, Henderson, Coleman, Jenkins, Perry, Powell, Hughes, Flores, Washington, Butler, Foster, Bryant, Alexander, Russell, Griffin, Hayes
+The male_names and female_names lists have been curated to ensure authentic English names. Randomly select from these lists for your characters.
 
 ### Rule 6: Clear Simple Setting
 
-Choose ONE clear background:
+Choose ONE clear background that you can write FAST:
 - **Modern Urban**: Harbor City, CEO, billionaire, Instagram, New York
-- **Historical Fantasy**: Use English names + Emperor/Prince/Duke
-- **Modern + Supernatural**: Modern city + simple abilities
+- **Historical**: Use English names + Duke/Prince/King - keep it SIMPLE
+- **Modern + Supernatural**: Modern city + simple abilities - keep it SIMPLE
+
+**CRITICAL: Regardless of setting choice:**
+- Explain setting in MAX 3 sentences
+- Don't spend time on worldbuilding
+- Don't describe costumes, architecture, customs in detail
+- Focus on DIALOGUE and ACTION, not setting description
+
+**Setting examples:**
+
+Modern (Simple):
+✅ "She worked at TechCore Industries in Harbor City."
+❌ "The glass towers of Harbor City's financial district gleamed in the morning sun, each building a monument to..."
+
+Historical (Simple):
+✅ "Duke Fletcher ruled the northern territory."
+❌ "In the grand duchy of Fletcher, where ancient traditions held sway and the hierarchies of nobility..."
+
+Fantasy (Simple):
+✅ "She had a healing ability she kept secret."
+❌ "The mystical arts of the ancient healers, passed down through generations of..."
+
+**The setting is a BACKDROP, not the story. Keep it minimal.**
 
 **Location naming:**
 - ✅ Harbor City, Riverside, Summit District, Lakeside, New York, Los Angeles
+- ✅ (For historical) Northern Territory, The Kingdom, The Court
 - ❌ Beijing, Shanghai, Guangzhou (don't use Chinese cities directly)
 
 **Organization naming:**
 - ✅ StreamWave Entertainment, TechCore Industries, Summit Hospital
+- ✅ (For historical) The Royal Court, The Duke's Manor, The Guild
 - ❌ Tencent, Alibaba, WeChat, Baidu (don't use Chinese companies)
 
-**Social media references:**
+**Social media references (modern only):**
 - ✅ Instagram, Twitter, Facebook, TikTok
 - ❌ Weibo, WeChat
 
-**No mixing Chinese and Western elements.**
+**No mixing Chinese and Western elements regardless of setting.**
 
 ### Rule 7: Setting/Background Explanation
 **Maximum 3 sentences**, then return to action.
@@ -424,38 +786,56 @@ Don't explain worldview, system mechanics, power origins. **Show effects directl
 
 No long internal thought paragraphs.
 
-### Rule 9: Forbidden Literary Language
+### Rule 9: Forbidden Literary Language (ALL SETTINGS)
 
-**Forbidden metaphors:**
+**These rules apply whether you write modern, historical, or fantasy.**
+
+**Forbidden metaphors (in ANY setting):**
 ❌ "Her voice was like X"
 ❌ "Silence fell like a lid"
 ❌ "His words hung in the air like a blade"
 ❌ Any comparison using "like" or "as" that sounds poetic
+❌ "She worked with hands that trembled and did not"
 
-**Forbidden poetic expressions:**
+**Forbidden poetic expressions (in ANY setting):**
 ❌ "patience wrapped in glass"
 ❌ "silence lands like a lid"
 ❌ "like a storm retreating"
+❌ "the taste of the air changed"
+❌ "looked like a stage set"
 ❌ Any abstract metaphorical descriptions
 
-**Forbidden philosophical statements:**
+**Forbidden philosophical statements (in ANY setting):**
 ❌ Paragraph-ending life reflections
 ❌ "X is not Y, it is Z" style wisdom
 ❌ "for a moment, he understood the meaning of..."
 ❌ Any contemplative insights about life/humanity
 
-**Allowed comparisons:**
+**Forbidden time-wasting descriptions (in ANY setting):**
+❌ "Weeks passed. She learned to..." → Skip to next scene
+❌ "Days turned to months..." → Jump to action
+❌ "The castle/office was magnificent..." → Don't describe buildings
+❌ "She wore a dress/suit of..." → Don't describe clothes in detail
+
+**Allowed comparisons (in ANY setting):**
 ✓ Only use comparisons if they are:
   - Extremely colloquial (how people actually talk)
   - Immediately clear without interpretation
   - Used for emphasis, not beauty
   - Short and punchy
 
-**General principle:**
+**General principle for ALL settings:**
 - Write like you're telling a story to a friend, not writing literature
 - Use concrete actions and reactions, not abstract descriptions
 - If a sentence sounds "poetic" or "deep," delete it
 - Default to simple, direct language
+- Action and dialogue > description and reflection
+
+**This applies equally to:**
+- Modern office politics
+- Medieval court intrigue
+- Fantasy realm conflicts
+- ANY story you write
 
 ### Rule 10: Opening Scene
 **First sentence must be action or dialogue.**
@@ -633,6 +1013,16 @@ Delete:
 - "X is not Y, it is Z" style life wisdom
 - "for a moment/for a second [philosophical insight]"
 
+### Meta-Commentary (CRITICAL - DELETE IMMEDIATELY)
+Delete ANY labels or descriptions of story structure:
+- ❌ "Setup:"
+- ❌ "Confrontation:"
+- ❌ "Public Reaction:"
+- ❌ "Satisfaction scene"
+- ❌ "First/Second/Third satisfaction"
+- ❌ "Satisfaction scene — [description]"
+- ❌ Any phrase that describes what type of scene is happening
+
 ### Long Paragraphs
 - Setting explanation over 3 sentences → cut to 3 sentences
 - Internal monologue over 3 sentences → cut to 3 sentences
@@ -646,72 +1036,177 @@ Delete:
 
 ## WRITING PROCESS
 
-### Step 1: Understand Input
-- Read txt file
-- Identify core conflict
-- Spot main satisfaction moments
-- Determine genre
+### Step 1: Analyze Original Content (CRITICAL - Don't Skip!)
 
-### Step 2: Plan Story (Critical - Don't Skip!)
+**Read the input file carefully and identify:**
+
+**A. Story Specifics (not generalizations):**
+- **Exact setting**: Hospital? Restaurant? Office? School? Stadium? Competition venue?
+- **Exact characters**: Who exists? What are their roles? Their relationships?
+- **Exact conflicts**: What SPECIFIC problem exists? (not "face-slapping" - the actual conflict)
+- **Exact events in progress**: What's happening or about to happen?
+
+**B. Cut-off Point:**
+- What was the last complete scene?
+- What was being built up to?
+- What event/confrontation is coming next?
+
+**C. Story Direction:**
+- Medical story → heading towards diagnosis? surgery? medical conference?
+- Cooking story → heading towards competition finals? restaurant opening? taste test?
+- Business story → heading towards board meeting? product launch? contract signing?
+- School story → heading towards exam? presentation? competition?
+- Sports story → heading towards championship? tryout? match?
+
+**D. Specific Scenarios to Continue:**
+- If original mentions "医学研讨会" (medical conference) → continue with medical conference
+- If original mentions "厨艺决赛" (cooking finals) → continue with cooking finals
+- If original mentions "公司董事会" (board meeting) → continue with board meeting
+- **Continue what was set up, don't replace with different scenarios**
+
+**E. Evidence/Skills Already Established:**
+- What abilities does protagonist have? (diagnosis skill? cooking talent? business acumen?)
+- What evidence exists? (test results? recipes? financial documents?)
+- What will be used in the confrontation?
+
+**Common mistakes to avoid:**
+- ❌ Reading "hospital story" and thinking "I'll write a courtroom story"
+- ❌ Reading "cooking competition" and thinking "I'll write about business fraud"
+- ❌ Seeing specific setup and replacing with generic template
+- ❌ Ignoring the actual content and writing your default scenario
+
+**Before moving to Step 2, you should be able to answer:**
+- [ ] What exact setting does this continue in? (specific answer, not "modern" or "urban")
+- [ ] What exact event comes next? (specific answer, not "confrontation")
+- [ ] What exact skills/evidence will be used? (specific answer, not "proves herself")
+- [ ] What exact scenario was set up? (specific answer, not "face-slapping")
+
+**If you can't answer these specifically, you haven't analyzed the original carefully enough.**
+
+### Step 2: Plan Continuation (Critical - Based on Original!)
 
 **Mentally (don't output) plan these BEFORE writing:**
 
-**A. Core Structure:**
-- Opening conflict (what happens in first 3,000 characters)
-- Main escalation (middle progression)
-- Climax confrontation (biggest satisfaction)
-- Resolution (how it ends)
+**A. Continuation Structure:**
+- Opening: Pick up exactly where original left off (don't restart)
+- Middle: Complete the events that were set up in original
+- Climax: The confrontation/event that was being built towards
+- Resolution: Resolve the conflicts that were introduced
 
-**B. Satisfaction Moments (MOST IMPORTANT):**
-Plan 6-10 specific satisfaction moments:
-- Character placement: 1 every 3,000-5,000 characters
-- Type variety: mix face-slapping, revenge, recognition, regret
-- Scene structure: each must be a full scene with dialogue
-- Public/private: most should be public with witnesses
+**B. Specific Scenarios to Write:**
 
-For each satisfaction moment, know:
-- Who confronts whom
-- What is revealed or proven
-- What the antagonist says/does when exposed
-- Who witnesses it
-- What the immediate consequence is
+**Based on what original set up:**
+- If medical conference was mentioned → Plan the medical conference scene
+- If cooking competition finals were set up → Plan the cooking finals
+- If board meeting was coming → Plan the board meeting
+- If academic presentation was scheduled → Plan that presentation
+- **Don't replace these with different scenarios!**
 
-**C. Character Arcs:**
-- Protagonist: starts vulnerable → gains power through evidence/ability
-- Main antagonist: starts confident → publicly humbled
-- Supporting antagonist: optional but adds satisfaction
-- Ally: helps protagonist, gets recognition
-- Love interest (if any): must contribute to satisfaction, not distract
+**For each scenario, plan:**
+- Location: Same type as original (hospital stays hospital, kitchen stays kitchen)
+- Characters present: Who was involved in original?
+- Conflict type: Same as original (medical doubt? cooking criticism? business rivalry?)
+- Evidence/skill used: What was established in original?
 
-**D. Pacing Checkpoints:**
-Mark where these happen in your mental outline:
-- 3,000 chars: First satisfaction
-- 8,000 chars: Second satisfaction
-- 15,000 chars: Major satisfaction + escalation
-- 25,000 chars: Climax (biggest satisfaction)
-- 35,000 chars: Resolution + final satisfactions
+**C. Satisfaction Moments (6-10 total):**
 
-**Don't start writing until you can clearly visualize at least 6 satisfaction scenes.**
+**Continue the pattern from original:**
+- If original had medical diagnosis moments → More diagnosis wins
+- If original had cooking victories → More cooking triumphs
+- If original had business wins → More business successes
+
+**For each satisfaction moment, plan:**
+- Which scenario from original it happens in
+- What specific skill/evidence from original is used
+- Who from original cast witnesses it
+- What specific reaction fits the setting
+
+**Example:**
+```
+Original set up: Medical diagnosis + conference + doubting chief
+
+Plan satisfaction moments:
+1. Successfully diagnoses rare disease (hospital scene)
+2. Presents findings at conference (medical conference)
+3. Chief physician acknowledges error (conference aftermath)
+4. Other doctors request her consultation (hospital follow-up)
+
+DON'T plan:
+❌ Charity gala confrontation (not in original)
+❌ Courtroom testimony (not in original)
+❌ Business fraud reveal (not in original)
+```
+
+**D. Character Arcs (continue from original):**
+- Protagonist: Continue their journey in the SAME field
+- Antagonist: Same person from original, same conflict type
+- Supporting characters: Same roles as original
+
+**E. Pacing Checkpoints:**
+Based on original setup:
+- 3,000 chars: First satisfaction in original's context
+- 8,000 chars: Second satisfaction in original's setting
+- 15,000 chars: Major event that was set up in original
+- 25,000 chars: Climax of original's main conflict
+- 35,000 chars: Resolution
+
+**CRITICAL QUESTIONS before writing:**
+- [ ] Am I continuing the SAME plot or creating new one?
+- [ ] Am I using the SAME setting or changing it?
+- [ ] Am I completing events SET UP in original or inventing new ones?
+- [ ] Are my scenarios based on ORIGINAL or my defaults?
+
+**If you're planning charity galas, courtrooms, or business meetings but original didn't set those up - YOU'RE DOING IT WRONG.**
+
+**Don't start writing until:**
+- You can list 3 specific scenarios FROM the original to continue
+- You can name the specific event original was building towards
+- You know what specific setting/location continues
+- You've planned satisfaction moments IN THAT SAME CONTEXT
 
 ### Step 3: Create Metadata
 - Title (under 80 chars, unique)
 - Genre (choose 1 from 15)
 - Age (choose 1 from 4 levels)
 
-### Step 4: Write Story
+### Step 4: Write Continuation
 
 **Start:**
-- First sentence: action or dialogue
-- No setup, jump straight into conflict
+- First sentence: Continue from where original left off
+- No restart, jump straight to next scene in original's sequence
+- Keep the momentum going
 
 **While writing:**
 
+**CRITICAL - Stay in original's context:**
+- If original is in hospital → Keep writing hospital scenes
+- If original is in restaurant → Keep writing restaurant scenes
+- If original is in office → Keep writing office scenes
+- If original has competition → Continue that competition
+- **Don't switch to charity galas, courtrooms, or boardrooms if original didn't have them!**
+
 **Every 3,000 characters, STOP and check:**
-- [ ] Did I just write a satisfaction scene?
+- [ ] Am I still in the SAME setting as original? (hospital/restaurant/office/school)
+- [ ] Am I continuing ORIGINAL plot or did I switch to generic template?
+- [ ] Are my scenarios based on what ORIGINAL set up?
+- [ ] Did I just write a satisfaction scene IN THE ORIGINAL's CONTEXT?
 - [ ] Was it a full scene with dialogue (300+ chars)?
 - [ ] Did I show antagonist's reaction?
-- [ ] Were there witnesses?
-- [ ] If NO to any: Write the satisfaction scene NOW
+- [ ] Were there witnesses appropriate to THIS setting?
+- [ ] Did I write it WITHOUT any labels like "Setup:" or "Satisfaction scene"?
+- [ ] If NO to any: Fix immediately before continuing
+
+**Example self-check:**
+```
+Original: Medical diagnosis story in hospital
+My writing at 5,000 chars: Still writing medical scenes? ✅ or Switched to courtroom? ❌
+
+Original: Cooking competition story
+My writing at 10,000 chars: Still writing cooking scenes? ✅ or Switched to charity gala? ❌
+
+Original: Business contract negotiation
+My writing at 15,000 chars: Still writing business meetings? ✅ or Added unrelated lawsuit? ❌
+```
 
 **Dialogue priority (40%+ minimum):**
 - Count dialogue lines every 1,000 characters
@@ -725,7 +1220,8 @@ Mark where these happen in your mental outline:
 - Important moments: single sentence paragraphs
 
 **Setting/background:**
-- Maximum 3 sentences per explanation
+- Already established in original - don't re-explain
+- Maximum 3 sentences for any new location
 - Immediately return to action/dialogue after
 
 **Internal monologue:**
@@ -734,19 +1230,60 @@ Mark where these happen in your mental outline:
 
 **Write continuously:**
 - Don't stop to edit yet
-- Focus on hitting satisfaction moments at planned intervals
+- Focus on hitting satisfaction moments in ORIGINAL's scenarios
 - Maintain fast pace
 - Keep dialogue flowing
+- NEVER output labels like "Setup:" or "Satisfaction scene"
+- Stay true to original plot direction
+
+**WARNING SIGNS you've gone off track:**
+- ❌ Writing charity gala when original had none
+- ❌ Writing courtroom when original was about hospital/restaurant/school
+- ❌ Writing business fraud when original was about competition/family/relationships
+- ❌ Characters suddenly in different careers than original
+- ❌ Completely different setting than original
+
+**If you catch yourself doing any of above - STOP and return to original plot!**
 
 **Length guidance:**
-- Don't artificially extend to hit character count
-- Don't cut short if story needs more space
-- Quality of satisfaction > total length
-- Typical range: 25,000-40,000 characters
+- Target: 25,000-35,000 characters
+- Minimum: 20,000 characters (check at end)
+- If under 20K at finish: Add more satisfaction scenes IN THE SAME CONTEXT
+- Quality of satisfaction > total length, but don't go under 20K
 
 ### Step 5: Check and Fix
 
-**□ Satisfaction Check** (MOST IMPORTANT - Check First)
+**⚠️⚠️⚠️ META-COMMENTARY CHECK (DO THIS FIRST - CRITICAL)**
+
+**Scan entire story for these FORBIDDEN phrases:**
+- [ ] "Setup:"
+- [ ] "Confrontation:"
+- [ ] "Public Reaction:"
+- [ ] "Satisfaction scene"
+- [ ] "First satisfaction" / "Second satisfaction"
+- [ ] "First/Second/Third [anything]" used as scene labels
+- [ ] Any colons (:) followed by scene descriptions
+- [ ] Any phrase that describes what type of scene is happening
+
+**If you find ANY of these:**
+- DELETE the label immediately
+- Rewrite the paragraph to jump straight into the scene
+- Check surrounding text for more labels
+- Make sure no structural commentary remains
+
+**Example fixes:**
+❌ "Satisfaction scene — public ripple: the kiss went viral"
+✅ "The kiss went viral within an hour."
+
+❌ "First satisfaction came when she confronted him."
+✅ "She confronted him in the boardroom."
+
+❌ "Setup: Reed arrived at the office."
+✅ "Reed arrived at the office."
+
+---
+
+**□ Satisfaction Check** (MOST IMPORTANT - Check Second)
 
 **Count all satisfaction moments:**
 - List each one by character position
@@ -760,6 +1297,7 @@ Mark where these happen in your mental outline:
 - [ ] Has witnesses/public element?
 - [ ] At least 300 characters long?
 - [ ] Would readers feel "YES!" reading it?
+- [ ] NO labels or meta-commentary?
 
 **If any satisfaction moment fails these checks:**
 - Locate it in the text
@@ -767,12 +1305,21 @@ Mark where these happen in your mental outline:
 - Add specific reactions
 - Add witness responses
 - Make it at least 300 characters
+- Remove any labels
 
 **Common satisfaction problems to fix:**
 - "He was shocked" → Write what he said, how he looked, what he did
 - "Everyone was surprised" → Write specific gasps, whispers, comments
 - "It was satisfying" → Delete this, show the scene instead
 - Scene under 200 chars → Expand with dialogue and reactions
+
+---
+
+**□ Length Check**
+- Count total characters in story
+- Is it at least 20,000 characters?
+- If under 20,000: Add more satisfaction scenes or expand existing ones
+- If under 18,000: CRITICAL - story too short, add significant content
 
 ---
 
@@ -843,7 +1390,7 @@ Search and delete/fix:
 [All Ages OR Teen 13+ OR Mature 16+ OR Explicit 18+]
 
 ===STORY===
-[Complete story text, pure English, no titles or chapter numbers]
+[Complete story text, pure English, no titles or chapter numbers, NO LABELS OR META-COMMENTARY]
 
 ---END---
 ```
@@ -857,148 +1404,123 @@ Search and delete/fix:
 - ❌ Word count statistics
 - ❌ Any explanatory text
 - ❌ Any Chinese characters
+- ❌ Any labels like "Setup:", "Satisfaction scene", etc.
 
 **Only output:**
 - ✅ TITLE
 - ✅ GENRE
 - ✅ AGE
-- ✅ Story text
+- ✅ Story text (direct narration only, no structural labels)
 - ✅ ---END---
-
----
-
-## BATCH PRODUCTION SUGGESTIONS
-
-### Title Deduplication
-
-Since each API call is independent, AI cannot know previously generated titles. Recommend code-level deduplication:
-
-```python
-def check_title_uniqueness(new_title, existing_titles):
-    # Check if title is duplicate or too similar
-    # Complete duplicate
-    if new_title in existing_titles:
-        return False, "Complete duplicate"
-
-    # Check opening word repetition
-    new_start = new_title.split()[0] if new_title else ""
-    for existing in existing_titles:
-        existing_start = existing.split()[0] if existing else ""
-        if new_start == existing_start and len(new_start) > 3:
-            return False, f"Opening word repeated: {new_start}"
-
-    return True, "OK"
-
-# Usage example
-existing_titles = []
-for i in range(1000):
-    response = generate_story(idea_file)
-    title = extract_title(response)
-
-    is_unique, reason = check_title_uniqueness(title, existing_titles)
-
-    if not is_unique:
-        print(f"Title duplicate ({reason}), regenerating...")
-        continue
-
-    existing_titles.append(title)
-    save_story(response, f"story_{i}")
-```
-
-### Quality Check
-
-Recommend automated quality checking:
-
-```python
-def check_story_quality(story_text):
-    # Check story quality
-    issues = []
-
-    # Check length
-    if len(story_text) < 20000:
-        issues.append(f"Too short: {len(story_text)} chars")
-
-    # Check AI common errors
-    ai_errors = ['However,', 'Moreover,', "couldn't help but"]
-    for error in ai_errors:
-        if error in story_text:
-            issues.append(f"Contains AI error: {error}")
-
-    # Check pinyin names
-    pinyin_surnames = ['Chen', 'Wang', 'Liu', 'Zhang', 'Li']
-    for surname in pinyin_surnames:
-        if f' {surname} ' in story_text or f' {surname},' in story_text:
-            issues.append(f"May contain pinyin surname: {surname}")
-
-    return issues
-
-# Usage example
-if issues := check_story_quality(story):
-    print(f"Quality issues: {issues}")
-    # Decide whether to regenerate
-```
 
 ---
 
 ## FINAL REMINDERS BEFORE YOU START
 
-**The Four Non-Negotiables:**
+**The FIVE Non-Negotiables:**
 
-1. **SATISFACTION DENSITY**
+1. **FOLLOW ORIGINAL PLOT** (NEW - MOST CRITICAL)
+   - Continue the SAME story, don't create new one
+   - Use the SAME setting (hospital stays hospital, restaurant stays restaurant)
+   - Complete the SPECIFIC events original set up
+   - Don't replace with your default templates (charity gala, courtroom, board meeting)
+   - If original didn't mention it, don't add it
+
+2. **SATISFACTION DENSITY**
    - Every 3,000-5,000 characters = 1 full satisfaction scene
    - Each scene = 300+ characters with dialogue
    - Show reactions, witnesses, consequences
    - Never summarize satisfaction
+   - BUT: Satisfaction must be IN THE CONTEXT of original story!
 
-2. **DIALOGUE DOMINANCE**
+3. **DIALOGUE DOMINANCE**
    - 40%+ of story must be dialogue
    - Check every 3,000 characters
    - Convert narration to dialogue exchanges
    - Satisfaction scenes must be 60%+ dialogue
 
-3. **NO LITERARY LANGUAGE**
+4. **NO LITERARY LANGUAGE**
    - No poetic metaphors
    - No philosophical insights
    - No abstract descriptions
    - Write like you're telling a friend, not writing literature
 
-4. **NO META-COMMENTARY OR LABELS**
+5. **⚠️⚠️⚠️ NO META-COMMENTARY OR LABELS (ABSOLUTE CRITICAL)**
    - Never output: "Setup:", "Confrontation:", "First satisfaction"
+   - Never output: "Satisfaction scene —" or any scene type descriptions
    - Never number satisfaction moments for readers
    - Never explain story structure to readers
    - Just write what happens directly
+   - **VIOLATION = STORY REJECTED**
 
 **Forbidden Output Examples:**
 
 ❌ "First satisfaction came when..."
 ❌ "Setup: The protagonist arrived..."
 ❌ "Confrontation: She said..."
+❌ "Satisfaction scene — public ripple: the kiss went viral..."
+❌ "Satisfaction scene — small power display: on a noisy set..."
 ❌ "The second爽点 occurred..."
 ❌ "Satisfaction seventh and final..."
 
 **Correct Output:**
 
 ✅ "That afternoon, she arrived at the office..."
+✅ "The kiss went viral within an hour."
+✅ "On a noisy set, she intervened..."
 ✅ Direct scene with dialogue and action
 ✅ No labels, no numbering, no meta-commentary
 
-**Quality Over Length:**
-- Better to have 25,000 characters with great satisfaction than 40,000 with weak satisfaction
-- Don't pad with description or setup
+**CRITICAL: Plot Fidelity Check**
+
+Before you write ANYTHING, answer these:
+- [ ] What exact setting does the original have? (Write specific answer)
+- [ ] What exact event is coming next in original? (Write specific answer)
+- [ ] What scenarios did original set up? (List them)
+- [ ] Am I continuing THOSE scenarios or replacing with my defaults?
+
+**If you're planning to write:**
+- Charity gala → Was there one in original? If NO, don't write it!
+- Courtroom trial → Was there legal plot in original? If NO, don't write it!
+- Business fraud → Was original about business? If NO, don't write it!
+- Board meeting → Was original in corporate setting? If NO, don't write it!
+
+**Common Default Templates to AVOID unless original has them:**
+- ❌ Charity gala scandal
+- ❌ Courtroom testimony
+- ❌ Corporate fraud reveal
+- ❌ Board meeting showdown
+- ❌ Contract dispute
+- ❌ Media press conference
+
+**Length Requirements:**
+- Minimum: 20,000 characters (HARD REQUIREMENT)
+- Optimal: 25,000-35,000 characters
+- Don't pad, add more satisfaction scenes IF they fit original context
+- But DON'T go under 20,000
+
+**Quality Over Everything (but stay true to original):**
+- Better to have 25,000 characters with great satisfaction IN ORIGINAL CONTEXT
+- Than 40,000 characters with generic scenarios NOT from original
 - Every scene must either build to or deliver satisfaction
+- But maintain minimum 20,000 character requirement
+- Stay faithful to original plot direction
 
 **Remember:**
-- You're writing satisfaction-driven fiction, not literature
-- Readers want to cheer, not contemplate
-- Specific scenes > vague summaries
+- You're CONTINUING a story, not creating new one
+- You're LOCALIZING names/places, not changing plot
+- You're COMPLETING what was started, not replacing it
+- Readers want to see THAT story finished, not a different story
+- Specific original plot > vague generic plot
 - Action and dialogue > description and reflection
-- Write the story, not commentary about the story
+- Write the story continuation, not commentary about it
+- NO LABELS OR META-COMMENTARY EVER
 
 ---
 
-**Now, start creating. Read the input txt file and write a complete story.**
+**Now, start creating. Read the input txt file carefully, understand its SPECIFIC plot and setting, and continue THAT story with English localization.**
 
-**START WRITING.**"""
+**START WRITING THE CONTINUATION.**"""
 
 
 class DirectPromptManager:
@@ -1588,7 +2110,11 @@ class ShortNovelDirect:
                 f.write(story)
             with open(os.path.join(output_folder, 'full_response.txt'), 'w', encoding='utf-8') as f:
                 f.write(result)
-            print(f"[DEBUG] 步骤13完成: 文件保存成功")
+
+            # 复制源文件到输出文件夹
+            source_filename = os.path.basename(task.source_file)
+            shutil.copy2(task.source_file, os.path.join(output_folder, source_filename))
+            print(f"[DEBUG] 步骤13完成: 文件保存成功，源文件已复制")
 
             task.output_folder = output_folder
 
