@@ -853,8 +853,9 @@ class ShortNovelTools:
                 male_sorted = sorted(names_data.get('male', []), key=lambda x: x.get('used', 0))
                 female_sorted = sorted(names_data.get('female', []), key=lambda x: x.get('used', 0))
 
-                preview_male = [n['name'] for n in male_sorted[:male_count]]
-                preview_female = [n['name'] for n in female_sorted[:female_count]]
+                # 使用 fullname 字段（和 format_names_for_prompt 一致）
+                preview_male = [n['fullname'] for n in male_sorted[:male_count]]
+                preview_female = [n['fullname'] for n in female_sorted[:female_count]]
 
                 male_names_str = ", ".join(preview_male) if preview_male else "(无可用男名)"
                 female_names_str = ", ".join(preview_female) if preview_female else "(无可用女名)"
