@@ -846,16 +846,20 @@ class ShortNovelTools:
 
             # 预览人名（不实际消耗，只是查看将要使用的名字）
             try:
+                # 先加载最新的名字数据
+                names_data = self.resource_mgr.load_names()
+
                 # 按使用次数排序，获取将要被选中的名字
-                male_sorted = sorted(self.resource_mgr.names.get('male', []), key=lambda x: x.get('used', 0))
-                female_sorted = sorted(self.resource_mgr.names.get('female', []), key=lambda x: x.get('used', 0))
+                male_sorted = sorted(names_data.get('male', []), key=lambda x: x.get('used', 0))
+                female_sorted = sorted(names_data.get('female', []), key=lambda x: x.get('used', 0))
 
                 preview_male = [n['name'] for n in male_sorted[:male_count]]
                 preview_female = [n['name'] for n in female_sorted[:female_count]]
 
                 male_names_str = ", ".join(preview_male) if preview_male else "(无可用男名)"
                 female_names_str = ", ".join(preview_female) if preview_female else "(无可用女名)"
-            except Exception:
+            except Exception as e:
+                print(f"预览人名失败: {e}")  # 调试信息
                 male_names_str = f"(将随机选择{male_count}个男名)"
                 female_names_str = f"(将随机选择{female_count}个女名)"
 
