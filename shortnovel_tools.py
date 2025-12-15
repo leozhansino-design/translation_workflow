@@ -368,9 +368,10 @@ class ShortNovelTools:
         self.window.update()
 
         try:
+            base_url = self._normalize_base_url(self.base_url_var.get())
             client = OpenAI(
                 api_key=self.api_key_var.get(),
-                base_url=self.base_url_var.get().rstrip('/') + '/v1'
+                base_url=base_url
             )
             response = client.chat.completions.create(
                 model=self.model_var.get(),
@@ -379,7 +380,16 @@ class ShortNovelTools:
             )
             self.api_status.config(text="✅ 连接成功", fg="green")
         except Exception as e:
-            self.api_status.config(text=f"❌ 失败: {str(e)[:30]}", fg="red")
+            self.api_status.config(text=f"❌ 失败: {str(e)[:50]}", fg="red")
+
+    def _normalize_base_url(self, url):
+        """规范化Base URL，确保正确的格式"""
+        url = url.strip().rstrip('/')
+        # 如果已经以 /v1 结尾，不再添加
+        if url.endswith('/v1'):
+            return url
+        # 否则添加 /v1
+        return url + '/v1'
 
     def setup_outline_tab(self):
         """设置大纲生成标签页"""
@@ -801,6 +811,11 @@ class ShortNovelTools:
             width=6, font=("Arial", 8), bg="#f44336", fg="white"
         ).place(x=80, y=3)
 
+        tk.Button(
+            btn_frame, text="📋 预览", command=lambda t=task: self.preview_outline_prompt(t),
+            width=6, font=("Arial", 8), bg="#2196F3", fg="white"
+        ).place(x=152, y=3)
+
         self.outline_task_frames[task.task_id] = card
 
     def start_outline_task(self, task):
@@ -814,6 +829,73 @@ class ShortNovelTools:
 
         thread = threading.Thread(target=self._execute_outline_task, args=(task,), daemon=True)
         thread.start()
+
+    def preview_outline_prompt(self, task):
+        """预览大纲任务的Prompt"""
+        try:
+            # 读取原文
+            with open(task.source_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # 获取当前人名配置
+            male_count = task.config.get('male_count', 10)
+            female_count = task.config.get('female_count', 10)
+
+            # 模拟获取人名（不实际消耗）
+            male_names = ", ".join([f"Name{i}" for i in range(1, male_count + 1)])
+            female_names = ", ".join([f"Name{i}" for i in range(1, female_count + 1)])
+
+            # 构建Prompt
+            prompt_template = self.prompt_mgr.get_outline_prompt()
+            system_prompt = prompt_template.format(
+                male_names=f"({male_count}个随机男名)",
+                female_names=f"({female_count}个随机女名)"
+            )
+
+            # 显示预览窗口
+            self._show_prompt_preview(
+                title=f"大纲Prompt预览 - {os.path.basename(task.source_file)}",
+                system_prompt=system_prompt,
+                user_content=content,
+                config_info=f"模型: {task.config.get('model', 'N/A')}\n"
+                           f"API: {task.config.get('base_url', 'N/A')}\n"
+                           f"人名: 男{male_count}个, 女{female_count}个"
+            )
+        except Exception as e:
+            messagebox.showerror("错误", f"预览失败: {e}")
+
+    def _show_prompt_preview(self, title, system_prompt, user_content, config_info=""):
+        """显示Prompt预览窗口"""
+        preview_window = tk.Toplevel(self.window)
+        preview_window.title(title)
+        preview_window.geometry("900x700")
+
+        # 配置信息
+        if config_info:
+            config_frame = tk.Frame(preview_window, bg="#e3f2fd")
+            config_frame.pack(fill=tk.X, padx=10, pady=5)
+            tk.Label(config_frame, text=config_info, bg="#e3f2fd", justify=tk.LEFT,
+                    font=("Arial", 9)).pack(padx=10, pady=5, anchor="w")
+
+        # System Prompt
+        tk.Label(preview_window, text="📋 System Prompt:", font=("Arial", 10, "bold"),
+                anchor="w").pack(fill=tk.X, padx=10, pady=(10, 0))
+        system_text = scrolledtext.ScrolledText(preview_window, height=12, wrap=tk.WORD)
+        system_text.pack(fill=tk.X, padx=10, pady=5)
+        system_text.insert(tk.END, system_prompt)
+        system_text.config(state=tk.DISABLED)
+
+        # User Content
+        tk.Label(preview_window, text="📄 User Content (输入内容):", font=("Arial", 10, "bold"),
+                anchor="w").pack(fill=tk.X, padx=10, pady=(10, 0))
+        user_text = scrolledtext.ScrolledText(preview_window, height=15, wrap=tk.WORD)
+        user_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        user_text.insert(tk.END, user_content)
+        user_text.config(state=tk.DISABLED)
+
+        # 关闭按钮
+        tk.Button(preview_window, text="关闭", command=preview_window.destroy,
+                 width=10).pack(pady=10)
 
     def _execute_outline_task(self, task):
         """执行大纲任务"""
@@ -839,7 +921,7 @@ class ShortNovelTools:
             # 调用API
             client = OpenAI(
                 api_key=task.config['api_key'],
-                base_url=task.config['base_url'].rstrip('/') + '/v1'
+                base_url=self._normalize_base_url(task.config['base_url'])
             )
 
             response = client.chat.completions.create(
@@ -1199,6 +1281,11 @@ class ShortNovelTools:
             width=6, font=("Arial", 8), bg="#f44336", fg="white"
         ).place(x=80, y=3)
 
+        tk.Button(
+            btn_frame, text="📋 预览", command=lambda t=task: self.preview_writing_prompt(t),
+            width=6, font=("Arial", 8), bg="#673AB7", fg="white"
+        ).place(x=152, y=3)
+
         self.writing_task_frames[task.task_id] = card
 
     def start_writing_task(self, task):
@@ -1212,6 +1299,38 @@ class ShortNovelTools:
 
         thread = threading.Thread(target=self._execute_writing_task, args=(task,), daemon=True)
         thread.start()
+
+    def preview_writing_prompt(self, task):
+        """预览写作任务的Prompt"""
+        try:
+            # 读取大纲
+            with open(task.source_file, 'r', encoding='utf-8') as f:
+                outline = f.read()
+
+            # 构建Prompt
+            prompt_template = self.prompt_mgr.get_writing_prompt()
+            prompt = prompt_template.format(outline=outline)
+
+            # 添加字符数要求
+            min_chars = task.config.get('min_chars', 25000)
+            max_chars = task.config.get('max_chars', 50000)
+
+            full_prompt = f"""{prompt}
+
+IMPORTANT: The story must be between {min_chars} and {max_chars} characters. This is MANDATORY.
+Write the complete story now (remember to end with ===END===):"""
+
+            # 显示预览窗口
+            self._show_prompt_preview(
+                title=f"写作Prompt预览 - {os.path.basename(task.source_file)}",
+                system_prompt="(无System Prompt，仅User Prompt)",
+                user_content=full_prompt,
+                config_info=f"模型: {task.config.get('model', 'N/A')}\n"
+                           f"API: {task.config.get('base_url', 'N/A')}\n"
+                           f"字符要求: {min_chars:,} - {max_chars:,}"
+            )
+        except Exception as e:
+            messagebox.showerror("错误", f"预览失败: {e}")
 
     def _execute_writing_task(self, task):
         """执行写作任务"""
@@ -1236,7 +1355,7 @@ Write the complete story now (remember to end with ===END===):"""
             # 调用API
             client = OpenAI(
                 api_key=task.config['api_key'],
-                base_url=task.config['base_url'].rstrip('/') + '/v1'
+                base_url=self._normalize_base_url(task.config['base_url'])
             )
 
             response = client.chat.completions.create(
