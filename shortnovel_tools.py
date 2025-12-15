@@ -210,10 +210,12 @@ class ShortNovelTools:
         self.writing_tasks = []
         self.writing_task_frames = {}
 
-        # 分页设置
+        # 分页设置 - 多列网格布局
         self.outline_current_page = 0
         self.writing_current_page = 0
-        self.tasks_per_page = 10
+        self.cards_per_row = 5  # 每行卡片数
+        self.rows_per_page = 10  # 每页行数
+        self.tasks_per_page = self.cards_per_row * self.rows_per_page  # 50个/页
 
         # 运行状态
         self.outline_running = False
@@ -287,9 +289,9 @@ class ShortNovelTools:
         api_combo.bind('<<ComboboxSelected>>', self.on_api_preset_change)
 
         tk.Label(row1, text="模型:").pack(side=tk.LEFT, padx=(20, 0))
-        self.model_var = tk.StringVar(value="gpt-4.1-mini")
+        self.model_var = tk.StringVar(value="gpt-5-mini")
         model_combo = ttk.Combobox(row1, textvariable=self.model_var, width=20)
-        model_combo['values'] = ["gpt-4.1-mini", "gpt-4.1", "gpt-4o", "gpt-4o-mini", "gpt-5-mini", "claude-sonnet-4-20250514"]
+        model_combo['values'] = ["gpt-5-mini"]
         model_combo.pack(side=tk.LEFT, padx=5)
 
         tk.Button(row1, text="测试连接", command=self.test_api, width=10).pack(side=tk.LEFT, padx=10)
@@ -358,11 +360,11 @@ class ShortNovelTools:
         names_row.pack(fill=tk.X, pady=2)
 
         tk.Label(names_row, text="人名数量 - 男:").pack(side=tk.LEFT)
-        self.outline_male_count = tk.IntVar(value=5)
+        self.outline_male_count = tk.IntVar(value=10)
         tk.Spinbox(names_row, from_=1, to=20, textvariable=self.outline_male_count, width=5).pack(side=tk.LEFT, padx=2)
 
         tk.Label(names_row, text="女:").pack(side=tk.LEFT, padx=(10, 0))
-        self.outline_female_count = tk.IntVar(value=5)
+        self.outline_female_count = tk.IntVar(value=10)
         tk.Spinbox(names_row, from_=1, to=20, textvariable=self.outline_female_count, width=5).pack(side=tk.LEFT, padx=2)
 
         # 右侧：操作按钮
@@ -612,7 +614,7 @@ class ShortNovelTools:
             messagebox.showinfo("成功", f"已添加 {added} 个任务")
 
     def refresh_outline_display(self):
-        """刷新大纲任务显示"""
+        """刷新大纲任务显示 - 网格布局"""
         # 清空现有显示
         for widget in self.outline_queue_frame.winfo_children():
             widget.destroy()
@@ -631,76 +633,84 @@ class ShortNovelTools:
             return
 
         # 计算分页
-        total_pages = (len(self.outline_tasks) - 1) // self.tasks_per_page + 1
+        total_pages = max(1, (len(self.outline_tasks) - 1) // self.tasks_per_page + 1)
         self.outline_current_page = min(self.outline_current_page, total_pages - 1)
 
         start_idx = self.outline_current_page * self.tasks_per_page
         end_idx = min(start_idx + self.tasks_per_page, len(self.outline_tasks))
 
-        self.outline_page_label.config(text=f"{self.outline_current_page + 1}/{total_pages} 页")
+        self.outline_page_label.config(text=f"{self.outline_current_page + 1}/{total_pages} 页 (共{len(self.outline_tasks)}个)")
 
-        # 显示当前页的任务
-        for task in self.outline_tasks[start_idx:end_idx]:
-            self.create_outline_task_card(task)
+        # 网格布局显示
+        current_tasks = self.outline_tasks[start_idx:end_idx]
+        for idx, task in enumerate(current_tasks):
+            row = idx // self.cards_per_row
+            col = idx % self.cards_per_row
+            self.create_outline_task_card(task, row, col)
 
-    def create_outline_task_card(self, task):
-        """创建大纲任务卡片"""
-        card = tk.Frame(self.outline_queue_frame, bg="#f5f5f5", relief=tk.RIDGE, borderwidth=1)
-        card.pack(fill=tk.X, padx=5, pady=3)
-
-        # 文件名
-        filename = os.path.basename(task.source_file)
-        tk.Label(
-            card, text=filename[:40] + "..." if len(filename) > 40 else filename,
-            font=("Arial", 10, "bold"), bg="#f5f5f5", anchor="w"
-        ).pack(side=tk.LEFT, padx=10, pady=8)
-
-        # 状态标签
-        status_text = {
-            'pending': '⏳ 等待中',
-            'running': '🔄 运行中',
-            'completed': '✅ 完成',
-            'failed': '❌ 失败'
-        }
-        status_color = {
-            'pending': 'gray',
-            'running': 'blue',
-            'completed': 'green',
-            'failed': 'red'
-        }
-
-        status_label = tk.Label(
-            card, text=status_text.get(task.status, task.status),
-            fg=status_color.get(task.status, 'black'), bg="#f5f5f5"
+    def create_outline_task_card(self, task, row, col):
+        """创建大纲任务卡片 - 紧凑网格样式"""
+        card = tk.Frame(
+            self.outline_queue_frame,
+            bg="#f8f8f8",
+            relief=tk.RIDGE,
+            borderwidth=1,
+            width=240,
+            height=75
         )
-        status_label.pack(side=tk.LEFT, padx=10)
+        card.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
+        card.grid_propagate(False)
+
+        # 文件名（截断显示）
+        filename = os.path.basename(task.source_file)
+        display_name = filename[:18] + "..." if len(filename) > 18 else filename
+        tk.Label(
+            card, text=display_name,
+            font=("Arial", 8, "bold"), bg="#f8f8f8", anchor="w"
+        ).place(x=5, y=3, width=170)
+
+        # 状态图标
+        status_info = {
+            'pending': ('⏳', 'gray'),
+            'running': ('🔄', 'blue'),
+            'completed': ('✅', 'green'),
+            'failed': ('❌', 'red')
+        }
+        icon, color = status_info.get(task.status, ('?', 'black'))
+        status_label = tk.Label(card, text=icon, fg=color, bg="#f8f8f8", font=("Arial", 9))
+        status_label.place(x=180, y=3)
         card.status_label = status_label
 
-        # 字符数显示
-        char_label = tk.Label(card, text="", fg="purple", bg="#f5f5f5")
-        char_label.pack(side=tk.LEFT, padx=10)
-        card.char_label = char_label
+        # 第二行：启动时间或字符数
+        info_text = ""
+        info_color = "gray"
+        if task.status == 'running' and task.started_at:
+            info_text = f"⏱ {task.started_at.strftime('%H:%M:%S')}"
+            info_color = "blue"
+        elif task.status == 'completed':
+            info_text = f"📊 {task.char_count:,} 字符"
+            info_color = "purple"
+        elif task.status == 'failed':
+            info_text = f"⚠️ 失败"
+            info_color = "red"
 
-        if task.status == 'completed' and task.char_count > 0:
-            char_label.config(text=f"📊 {task.char_count:,} 字符")
-        elif task.status == 'failed' and task.error_msg:
-            char_label.config(text=f"⚠️ {task.error_msg[:20]}...", fg="red")
+        info_label = tk.Label(card, text=info_text, fg=info_color, bg="#f8f8f8", font=("Arial", 8))
+        info_label.place(x=5, y=22)
+        card.info_label = info_label
 
-        # 操作按钮
-        btn_frame = tk.Frame(card, bg="#f5f5f5")
-        btn_frame.pack(side=tk.RIGHT, padx=5)
-
+        # 第三行：操作按钮
         start_btn = tk.Button(
-            btn_frame, text="▶", command=lambda t=task: self.start_outline_task(t),
-            width=3, state=tk.NORMAL if task.status != 'running' else tk.DISABLED
+            card, text="▶", command=lambda t=task: self.start_outline_task(t),
+            width=2, font=("Arial", 7),
+            state=tk.NORMAL if task.status != 'running' else tk.DISABLED
         )
-        start_btn.pack(side=tk.LEFT, padx=2)
+        start_btn.place(x=5, y=45)
         card.start_btn = start_btn
 
         tk.Button(
-            btn_frame, text="🗑", command=lambda t=task: self.remove_outline_task(t),
-            width=3
-        ).pack(side=tk.LEFT, padx=2)
+            card, text="🗑", command=lambda t=task: self.remove_outline_task(t),
+            width=2, font=("Arial", 7)
+        ).place(x=35, y=45)
 
         self.outline_task_frames[task.task_id] = card
 
@@ -924,7 +934,7 @@ class ShortNovelTools:
             messagebox.showinfo("成功", f"已添加 {added} 个任务")
 
     def refresh_writing_display(self):
-        """刷新写作任务显示"""
+        """刷新写作任务显示 - 网格布局"""
         for widget in self.writing_queue_frame.winfo_children():
             widget.destroy()
         self.writing_task_frames.clear()
@@ -941,72 +951,84 @@ class ShortNovelTools:
             self.writing_empty_label.pack()
             return
 
-        total_pages = (len(self.writing_tasks) - 1) // self.tasks_per_page + 1
+        total_pages = max(1, (len(self.writing_tasks) - 1) // self.tasks_per_page + 1)
         self.writing_current_page = min(self.writing_current_page, total_pages - 1)
 
         start_idx = self.writing_current_page * self.tasks_per_page
         end_idx = min(start_idx + self.tasks_per_page, len(self.writing_tasks))
 
-        self.writing_page_label.config(text=f"{self.writing_current_page + 1}/{total_pages} 页")
+        self.writing_page_label.config(text=f"{self.writing_current_page + 1}/{total_pages} 页 (共{len(self.writing_tasks)}个)")
 
-        for task in self.writing_tasks[start_idx:end_idx]:
-            self.create_writing_task_card(task)
+        # 网格布局显示
+        current_tasks = self.writing_tasks[start_idx:end_idx]
+        for idx, task in enumerate(current_tasks):
+            row = idx // self.cards_per_row
+            col = idx % self.cards_per_row
+            self.create_writing_task_card(task, row, col)
 
-    def create_writing_task_card(self, task):
-        """创建写作任务卡片"""
-        card = tk.Frame(self.writing_queue_frame, bg="#f5f5f5", relief=tk.RIDGE, borderwidth=1)
-        card.pack(fill=tk.X, padx=5, pady=3)
-
-        filename = os.path.basename(task.source_file)
-        tk.Label(
-            card, text=filename[:40] + "..." if len(filename) > 40 else filename,
-            font=("Arial", 10, "bold"), bg="#f5f5f5", anchor="w"
-        ).pack(side=tk.LEFT, padx=10, pady=8)
-
-        status_text = {
-            'pending': '⏳ 等待中',
-            'running': '🔄 运行中',
-            'completed': '✅ 完成',
-            'failed': '❌ 失败'
-        }
-        status_color = {
-            'pending': 'gray',
-            'running': 'blue',
-            'completed': 'green',
-            'failed': 'red'
-        }
-
-        status_label = tk.Label(
-            card, text=status_text.get(task.status, task.status),
-            fg=status_color.get(task.status, 'black'), bg="#f5f5f5"
+    def create_writing_task_card(self, task, row, col):
+        """创建写作任务卡片 - 紧凑网格样式"""
+        card = tk.Frame(
+            self.writing_queue_frame,
+            bg="#f0f8ff",
+            relief=tk.RIDGE,
+            borderwidth=1,
+            width=240,
+            height=75
         )
-        status_label.pack(side=tk.LEFT, padx=10)
+        card.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
+        card.grid_propagate(False)
+
+        # 文件名（截断显示）
+        filename = os.path.basename(task.source_file)
+        display_name = filename[:18] + "..." if len(filename) > 18 else filename
+        tk.Label(
+            card, text=display_name,
+            font=("Arial", 8, "bold"), bg="#f0f8ff", anchor="w"
+        ).place(x=5, y=3, width=170)
+
+        # 状态图标
+        status_info = {
+            'pending': ('⏳', 'gray'),
+            'running': ('🔄', 'blue'),
+            'completed': ('✅', 'green'),
+            'failed': ('❌', 'red')
+        }
+        icon, color = status_info.get(task.status, ('?', 'black'))
+        status_label = tk.Label(card, text=icon, fg=color, bg="#f0f8ff", font=("Arial", 9))
+        status_label.place(x=180, y=3)
         card.status_label = status_label
 
-        # 字符数显示
-        char_label = tk.Label(card, text="", fg="purple", bg="#f5f5f5")
-        char_label.pack(side=tk.LEFT, padx=10)
-        card.char_label = char_label
+        # 第二行：启动时间或字符数
+        info_text = ""
+        info_color = "gray"
+        if task.status == 'running' and task.started_at:
+            info_text = f"⏱ {task.started_at.strftime('%H:%M:%S')}"
+            info_color = "blue"
+        elif task.status == 'completed':
+            info_text = f"📊 {task.char_count:,} 字符"
+            info_color = "purple"
+        elif task.status == 'failed':
+            info_text = f"⚠️ 失败"
+            info_color = "red"
 
-        if task.status == 'completed' and task.char_count > 0:
-            char_label.config(text=f"📊 {task.char_count:,} 字符")
-        elif task.status == 'failed' and task.error_msg:
-            char_label.config(text=f"⚠️ {task.error_msg[:20]}...", fg="red")
+        info_label = tk.Label(card, text=info_text, fg=info_color, bg="#f0f8ff", font=("Arial", 8))
+        info_label.place(x=5, y=22)
+        card.info_label = info_label
 
-        btn_frame = tk.Frame(card, bg="#f5f5f5")
-        btn_frame.pack(side=tk.RIGHT, padx=5)
-
+        # 第三行：操作按钮
         start_btn = tk.Button(
-            btn_frame, text="▶", command=lambda t=task: self.start_writing_task(t),
-            width=3, state=tk.NORMAL if task.status != 'running' else tk.DISABLED
+            card, text="▶", command=lambda t=task: self.start_writing_task(t),
+            width=2, font=("Arial", 7),
+            state=tk.NORMAL if task.status != 'running' else tk.DISABLED
         )
-        start_btn.pack(side=tk.LEFT, padx=2)
+        start_btn.place(x=5, y=45)
         card.start_btn = start_btn
 
         tk.Button(
-            btn_frame, text="🗑", command=lambda t=task: self.remove_writing_task(t),
-            width=3
-        ).pack(side=tk.LEFT, padx=2)
+            card, text="🗑", command=lambda t=task: self.remove_writing_task(t),
+            width=2, font=("Arial", 7)
+        ).place(x=35, y=45)
 
         self.writing_task_frames[task.task_id] = card
 
