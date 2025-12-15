@@ -376,11 +376,14 @@ class ShortNovelTools:
             response = client.chat.completions.create(
                 model=self.model_var.get(),
                 messages=[{"role": "user", "content": "Hi"}],
-                max_tokens=10
+                max_tokens=100,
+                temperature=0.85
             )
             self.api_status.config(text="✅ 连接成功", fg="green")
         except Exception as e:
-            self.api_status.config(text=f"❌ 失败: {str(e)[:50]}", fg="red")
+            error_msg = str(e)
+            print(f"API测试失败详情: {error_msg}")  # 打印完整错误到控制台
+            self.api_status.config(text=f"❌ 失败: {error_msg[:50]}", fg="red")
 
     def _normalize_base_url(self, url):
         """规范化Base URL，确保正确的格式"""
