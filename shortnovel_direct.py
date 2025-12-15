@@ -44,6 +44,16 @@ except Exception as e:
     traceback.print_exc()
 
 
+def safe_format_prompt(template, **kwargs):
+    """安全地格式化prompt模板，忽略未知的占位符"""
+    import re
+    result = template
+    for key, value in kwargs.items():
+        # 替换 {key} 格式的占位符
+        result = result.replace('{' + key + '}', str(value))
+    return result
+
+
 def get_resource_path(relative_path):
     """获取资源文件的绝对路径（支持PyInstaller打包）"""
     if getattr(sys, 'frozen', False):
@@ -1490,20 +1500,12 @@ class ShortNovelDirect:
             print(f"[DEBUG] 步骤4: 构建Prompt")
             prompt_template = self.prompt_mgr.get_prompt()
 
-            # 使用安全的格式化方法，处理未知占位符
-            try:
-                system_prompt = prompt_template.format(
-                    male_names=names_formatted['male_names'],
-                    female_names=names_formatted['female_names']
-                )
-            except KeyError as ke:
-                print(f"[WARNING] Prompt模板包含未知占位符: {ke}")
-                print(f"[WARNING] 使用默认Prompt模板...")
-                # 回退到默认模板
-                system_prompt = DEFAULT_DIRECT_PROMPT.format(
-                    male_names=names_formatted['male_names'],
-                    female_names=names_formatted['female_names']
-                )
+            # 使用安全格式化，忽略未知占位符
+            system_prompt = safe_format_prompt(
+                prompt_template,
+                male_names=names_formatted['male_names'],
+                female_names=names_formatted['female_names']
+            )
             print(f"[DEBUG] 步骤4完成: Prompt长度 {len(system_prompt)}")
 
             # 添加字符数要求
@@ -1671,22 +1673,13 @@ class ShortNovelDirect:
             male_names_str = ", ".join(preview_male)
             female_names_str = ", ".join(preview_female)
 
-            # 构建Prompt
+            # 构建Prompt - 使用安全格式化，忽略未知占位符
             prompt_template = self.prompt_mgr.get_prompt()
-
-            # 使用安全的格式化方法，处理未知占位符
-            try:
-                full_prompt = prompt_template.format(
-                    male_names=male_names_str,
-                    female_names=female_names_str
-                )
-            except KeyError as ke:
-                print(f"[WARNING] 预览: Prompt模板包含未知占位符: {ke}")
-                # 回退到默认模板
-                full_prompt = DEFAULT_DIRECT_PROMPT.format(
-                    male_names=male_names_str,
-                    female_names=female_names_str
-                )
+            full_prompt = safe_format_prompt(
+                prompt_template,
+                male_names=male_names_str,
+                female_names=female_names_str
+            )
 
             # 显示预览
             preview_win = tk.Toplevel(self.window)
