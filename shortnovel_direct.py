@@ -73,6 +73,27 @@ def get_resource_path(relative_path):
 # 默认Prompt模板 - 直接生成完整故事
 DEFAULT_DIRECT_PROMPT = """# ADDICTIVE SHORT STORY GENERATOR
 
+## ⚠️ ABSOLUTE PROHIBITIONS - READ FIRST
+
+**1. NO CHINESE CHARACTERS**
+- The story must be 100% English
+- Even if you think about concepts using Chinese terms (like "爽点"), NEVER output them
+- No mixing of English and Chinese under any circumstances
+
+**2. NO META-COMMENTARY**
+- Do NOT output planning labels like "Setup:", "Confrontation:", "Public Reaction:"
+- Do NOT output "First satisfaction", "Second satisfaction", "Satisfaction seventh"
+- Do NOT number or label story elements for readers
+- These are internal planning tools ONLY - never part of the actual story
+
+**3. WRITE THE STORY DIRECTLY**
+- Jump straight into scenes
+- No structural labels
+- No explanatory tags
+- Just write what happens
+
+---
+
 ## ⚠️ CRITICAL: LANGUAGE REQUIREMENT
 
 **Output must be 100% English.**
@@ -266,9 +287,11 @@ Every satisfaction moment MUST be written as a **specific scene** with:
 
 **SATISFACTION SCENE STRUCTURE:**
 
-Every satisfaction scene should follow this pattern:
+Use this structure for INTERNAL PLANNING ONLY:
 
 ```
+[FOR YOUR PLANNING - DO NOT OUTPUT THESE LABELS IN THE STORY]
+
 Setup (1-2 sentences):
 [Situation that leads to satisfaction]
 
@@ -286,7 +309,35 @@ Public Reaction (100-150 chars):
 Immediate Aftermath (50-100 chars):
 [Quick consequence]
 [Protagonist's position secured]
+
+[END INTERNAL STRUCTURE]
 ```
+
+**CRITICAL: HOW TO WRITE THE ACTUAL SCENE:**
+
+❌ WRONG (outputting labels):
+```
+Setup:
+Reed and Gianna arrived at the office.
+
+Confrontation:
+"You're fired," she said.
+```
+
+✅ CORRECT (no labels, direct scene):
+```
+Reed and Gianna arrived at the office. The receptionist looked up, startled.
+
+"You're fired," she said, holding up the documents.
+
+His face went white. "What are you—"
+
+"These prove everything." She spread the papers on the desk.
+
+Whispers erupted around them. Someone gasped.
+```
+
+**Remember:** The structure helps you plan, but readers only see the scene itself.
 
 ---
 
@@ -806,6 +857,135 @@ Search and delete/fix:
 
 ---
 
+## BATCH PRODUCTION SUGGESTIONS
+
+### Title Deduplication
+
+Since each API call is independent, AI cannot know previously generated titles. Recommend code-level deduplication:
+
+```python
+def check_title_uniqueness(new_title, existing_titles):
+    """Check if title is duplicate or too similar"""
+    # Complete duplicate
+    if new_title in existing_titles:
+        return False, "Complete duplicate"
+
+    # Check opening word repetition
+    new_start = new_title.split()[0] if new_title else ""
+    for existing in existing_titles:
+        existing_start = existing.split()[0] if existing else ""
+        if new_start == existing_start and len(new_start) > 3:
+            return False, f"Opening word repeated: {new_start}"
+
+    return True, "OK"
+
+# Usage example
+existing_titles = []
+for i in range(1000):
+    response = generate_story(idea_file)
+    title = extract_title(response)
+
+    is_unique, reason = check_title_uniqueness(title, existing_titles)
+
+    if not is_unique:
+        print(f"Title duplicate ({reason}), regenerating...")
+        continue
+
+    existing_titles.append(title)
+    save_story(response, f"story_{i}")
+```
+
+### Quality Check
+
+Recommend automated quality checking:
+
+```python
+def check_story_quality(story_text):
+    """Check story quality"""
+    issues = []
+
+    # Check length
+    if len(story_text) < 20000:
+        issues.append(f"Too short: {len(story_text)} chars")
+
+    # Check AI common errors
+    ai_errors = ['However,', 'Moreover,', "couldn't help but"]
+    for error in ai_errors:
+        if error in story_text:
+            issues.append(f"Contains AI error: {error}")
+
+    # Check pinyin names
+    pinyin_surnames = ['Chen', 'Wang', 'Liu', 'Zhang', 'Li']
+    for surname in pinyin_surnames:
+        if f' {surname} ' in story_text or f' {surname},' in story_text:
+            issues.append(f"May contain pinyin surname: {surname}")
+
+    return issues
+
+# Usage example
+if issues := check_story_quality(story):
+    print(f"Quality issues: {issues}")
+    # Decide whether to regenerate
+```
+
+---
+
+## FINAL REMINDERS BEFORE YOU START
+
+**The Four Non-Negotiables:**
+
+1. **SATISFACTION DENSITY**
+   - Every 3,000-5,000 characters = 1 full satisfaction scene
+   - Each scene = 300+ characters with dialogue
+   - Show reactions, witnesses, consequences
+   - Never summarize satisfaction
+
+2. **DIALOGUE DOMINANCE**
+   - 40%+ of story must be dialogue
+   - Check every 3,000 characters
+   - Convert narration to dialogue exchanges
+   - Satisfaction scenes must be 60%+ dialogue
+
+3. **NO LITERARY LANGUAGE**
+   - No poetic metaphors
+   - No philosophical insights
+   - No abstract descriptions
+   - Write like you're telling a friend, not writing literature
+
+4. **NO META-COMMENTARY OR LABELS**
+   - Never output: "Setup:", "Confrontation:", "First satisfaction"
+   - Never number satisfaction moments for readers
+   - Never explain story structure to readers
+   - Just write what happens directly
+
+**Forbidden Output Examples:**
+
+❌ "First satisfaction came when..."
+❌ "Setup: The protagonist arrived..."
+❌ "Confrontation: She said..."
+❌ "The second爽点 occurred..."
+❌ "Satisfaction seventh and final..."
+
+**Correct Output:**
+
+✅ "That afternoon, she arrived at the office..."
+✅ Direct scene with dialogue and action
+✅ No labels, no numbering, no meta-commentary
+
+**Quality Over Length:**
+- Better to have 25,000 characters with great satisfaction than 40,000 with weak satisfaction
+- Don't pad with description or setup
+- Every scene must either build to or deliver satisfaction
+
+**Remember:**
+- You're writing satisfaction-driven fiction, not literature
+- Readers want to cheer, not contemplate
+- Specific scenes > vague summaries
+- Action and dialogue > description and reflection
+- Write the story, not commentary about the story
+
+---
+
 **Now, start creating. Read the input txt file and write a complete story.**
 
 **START WRITING.**"""
@@ -820,20 +1000,28 @@ class DirectPromptManager:
 
     def load_prompts(self):
         """加载Prompt配置"""
-        try:
-            if os.path.exists(self.prompts_file):
-                with open(self.prompts_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-        except Exception as e:
-            print(f"加载Prompt配置失败: {e}")
-
-        return {
+        prompts = {
             'direct': {
                 'default': DEFAULT_DIRECT_PROMPT,
                 'versions': {},
                 'active': 'default'
             }
         }
+
+        try:
+            if os.path.exists(self.prompts_file):
+                with open(self.prompts_file, 'r', encoding='utf-8') as f:
+                    saved = json.load(f)
+                    # 保留用户的自定义版本和活跃版本设置，但始终使用代码中的默认prompt
+                    if 'direct' in saved:
+                        if 'versions' in saved['direct']:
+                            prompts['direct']['versions'] = saved['direct']['versions']
+                        if 'active' in saved['direct']:
+                            prompts['direct']['active'] = saved['direct']['active']
+        except Exception as e:
+            print(f"加载Prompt配置失败: {e}")
+
+        return prompts
 
     def save_prompts(self):
         """保存Prompt配置"""
