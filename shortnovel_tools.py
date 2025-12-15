@@ -676,7 +676,7 @@ class ShortNovelTools:
         display_name = filename[:22] + "..." if len(filename) > 22 else filename
         tk.Label(
             card, text=display_name,
-            font=("Arial", 9, "bold"), bg="#ffffff", anchor="w"
+            font=("Arial", 9), bg="#ffffff", anchor="w"
         ).place(x=8, y=8, width=200)
 
         # 状态图标
@@ -1007,7 +1007,7 @@ class ShortNovelTools:
         display_name = filename[:22] + "..." if len(filename) > 22 else filename
         tk.Label(
             card, text=display_name,
-            font=("Arial", 9, "bold"), bg="#ffffff", anchor="w"
+            font=("Arial", 9), bg="#ffffff", anchor="w"
         ).place(x=8, y=8, width=200)
 
         # 状态图标
