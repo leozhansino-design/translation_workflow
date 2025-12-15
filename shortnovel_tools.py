@@ -652,65 +652,78 @@ class ShortNovelTools:
         """创建大纲任务卡片 - 紧凑网格样式"""
         card = tk.Frame(
             self.outline_queue_frame,
-            bg="#f8f8f8",
-            relief=tk.RIDGE,
-            borderwidth=1,
-            width=240,
-            height=75
+            bg="#ffffff",
+            relief=tk.RAISED,
+            borderwidth=2,
+            width=260,
+            height=90
         )
-        card.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
+        card.grid(row=row, column=col, padx=4, pady=4, sticky="nsew")
         card.grid_propagate(False)
+
+        # 顶部色条（状态指示）
+        status_colors = {
+            'pending': '#9E9E9E',
+            'running': '#2196F3',
+            'completed': '#4CAF50',
+            'failed': '#f44336'
+        }
+        top_bar = tk.Frame(card, bg=status_colors.get(task.status, '#9E9E9E'), height=4)
+        top_bar.place(x=0, y=0, width=260)
 
         # 文件名（截断显示）
         filename = os.path.basename(task.source_file)
-        display_name = filename[:18] + "..." if len(filename) > 18 else filename
+        display_name = filename[:22] + "..." if len(filename) > 22 else filename
         tk.Label(
             card, text=display_name,
-            font=("Arial", 8, "bold"), bg="#f8f8f8", anchor="w"
-        ).place(x=5, y=3, width=170)
+            font=("Arial", 9, "bold"), bg="#ffffff", anchor="w"
+        ).place(x=8, y=8, width=200)
 
         # 状态图标
         status_info = {
-            'pending': ('⏳', 'gray'),
-            'running': ('🔄', 'blue'),
-            'completed': ('✅', 'green'),
-            'failed': ('❌', 'red')
+            'pending': ('⏳', '#9E9E9E'),
+            'running': ('🔄', '#2196F3'),
+            'completed': ('✅', '#4CAF50'),
+            'failed': ('❌', '#f44336')
         }
         icon, color = status_info.get(task.status, ('?', 'black'))
-        status_label = tk.Label(card, text=icon, fg=color, bg="#f8f8f8", font=("Arial", 9))
-        status_label.place(x=180, y=3)
+        status_label = tk.Label(card, text=icon, fg=color, bg="#ffffff", font=("Arial", 12))
+        status_label.place(x=220, y=6)
         card.status_label = status_label
 
         # 第二行：启动时间或字符数
-        info_text = ""
-        info_color = "gray"
+        info_text = "等待开始"
+        info_color = "#757575"
         if task.status == 'running' and task.started_at:
-            info_text = f"⏱ {task.started_at.strftime('%H:%M:%S')}"
-            info_color = "blue"
+            info_text = f"⏱ 开始于 {task.started_at.strftime('%H:%M:%S')}"
+            info_color = "#2196F3"
         elif task.status == 'completed':
             info_text = f"📊 {task.char_count:,} 字符"
-            info_color = "purple"
+            info_color = "#7B1FA2"
         elif task.status == 'failed':
-            info_text = f"⚠️ 失败"
-            info_color = "red"
+            info_text = f"⚠️ 生成失败"
+            info_color = "#f44336"
 
-        info_label = tk.Label(card, text=info_text, fg=info_color, bg="#f8f8f8", font=("Arial", 8))
-        info_label.place(x=5, y=22)
+        info_label = tk.Label(card, text=info_text, fg=info_color, bg="#ffffff", font=("Arial", 9))
+        info_label.place(x=8, y=32)
         card.info_label = info_label
 
-        # 第三行：操作按钮
+        # 底部按钮区域（带背景）
+        btn_frame = tk.Frame(card, bg="#f5f5f5", height=30)
+        btn_frame.place(x=0, y=60, width=260, height=30)
+
         start_btn = tk.Button(
-            card, text="▶", command=lambda t=task: self.start_outline_task(t),
-            width=2, font=("Arial", 7),
+            btn_frame, text="▶ 开始", command=lambda t=task: self.start_outline_task(t),
+            width=6, font=("Arial", 8), bg="#4CAF50", fg="white",
             state=tk.NORMAL if task.status != 'running' else tk.DISABLED
         )
-        start_btn.place(x=5, y=45)
+        start_btn.place(x=8, y=3)
         card.start_btn = start_btn
 
         tk.Button(
-            card, text="🗑", command=lambda t=task: self.remove_outline_task(t),
-            width=2, font=("Arial", 7)
-        ).place(x=35, y=45)
+            btn_frame, text="🗑 删除", command=lambda t=task: self.remove_outline_task(t),
+            width=6, font=("Arial", 8), bg="#f44336", fg="white"
+        ).place(x=80, y=3)
 
         self.outline_task_frames[task.task_id] = card
 
@@ -970,65 +983,78 @@ class ShortNovelTools:
         """创建写作任务卡片 - 紧凑网格样式"""
         card = tk.Frame(
             self.writing_queue_frame,
-            bg="#f0f8ff",
-            relief=tk.RIDGE,
-            borderwidth=1,
-            width=240,
-            height=75
+            bg="#ffffff",
+            relief=tk.RAISED,
+            borderwidth=2,
+            width=260,
+            height=90
         )
-        card.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
+        card.grid(row=row, column=col, padx=4, pady=4, sticky="nsew")
         card.grid_propagate(False)
+
+        # 顶部色条（状态指示）- 写作用蓝紫色系
+        status_colors = {
+            'pending': '#9E9E9E',
+            'running': '#673AB7',
+            'completed': '#4CAF50',
+            'failed': '#f44336'
+        }
+        top_bar = tk.Frame(card, bg=status_colors.get(task.status, '#9E9E9E'), height=4)
+        top_bar.place(x=0, y=0, width=260)
 
         # 文件名（截断显示）
         filename = os.path.basename(task.source_file)
-        display_name = filename[:18] + "..." if len(filename) > 18 else filename
+        display_name = filename[:22] + "..." if len(filename) > 22 else filename
         tk.Label(
             card, text=display_name,
-            font=("Arial", 8, "bold"), bg="#f0f8ff", anchor="w"
-        ).place(x=5, y=3, width=170)
+            font=("Arial", 9, "bold"), bg="#ffffff", anchor="w"
+        ).place(x=8, y=8, width=200)
 
         # 状态图标
         status_info = {
-            'pending': ('⏳', 'gray'),
-            'running': ('🔄', 'blue'),
-            'completed': ('✅', 'green'),
-            'failed': ('❌', 'red')
+            'pending': ('⏳', '#9E9E9E'),
+            'running': ('🔄', '#673AB7'),
+            'completed': ('✅', '#4CAF50'),
+            'failed': ('❌', '#f44336')
         }
         icon, color = status_info.get(task.status, ('?', 'black'))
-        status_label = tk.Label(card, text=icon, fg=color, bg="#f0f8ff", font=("Arial", 9))
-        status_label.place(x=180, y=3)
+        status_label = tk.Label(card, text=icon, fg=color, bg="#ffffff", font=("Arial", 12))
+        status_label.place(x=220, y=6)
         card.status_label = status_label
 
         # 第二行：启动时间或字符数
-        info_text = ""
-        info_color = "gray"
+        info_text = "等待开始"
+        info_color = "#757575"
         if task.status == 'running' and task.started_at:
-            info_text = f"⏱ {task.started_at.strftime('%H:%M:%S')}"
-            info_color = "blue"
+            info_text = f"⏱ 开始于 {task.started_at.strftime('%H:%M:%S')}"
+            info_color = "#673AB7"
         elif task.status == 'completed':
             info_text = f"📊 {task.char_count:,} 字符"
-            info_color = "purple"
+            info_color = "#7B1FA2"
         elif task.status == 'failed':
-            info_text = f"⚠️ 失败"
-            info_color = "red"
+            info_text = f"⚠️ 生成失败"
+            info_color = "#f44336"
 
-        info_label = tk.Label(card, text=info_text, fg=info_color, bg="#f0f8ff", font=("Arial", 8))
-        info_label.place(x=5, y=22)
+        info_label = tk.Label(card, text=info_text, fg=info_color, bg="#ffffff", font=("Arial", 9))
+        info_label.place(x=8, y=32)
         card.info_label = info_label
 
-        # 第三行：操作按钮
+        # 底部按钮区域（带背景）
+        btn_frame = tk.Frame(card, bg="#f5f5f5", height=30)
+        btn_frame.place(x=0, y=60, width=260, height=30)
+
         start_btn = tk.Button(
-            card, text="▶", command=lambda t=task: self.start_writing_task(t),
-            width=2, font=("Arial", 7),
+            btn_frame, text="▶ 开始", command=lambda t=task: self.start_writing_task(t),
+            width=6, font=("Arial", 8), bg="#673AB7", fg="white",
             state=tk.NORMAL if task.status != 'running' else tk.DISABLED
         )
-        start_btn.place(x=5, y=45)
+        start_btn.place(x=8, y=3)
         card.start_btn = start_btn
 
         tk.Button(
-            card, text="🗑", command=lambda t=task: self.remove_writing_task(t),
-            width=2, font=("Arial", 7)
-        ).place(x=35, y=45)
+            btn_frame, text="🗑 删除", command=lambda t=task: self.remove_writing_task(t),
+            width=6, font=("Arial", 8), bg="#f44336", fg="white"
+        ).place(x=80, y=3)
 
         self.writing_task_frames[task.task_id] = card
 
