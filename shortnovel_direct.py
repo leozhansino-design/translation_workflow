@@ -585,28 +585,42 @@ class ShortNovelDirect:
 
     def _execute_task(self, task):
         """执行生成任务"""
+        import traceback
+
         try:
+            print(f"[DEBUG] 步骤1: 开始执行任务 {task.task_id[:8]}...")
+            print(f"[DEBUG] task.config keys: {list(task.config.keys())}")
+
             # 读取输入文件
+            print(f"[DEBUG] 步骤2: 读取输入文件 {task.source_file}")
             with open(task.source_file, 'r', encoding='utf-8') as f:
                 content = f.read()
+            print(f"[DEBUG] 步骤2完成: 文件内容长度 {len(content)}")
 
             # 获取人名
+            print(f"[DEBUG] 步骤3: 获取人名 male={task.config['male_count']}, female={task.config['female_count']}")
             selected_names = self.resource_mgr.select_names(
                 task.config['male_count'],
                 task.config['female_count']
             )
+            print(f"[DEBUG] 步骤3完成: 获取到 {len(selected_names.get('male', []))} 男名, {len(selected_names.get('female', []))} 女名")
+
             names_formatted = self.resource_mgr.format_names_for_prompt(selected_names)
+            print(f"[DEBUG] 步骤3.5: 人名格式化完成")
 
             # 构建Prompt
+            print(f"[DEBUG] 步骤4: 构建Prompt")
             prompt_template = self.prompt_mgr.get_prompt()
             system_prompt = prompt_template.format(
                 male_names=names_formatted['male_names'],
                 female_names=names_formatted['female_names']
             )
+            print(f"[DEBUG] 步骤4完成: Prompt长度 {len(system_prompt)}")
 
             # 添加字符数要求
             min_chars = task.config['min_chars']
             max_chars = task.config['max_chars']
+            print(f"[DEBUG] 步骤5: 字符要求 {min_chars}-{max_chars}")
 
             full_prompt = f"""{system_prompt}
 
@@ -616,10 +630,12 @@ class ShortNovelDirect:
 {content}"""
 
             # 调用API
+            print(f"[DEBUG] 步骤6: 调用API, model={task.config['model']}, base_url={task.config['base_url']}")
             client = OpenAI(
                 api_key=task.config['api_key'],
                 base_url=self._normalize_base_url(task.config['base_url'])
             )
+            print(f"[DEBUG] 步骤6.5: OpenAI client创建成功")
 
             response = client.chat.completions.create(
                 model=task.config['model'],
@@ -627,30 +643,37 @@ class ShortNovelDirect:
                 max_tokens=task.config['max_tokens'],
                 temperature=0.85
             )
+            print(f"[DEBUG] 步骤7: API响应成功")
 
             result = response.choices[0].message.content
             task.char_count = len(result)
+            print(f"[DEBUG] 步骤7完成: 响应长度 {task.char_count}")
 
             # 检测END标记
             has_end = '---END---' in result
             task.has_end_marker = has_end
+            print(f"[DEBUG] 步骤8: END标记检测 = {has_end}")
 
             # 解析结果
+            print(f"[DEBUG] 步骤9: 解析结果")
             parsed = self._parse_result(result)
             task.title = parsed.get('title', '')
             task.genre = parsed.get('genre', '')
             task.age = parsed.get('age', '')
             story = parsed.get('story', '')
+            print(f"[DEBUG] 步骤9完成: title={task.title[:30] if task.title else 'N/A'}, genre={task.genre}, story_len={len(story)}")
 
             # 判断是否完成
             is_complete = has_end and len(story) >= min_chars
             task.story_complete = is_complete
+            print(f"[DEBUG] 步骤10: is_complete={is_complete}")
 
             # 确定输出文件夹名
             if task.title:
                 folder_name = self._sanitize_folder_name(task.title)
             else:
                 folder_name = os.path.splitext(os.path.basename(task.source_file))[0]
+            print(f"[DEBUG] 步骤11: folder_name={folder_name}")
 
             # 创建输出文件夹
             output_base = task.config.get('output_path', '')
@@ -658,10 +681,12 @@ class ShortNovelDirect:
                 output_folder = os.path.join(output_base, folder_name)
             else:
                 output_folder = os.path.join(os.path.dirname(task.source_file), folder_name + '_output')
+            print(f"[DEBUG] 步骤12: output_folder={output_folder}")
 
             os.makedirs(output_folder, exist_ok=True)
 
             # 保存文件
+            print(f"[DEBUG] 步骤13: 保存文件")
             with open(os.path.join(output_folder, 'title.txt'), 'w', encoding='utf-8') as f:
                 f.write(task.title)
             with open(os.path.join(output_folder, 'genre.txt'), 'w', encoding='utf-8') as f:
@@ -672,6 +697,7 @@ class ShortNovelDirect:
                 f.write(story)
             with open(os.path.join(output_folder, 'full_response.txt'), 'w', encoding='utf-8') as f:
                 f.write(result)
+            print(f"[DEBUG] 步骤13完成: 文件保存成功")
 
             task.output_folder = output_folder
 
@@ -686,11 +712,18 @@ class ShortNovelDirect:
                     task.warning_msg = f"字符数不足({len(story)}<{min_chars})"
 
             task.completed_at = datetime.now()
+            print(f"[DEBUG] 任务完成: status={task.status}")
 
         except Exception as e:
             task.status = 'failed'
             task.error_msg = str(e)
-            print(f"任务失败: {e}")
+            print(f"="*50)
+            print(f"[ERROR] 任务失败!")
+            print(f"[ERROR] 错误类型: {type(e).__name__}")
+            print(f"[ERROR] 错误信息: {e}")
+            print(f"[ERROR] 完整堆栈:")
+            traceback.print_exc()
+            print(f"="*50)
 
         self.window.after(0, self.refresh_display)
         self.window.after(0, self.update_progress)
