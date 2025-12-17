@@ -54,6 +54,24 @@ def safe_format_prompt(template, **kwargs):
     return result
 
 
+def open_folder_in_explorer(path):
+    """在系统文件管理器中打开文件夹"""
+    import subprocess
+    if not os.path.exists(path):
+        return False
+    try:
+        if sys.platform == 'win32':
+            os.startfile(path)
+        elif sys.platform == 'darwin':
+            subprocess.run(['open', path])
+        else:
+            subprocess.run(['xdg-open', path])
+        return True
+    except Exception as e:
+        print(f"打开文件夹失败: {e}")
+        return False
+
+
 def get_resource_path(relative_path):
     """获取资源文件的绝对路径（支持PyInstaller打包）"""
     if getattr(sys, 'frozen', False):
@@ -1769,14 +1787,13 @@ class ShortNovelDirect:
         self.max_chars = tk.IntVar(value=50000)
         tk.Entry(row2, textvariable=self.max_chars, width=8).pack(side=tk.LEFT, padx=2)
 
-        # 第三行：输出路径
+        # 第三行：输出路径（固定）
         row3 = tk.Frame(control_frame)
         row3.pack(fill=tk.X, pady=2)
 
         tk.Label(row3, text="输出路径:").pack(side=tk.LEFT)
-        self.output_var = tk.StringVar(value="D:/shortnovels_translation_readytoupload")
-        tk.Entry(row3, textvariable=self.output_var, width=50).pack(side=tk.LEFT, padx=5)
-        tk.Button(row3, text="浏览", command=self.select_output_folder, width=6).pack(side=tk.LEFT)
+        self.fixed_output_path = "D:/shortnovels_translation_readytoupload"
+        tk.Label(row3, text=self.fixed_output_path, fg="#2196F3", font=("Arial", 10)).pack(side=tk.LEFT, padx=5)
 
         tk.Button(row3, text="管理Prompt", command=self.open_prompt_manager, width=12).pack(side=tk.LEFT, padx=20)
 
@@ -1874,7 +1891,7 @@ class ShortNovelDirect:
                     'min_chars': self.min_chars.get(),
                     'max_chars': self.max_chars.get(),
                     'max_tokens': 65000,
-                    'output_path': self.output_var.get()
+                    'output_path': self.fixed_output_path
                 }
             )
             self.tasks.append(task)
@@ -1969,17 +1986,33 @@ class ShortNovelDirect:
         btn_frame = tk.Frame(card, bg="#f5f5f5", height=30)
         btn_frame.place(x=0, y=60, width=260, height=30)
 
-        tk.Button(btn_frame, text="▶ 开始", command=lambda t=task: self.start_task(t),
-                 width=6, font=("Arial", 8), bg="#4CAF50", fg="white",
-                 state=tk.NORMAL if task.status != 'running' else tk.DISABLED).place(x=8, y=3)
+        tk.Button(btn_frame, text="▶开始", command=lambda t=task: self.start_task(t),
+                 width=5, font=("Arial", 8), bg="#4CAF50", fg="white",
+                 state=tk.NORMAL if task.status != 'running' else tk.DISABLED).place(x=4, y=3)
 
-        tk.Button(btn_frame, text="🗑 删除", command=lambda t=task: self.remove_task(t),
-                 width=6, font=("Arial", 8), bg="#f44336", fg="white").place(x=80, y=3)
+        tk.Button(btn_frame, text="🗑删除", command=lambda t=task: self.remove_task(t),
+                 width=5, font=("Arial", 8), bg="#f44336", fg="white").place(x=60, y=3)
 
-        tk.Button(btn_frame, text="📋 预览", command=lambda t=task: self.preview_prompt(t),
-                 width=6, font=("Arial", 8), bg="#2196F3", fg="white").place(x=152, y=3)
+        tk.Button(btn_frame, text="📋预览", command=lambda t=task: self.preview_prompt(t),
+                 width=5, font=("Arial", 8), bg="#2196F3", fg="white").place(x=116, y=3)
+
+        # 打开文件夹按钮 - 只在任务完成后可用
+        can_open = task.status in ('completed', 'incomplete') and hasattr(task, 'output_folder') and task.output_folder
+        tk.Button(btn_frame, text="📂打开", command=lambda t=task: self.open_task_folder(t),
+                 width=5, font=("Arial", 8), bg="#9C27B0", fg="white",
+                 state=tk.NORMAL if can_open else tk.DISABLED).place(x=172, y=3)
 
         self.task_frames[task.task_id] = card
+
+    def open_task_folder(self, task):
+        """打开任务输出文件夹"""
+        if hasattr(task, 'output_folder') and task.output_folder:
+            if os.path.exists(task.output_folder):
+                open_folder_in_explorer(task.output_folder)
+            else:
+                messagebox.showwarning("警告", f"文件夹不存在:\n{task.output_folder}")
+        else:
+            messagebox.showinfo("提示", "任务尚未完成，无输出文件夹")
 
     def start_task(self, task):
         """开始任务"""
