@@ -1656,6 +1656,11 @@ class ShortNovelDirect:
         self.tasks_per_page = 50
         self.cards_per_row = 5
 
+        # 批次管理
+        self.current_batch_folder = None  # 当前批次输出文件夹
+        self.current_source_folder = None  # 原文件夹路径
+        self.batch_task_count = 0  # 批次任务数量
+
         # API预设
         self.api_presets = {
             "BLTCY API (api.bltcy.ai)": {
@@ -2121,12 +2126,15 @@ class ShortNovelDirect:
                 folder_name = os.path.splitext(os.path.basename(task.source_file))[0]
             print(f"[DEBUG] 步骤11: folder_name={folder_name}")
 
-            # 创建输出文件夹
-            output_base = task.config.get('output_path', '')
-            if output_base and os.path.isdir(output_base):
-                output_folder = os.path.join(output_base, folder_name)
+            # 创建输出文件夹 - 优先使用批次文件夹
+            if hasattr(task, 'batch_folder') and task.batch_folder and os.path.isdir(task.batch_folder):
+                output_folder = os.path.join(task.batch_folder, folder_name)
             else:
-                output_folder = os.path.join(os.path.dirname(task.source_file), folder_name + '_output')
+                output_base = task.config.get('output_path', '')
+                if output_base and os.path.isdir(output_base):
+                    output_folder = os.path.join(output_base, folder_name)
+                else:
+                    output_folder = os.path.join(os.path.dirname(task.source_file), folder_name + '_output')
             print(f"[DEBUG] 步骤12: output_folder={output_folder}")
 
             os.makedirs(output_folder, exist_ok=True)
@@ -2177,6 +2185,55 @@ class ShortNovelDirect:
 
         self.window.after(0, self.refresh_display)
         self.window.after(0, self.update_progress)
+        # 检查是否所有任务都完成
+        self.window.after(100, self._check_batch_completion)
+
+    def _check_batch_completion(self):
+        """检查批次是否全部完成，如果完成则重命名文件夹加 _done"""
+        # 检查是否有批次文件夹
+        if not self.current_batch_folder:
+            return
+
+        # 检查所有任务状态
+        running_tasks = [t for t in self.tasks if t.status == 'running']
+        if running_tasks:
+            return  # 还有任务在运行
+
+        # 所有任务都完成了（completed, incomplete, 或 failed）
+        completed_count = len([t for t in self.tasks if t.status in ('completed', 'incomplete', 'failed')])
+        if completed_count < self.batch_task_count:
+            return  # 还没有全部完成
+
+        print(f"[DEBUG] 批次全部完成! 开始重命名文件夹...")
+
+        # 重命名输出批次文件夹，加 _done
+        if self.current_batch_folder and os.path.exists(self.current_batch_folder):
+            if not self.current_batch_folder.endswith('_done'):
+                new_batch_folder = self.current_batch_folder + '_done'
+                try:
+                    os.rename(self.current_batch_folder, new_batch_folder)
+                    print(f"[DEBUG] 输出文件夹重命名: {self.current_batch_folder} -> {new_batch_folder}")
+                    # 更新所有任务的 output_folder 路径
+                    for task in self.tasks:
+                        if hasattr(task, 'output_folder') and task.output_folder:
+                            task.output_folder = task.output_folder.replace(self.current_batch_folder, new_batch_folder)
+                    self.current_batch_folder = new_batch_folder
+                except Exception as e:
+                    print(f"[ERROR] 重命名输出文件夹失败: {e}")
+
+        # 重命名原文件夹，加 _done
+        if self.current_source_folder and os.path.exists(self.current_source_folder):
+            if not self.current_source_folder.endswith('_done'):
+                new_source_folder = self.current_source_folder + '_done'
+                try:
+                    os.rename(self.current_source_folder, new_source_folder)
+                    print(f"[DEBUG] 原文件夹重命名: {self.current_source_folder} -> {new_source_folder}")
+                    self.current_source_folder = new_source_folder
+                except Exception as e:
+                    print(f"[ERROR] 重命名原文件夹失败: {e}")
+
+        # 刷新显示
+        self.refresh_display()
 
     def _parse_result(self, result):
         """解析API返回结果"""
@@ -2277,9 +2334,25 @@ class ShortNovelDirect:
             messagebox.showinfo("提示", "没有等待中的任务")
             return
 
+        # 创建批次文件夹: 202512171540-100shortnovels
+        batch_time = datetime.now().strftime("%Y%m%d%H%M")
+        batch_count = len(pending_tasks)
+        batch_folder_name = f"{batch_time}-{batch_count}shortnovels"
+        self.current_batch_folder = os.path.join(self.fixed_output_path, batch_folder_name)
+        os.makedirs(self.current_batch_folder, exist_ok=True)
+        self.batch_task_count = batch_count
+        print(f"[DEBUG] 创建批次文件夹: {self.current_batch_folder}")
+
+        # 记录原文件夹（取第一个任务的源文件夹）
+        if pending_tasks:
+            self.current_source_folder = os.path.dirname(pending_tasks[0].source_file)
+            print(f"[DEBUG] 原文件夹: {self.current_source_folder}")
+
         for task in pending_tasks:
             task.status = 'running'
             task.started_at = datetime.now()
+            # 将批次文件夹路径传给任务
+            task.batch_folder = self.current_batch_folder
             thread = threading.Thread(target=self._execute_task, args=(task,), daemon=True)
             thread.start()
 
